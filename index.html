@@ -347,9 +347,11 @@ body[data-view="room"] #viewRoom, body[data-view="show"] #viewRoom { display: fl
 .showcard .sc-btns .dark { flex: 1; }
 .showcard .sc-eye { position: absolute; top: 8px; right: 8px; z-index: 2; width: 32px; height: 32px; border-radius: 50%; border: 0; background: rgba(17,17,17,.72); color: #fff; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .showcard .sc-eye svg { width: 17px; height: 17px; }
-.showcard.mini { width: auto; max-width: calc(100% - 24px); }
+.showcard.mini { width: 420px; max-width: calc(100% - 24px); }   /* larghezza fissa: i pulsanti non si spostano al cambio del nome */
 .showcard .sc-mini { display: flex; align-items: center; gap: 6px; padding: 6px; }
-.showcard .sc-mini .sc-name { padding: 0 6px; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.showcard .sc-mini .sc-x { margin-left: auto; flex: none; }
+.showcard .sc-mini .btn { flex: none; }
+.showcard .sc-mini .sc-name { flex: 1 1 auto; padding: 0 6px; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .showcard .sc-mini .sc-name b { font-family: var(--font-display); font-weight: 800; }
 .showcard .sc-mini .sc-eye { position: static; flex: none; }
 

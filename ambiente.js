@@ -444,11 +444,25 @@ function applyCam(animate) {
     sc.style.transform = `translate3d(${W / 2}px,${H * 0.48}px,0) scale(${fs.toFixed(4)}) rotateX(${-cam.tilt}deg) rotateY(${cam.yaw}deg) translate3d(${-f.x}px,${-f.y}px,${-f.z}px)`;
   } else
   sc.style.transform = `translate3d(${W / 2}px,${H * (0.5 + 0.12 * Math.cos(t))}px,0) scale(${s.toFixed(4)}) rotateX(${-cam.tilt}deg) rotateY(${cam.yaw}deg) translate3d(${-w / 2}px,${h * 0.35}px,${-d / 2}px)`;
+  hideBlockers();
   // pareti laterali visibili solo dal lato giusto (non devono coprire la stanza)
   const sy = Math.sin(cam.yaw * Math.PI / 180);
   sc.querySelectorAll('[data-wall="l"]').forEach(e => e.style.display = sy < 0.05 ? '' : 'none');
   sc.querySelectorAll('[data-wall="r"]').forEach(e => e.style.display = sy > -0.05 ? '' : 'none');
   sc.querySelectorAll('[data-wall="b"]').forEach(e => e.style.display = Math.cos(cam.yaw * Math.PI / 180) > -0.05 ? '' : 'none');
+}
+/* campione aperto: si nascondono gli espositori che stanno tra la telecamera e il campione (lo coprirebbero) */
+function hideBlockers() {
+  const items = document.querySelectorAll('#roomScene .ritem');
+  if (!cam.focus || !showSel) { items.forEach(e => { e.style.visibility = ''; }); return; }
+  const a = cam.yaw * Math.PI / 180, dx = Math.sin(a), dz = Math.cos(a), f = cam.focus;
+  items.forEach(e => {
+    const it = room.items.find(i => i.id === e.dataset.id), m = it && roomModels[it.id];
+    if (!it || !m || it.id === showSel.item) { e.style.visibility = ''; return; }
+    const rx = it.x - f.x, rz = it.z - f.z, along = rx * dx + rz * dz, perp = Math.abs(rx * dz - rz * dx);
+    const r = Math.hypot(m.L, m.P) / 2;
+    e.style.visibility = along > -r && perp < r + f.w * 0.75 + 15 ? 'hidden' : '';
+  });
 }
 let orbitMoved = false;
 function bindOrbit(el) {
@@ -695,9 +709,10 @@ function renderShowCard() {
     : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'}</button>`;
   box.classList.toggle('mini', !!ui.showMini);
   if (ui.showMini) {   // scheda ridotta: solo serie + colore e le frecce, per non coprire la vista
-    box.innerHTML = `<div class="sc-mini"><button class="btn" onclick="stepSample(-1)">‹</button>
+    // frecce e occhio sempre fermi a sinistra; il nome dopo (la sua lunghezza non sposta i pulsanti); la X in fondo
+    box.innerHTML = `<div class="sc-mini"><button class="btn" onclick="stepSample(-1)" title="Campione precedente">‹</button><button class="btn" onclick="stepSample(1)" title="Campione successivo">›</button>${eye}
       <div class="sc-name">${s ? `<b>${esc(s.s)}</b> ${esc(s.c)}` : 'Posto vuoto'}</div>
-      <button class="btn" onclick="stepSample(1)">›</button>${eye}<button class="btn" onclick="closeSample()" title="Chiudi">✕</button></div>`;
+      <button class="btn sc-x" onclick="closeSample()" title="Chiudi">✕</button></div>`;
     return;
   }
   box.innerHTML = `${eye}<div class="sc-img" style="${s ? swatchStyle(s, true) : ''}"></div>
