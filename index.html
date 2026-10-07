@@ -969,7 +969,7 @@ function renderSwing(d, c, sc, W, H, st) {
       const table = s.pose === 'table';
       const z = Math.min((H * (table ? 0.62 : 0.70)) / h, (W * (table ? 0.6 : 0.72)) / w); camZ = z;
       const py = table ? -hingeY : -(yb + h / 2);
-      const rx = table ? -89.9 : 0, ry = back ? 180 : 0;   // inquadratura dritta, di fronte
+      const rx = table ? -89.9 : 0, ry = back ? -180 : 0;   // inquadratura dritta, di fronte; -180: cambiando lato la telecamera gira passando davanti (dal lato del carrello estratto), non dietro l'espositore
       return `translate3d(${W / 2}px,${H * 0.45}px,0) scale(${z.toFixed(3)}) rotateX(${rx}deg) rotateY(${ry}deg) translate3d(${-hx}px,${-py}px,${-hz}px)`;
     }
     const cx = s.pose === 'in' ? 0 : travel / 2;
