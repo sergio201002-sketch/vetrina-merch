@@ -13,7 +13,7 @@ function parseDims(d) {
 }
 const T = (x, y, z, tf) => `transform:translate3d(${x}px,${y}px,${z}px)${tf ? ' ' + tf : ''}`;
 /* faccia di una piastrella (senza scritte); data-slot = posto, per aprirla in sala mostra */
-let ROOM_RES = LOWMEM ? 3 : 6;   // in stanza 1 px = 1 cm: foto disegnate 6 volte più grandi, nitide anche da vicino
+let ROOM_RES = LOWMEM ? 1.5 : 2;   // in stanza 1 px = 1 cm: foto un po' ingrandite; il campione aperto si ridisegna nitido (sharpFace)
 function rface(d, c, i, fw, fh, tiled, back) {
   const s = c && SAMPLE[c.slots[i]];
   const tf = back ? 'transform:rotateY(180deg);' : '';
@@ -222,7 +222,8 @@ function roomModel(it) {
   const d = DISP[it.disp]; if (!d) return { html: '', L: 50, P: 50, H: 50 };
   const c = comps[it.comp] || { slots: Array(d.variants ? defVariant(d) : d.slots).fill(null) };
   const op = roomMode === 'show' && showSel && showSel.item === it.id ? showSel.slot : -1;
-  const m = (MODELS[d.mode] || MODELS.grid)(d, c, op);
+  LITE3D = true;                                   // modello leggero per la stanza
+  let m; try { m = (MODELS[d.mode] || MODELS.grid)(d, c, op); } finally { LITE3D = false; }
   if (!m.H) m.H = parseDims(d).H;
   if (d.sided && sideOf(it) === 'SX') m.html = `<div class="bx" style="transform:scaleX(-1);transform-style:preserve-3d">${m.html}</div>`;
   if (op >= 0 && !m.focus) m.focus = { x: 0, y: -m.H / 2, z: m.P / 2, w: Math.min(m.L, 120), h: m.H, yaw: 0, tilt: 8 };

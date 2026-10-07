@@ -841,6 +841,7 @@ function tileThickCm(d, c, i) {
    back = stile CSS del retro (di serie grigio ceramica) */
 function thickHTML(w, h, T, back) {
   if (!T) return '';
+  if (LITE3D) return `<div class="bx" style="width:${w}px;height:${h}px;${back || 'background:#cfc9be'};transform:translate3d(${w}px,0,${-T}px) rotateY(180deg)"></div>`;   // solo il retro
   const e = 'background:linear-gradient(90deg,#ddd8ce,#c8c2b7);';
   return `<div class="bx" style="width:${T}px;height:${h}px;${e}transform:translate3d(${w}px,0,0) rotateY(90deg)"></div>` +
     `<div class="bx" style="width:${T}px;height:${h}px;${e}transform:translate3d(0,0,0) rotateY(90deg)"></div>` +
@@ -908,10 +909,13 @@ function renderStage() {
 
 /* Girevoli: pila di portapannelli verticali. Quello scelto scorre fuori a destra (lato A)
    e poi si ribalta in orizzontale come un tavolo mostrando il lato B. */
+/* Sala mostra: modelli "leggeri" (ogni faccia 3D costa a ogni fotogramma quando giri la vista):
+   niente retro dei parallelepipedi (dalla sala non si vede mai) e niente bordi sottili delle piastrelle */
+let LITE3D = false;
 function box3d(x, yTop, z, w, h, d, col) {
   // facce di un parallelepipedo: fronte, retro, top, lato sx, lato dx (origine 0 0)
   return `<div class="bx" style="width:${w}px;height:${h}px;background:${col.front};transform:translate3d(${x}px,${yTop}px,${z}px)"></div>
-    <div class="bx" style="width:${w}px;height:${h}px;background:${col.side};transform:translate3d(${x}px,${yTop}px,${z - d}px)"></div>
+    ${LITE3D ? '' : `<div class="bx" style="width:${w}px;height:${h}px;background:${col.side};transform:translate3d(${x}px,${yTop}px,${z - d}px)"></div>`}
     <div class="bx" style="width:${w}px;height:${d}px;background:${col.top};transform:translate3d(${x}px,${yTop}px,${z}px) rotateX(-90deg)"></div>
     <div class="bx" style="width:${d}px;height:${h}px;background:${col.side};transform:translate3d(${x}px,${yTop}px,${z}px) rotateY(90deg)"></div>
     <div class="bx" style="width:${d}px;height:${h}px;background:${col.side};transform:translate3d(${x + w}px,${yTop}px,${z}px) rotateY(90deg)"></div>`;
