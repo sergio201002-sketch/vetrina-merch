@@ -10,6 +10,11 @@
 document.head.insertAdjacentHTML('beforeend', `<style>
 .cs-modal .mbox { width: min(1100px, 100%); height: 92vh; max-height: 92vh; position: relative; }
 .cs-hint { padding: 8px 18px; font-size: 12px; color: var(--mid); border-bottom: 1px solid var(--border); }
+.cs-tabs { display: flex; gap: 6px; padding: 8px 14px; border-bottom: 1px solid var(--border); overflow-x: auto; flex: none; }
+.cs-tabs button { flex: none; border: 1px solid var(--border); background: var(--white); border-radius: 999px; padding: 6px 12px; font-size: 12.5px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.cs-tabs button .k { color: var(--mid); font-weight: 600; margin-left: 4px; }
+.cs-tabs button.on { background: var(--dark); color: #fff; border-color: var(--dark); }
+.cs-tabs button.on .k { color: #ccc; }
 .cs-body { overflow-y: auto; padding: 10px 14px 80px; flex: 1; -webkit-overflow-scrolling: touch; }
 .cs-sec { margin: 8px 0 18px; }
 .cs-sec h4 { margin: 0 0 2px; font-size: 14px; }
@@ -38,7 +43,10 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 @media (max-height: 560px) { .cs-pick { height: 88%; } }
 </style>`);
 
-let csDrag = null, csPickAt = null, csQ = '';
+let csDrag = null, csPickAt = null, csQ = '', csGroup = '';
+/* gruppi di espositori tra cui i campioni si possono spostare: stesso formato accettato (es. tutti i 60×120), tutti i tozzetti */
+const csKey = d => d.accept.tozzetto ? 'toz' : d.accept.sizes ? 'z:' + d.accept.sizes.map(z => sorted2(parseSize(z)).join('x')).sort().join('+') : d.accept.fit ? 'fit:' + sorted2(d.accept.fit).join('x') : 'd:' + d.id;
+const csLabel = d => d.accept.tozzetto ? 'Tozzetti' : d.accept.sizes ? d.accept.sizes.map(fmt).join(' / ') : d.accept.fit ? 'Pannelli fino a ' + fmt(d.accept.fit.join('x')) : d.name;
 const csItems = () => {   // un'area per composizione (due girevoli con la stessa composizione = una sola area)
   const seen = new Map();
   room.items.slice().sort((a, b) => a.x - b.x || elevY(a) - elevY(b)).forEach(it => {
@@ -56,6 +64,7 @@ function openSampleBoard() {
     document.body.insertAdjacentHTML('beforeend', `<div class="modal cs-modal" id="csModal"><div class="mbox">
       <div class="mhead"><h3>🧩 Sistema i campioni</h3><button class="btn dark" onclick="closeSampleBoard()">Fatto</button></div>
       <div class="cs-hint">Trascina un campione su un altro posto per spostarlo o scambiarlo, anche tra espositori diversi (sul telefono: tieni premuto un attimo e poi trascina). Tocca un posto per inserire, cambiare o togliere il campione.</div>
+      <div class="cs-tabs" id="csTabs"></div>
       <div class="cs-body" id="csBody"></div>
       <div class="cs-pick" id="csPick" hidden></div></div></div>`);
     m = document.getElementById('csModal');
@@ -78,7 +87,14 @@ function slotTile(cid, i, d, c) {
 }
 function renderSampleBoard() {
   const body = document.getElementById('csBody'); if (!body) return;
-  const top = body.scrollTop, areas = csItems();
+  const top = body.scrollTop, all = csItems();
+  // schede: Tutti + una per gruppo di formato (solo quelli presenti in sala)
+  const groups = new Map();
+  all.forEach(a => { const k = csKey(a.d); if (!groups.has(k)) groups.set(k, { label: csLabel(a.d), n: 0, names: new Set() }); const g = groups.get(k); g.n++; g.names.add(a.d.name); });
+  if (csGroup && !groups.has(csGroup)) csGroup = '';
+  document.getElementById('csTabs').innerHTML = `<button class="${csGroup ? '' : 'on'}" onclick="csGroup=''; renderSampleBoard()">Tutti<span class="k">${all.length}</span></button>` +
+    [...groups].map(([k, g]) => `<button class="${csGroup === k ? 'on' : ''}" title="${esc([...g.names].join(', '))}" onclick="csGroup='${k}'; document.getElementById('csBody').scrollTop=0; renderSampleBoard()">${esc(g.label)}<span class="k">${g.n}</span></button>`).join('');
+  const areas = csGroup ? all.filter(a => csKey(a.d) === csGroup) : all;
   body.innerHTML = areas.length ? areas.map(({ c, d, items }) => {
     const n = c.slots.length, two = d.mode === 'swing' && d.sides === 2, L = Math.ceil(n / 2), [a, b] = d.sideNames || ['A', 'B'];
     const grid = (from, to) => `<div class="cs-grid">${Array.from({ length: to - from }, (_, k) => slotTile(c.id, from + k, d, c)).join('')}</div>`;
