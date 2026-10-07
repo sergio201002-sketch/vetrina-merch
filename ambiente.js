@@ -807,7 +807,8 @@ document.addEventListener('keydown', e => {
   }
 });
 document.addEventListener('keydown', e => {
-  if (document.body.dataset.view !== 'show' || !showSel) return;
+  if (document.body.dataset.view !== 'show' || !showSel || e.target.matches('input, select, textarea')) return;
+  const board = document.getElementById('csModal'); if (board && board.classList.contains('open')) return;   // si sta sistemando i campioni
   if (e.key === 'Escape') closeSample();
   if (e.key === 'ArrowRight') stepSample(1);
   if (e.key === 'ArrowLeft') stepSample(-1);

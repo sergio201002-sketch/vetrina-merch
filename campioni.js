@@ -42,8 +42,8 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .cs-pick { position: absolute; left: 0; right: 0; bottom: 0; height: 72%; background: var(--white); border-top: 1px solid var(--border); box-shadow: 0 -10px 30px rgba(0,0,0,.18);
   display: flex; flex-direction: column; border-radius: 14px 14px 0 0; }
 .cs-pick[hidden] { display: none; }
-.cs-pick .ph { flex: none; position: relative; z-index: 1; background: var(--white); border-radius: 14px 14px 0 0; display: flex; gap: 8px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-.cs-pick .ph .t { flex: 1; font-weight: 800; font-size: 14px; min-width: 160px; }
+.cs-pick .pkh { flex: none; position: relative; z-index: 1; background: var(--white); border-radius: 14px 14px 0 0; display: flex; gap: 8px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.cs-pick .pkh .t { flex: 1; font-weight: 800; font-size: 14px; min-width: 160px; }
 .cs-pick input { width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px; font: inherit; }
 .cs-pick .pl { overflow-y: auto; flex: 1 1 auto; min-height: 0; }
 @media (max-height: 560px) { .cs-pick { height: 88%; } }
@@ -199,7 +199,7 @@ function openSlotPicker(cid, i) {
   csPickAt = { cid, i }; csQ = '';
   const c = comps[cid], d = DISP[c.disp], s = SAMPLE[c.slots[i]], box = document.getElementById('csPick');
   box.hidden = false;
-  box.innerHTML = `<div class="ph"><div class="t">Posto ${esc(slotName(d, i, c.slots.length))} · ${esc(c.name)}</div>
+  box.innerHTML = `<div class="pkh"><div class="t">Posto ${esc(slotName(d, i, c.slots.length))} · ${esc(c.name)}</div>
       ${s ? `<button class="btn" onclick="setBoardSlot(null)">Togli</button>` : ''}
       <button class="btn" onclick="document.getElementById('csPick').hidden=true">Chiudi</button>
       <input id="csSearch" placeholder="Cerca serie, colore, codice… (${esc(acceptLabel(d, c).slice(0, 2).join(' · '))})" oninput="csQ=this.value; renderSlotPicker()"></div>
