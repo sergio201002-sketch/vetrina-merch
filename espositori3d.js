@@ -138,9 +138,10 @@ function drawerCabinet(d, c, op) {
    davanti nessun frontale: si vedono i bordi delle 18 lastre una sopra l'altra. Ogni cassetto è un vassoio
    grigio sottile con due piccole maniglie nere agli angoli; il cassetto scelto esce con la lastra sopra. */
 const TRAY = { front: 'linear-gradient(180deg,#a9a9ab,#8e8e90)', top: '#b9b9bb', side: '#7d7d80' };
-function cassettiera60(d, c, op) {
-  const { L, P, H } = parseDims(d), [fw, fh] = d.face, n = c.slots.length;
-  const t = 4.5, top = 4.5, plinth = 4, Wi = L - 2 * t, zf = P / 2 - 1.5, pitch = (H - plinth - top - 2) / n, pull = fh - 2;
+function cassettiera60(d, c, op, o) {
+  const { L, P, H } = parseDims(d), [fw, fh] = d.face, n = c.slots.length, flat = o && o.flat;
+  // il cassetto esce del tutto (la lastra intera fuori dal mobile), così alzandosi non tocca il cassetto di sopra
+  const t = 4.5, top = 4.5, plinth = 4, Wi = L - 2 * t, zf = P / 2 - 1.5, pitch = (H - plinth - top - 2) / n, pull = fh + 6;
   const yb = i => -plinth - 1 - (n - 1 - i) * pitch;                         // piano del vassoio i (0 = in alto)
   let h = bx3(-L / 2, -H, -P / 2 + 2, L, H, 2);                              // schienale
   h += bx3(-L / 2, -H, P / 2, t, H, P) + bx3(L / 2 - t, -H, P / 2, t, H, P); // fianchi
@@ -151,19 +152,24 @@ function cassettiera60(d, c, op) {
     h += box3d(-Wi / 2 + 0.5, y - 0.6, zf, Wi - 1, 0.6, fh + 4, TRAY);                                     // vassoio
     h += bx3(-Wi / 2 + 1, y - 2.2, zf + 2, 5, 1.6, 2.5) + bx3(Wi / 2 - 6, y - 2.2, zf + 2, 5, 1.6, 2.5);   // maniglie
     if (s) {
-      h += tileDiv(fw, fh, `transform:${tr(-fw / 2, yf, zf - 1 - fh, 'rotateX(90deg)')};transform-style:preserve-3d`, rface(d, c, i, fw, fh, true) + tileBody(d, c, i, fw, fh, true, 1), i);
+      // distesa, perno sul bordo davanti (transform-origin in basso): alzandosi gira su quel bordo
+      h += tileDiv(fw, fh, `transform:${tr(-fw / 2, yf - fh, zf - 1, 'rotateX(90deg)')};transform-origin:50% 100%;transform-style:preserve-3d`, rface(d, c, i, fw, fh, true) + tileBody(d, c, i, fw, fh, true, 1), i);
       h += `<div class="bx cedge" data-e="${i}" style="width:${fw}px;height:${T}px;${faceBg(s, fw, T * 2, false)}transform:translate3d(${-fw / 2}px,${yf}px,${zf - 0.95}px)"></div>`;   // bordo della lastra, del suo colore
     }
     h += `</div>`;
   }
   const m = { html: h, L, P, H };
   if (op >= 0 && op < n) {
-    // il cassetto esce, poi la lastra si alza in piedi sul bordo del vassoio (appena inclinata indietro):
-    // così si vede tutta la 60×120 di fronte e non solo il suo spessore
-    const y = yb(op), T = Math.max(1, tileThickCm(d, c, op)), yf = y - 0.6 - T, a = 10, ra = a * Math.PI / 180, zb = zf - 2;
-    const up = tr(-fw / 2, yf - fh * Math.cos(ra), zb - fh * Math.sin(ra), `rotateX(${a}deg)`);
-    m.after = [[`.drawer3d[data-dr="${op}"]`, `translate3d(0,0,${pull}px)`], [`.ttile[data-t="${op}"]`, up, 560], [`.cedge[data-e="${op}"]`, `translate3d(${-fw / 2}px,${yf}px,${zf - 0.95}px) scale3d(0,0,0)`, 560]];
-    m.focus = { x: 0, y: yf - fh / 2, z: zb + pull - 5, w: fw, h: fh, yaw: 0, tilt: 6 };
+    // il cassetto esce tutto, poi la lastra si alza in piedi girando sul bordo davanti (appena inclinata indietro):
+    // così si vede tutta la 60×120 di fronte. Vista "dall'alto": resta distesa nel cassetto
+    const y = yb(op), T = Math.max(1, tileThickCm(d, c, op)), yf = y - 0.6 - T, a = 10, ra = a * Math.PI / 180;
+    m.after = [[`.drawer3d[data-dr="${op}"]`, `translate3d(0,0,${pull}px)`]];
+    if (flat) m.focus = { x: 0, y: yf, z: zf - 1 - fh / 2 + pull, w: fw, h: fh, yaw: 0, tilt: 80 };
+    else {
+      m.after.push([`.ttile[data-t="${op}"]`, tr(-fw / 2, yf - fh, zf - 1, `rotateX(${a}deg)`), 560],
+                   [`.cedge[data-e="${op}"]`, `translate3d(${-fw / 2}px,${yf}px,${zf - 0.95}px) scale3d(0,0,0)`, 560]);
+      m.focus = { x: 0, y: yf - fh / 2 * Math.cos(ra), z: zf - 1 + pull - fh / 2 * Math.sin(ra), w: fw, h: fh, yaw: 0, tilt: 6 };
+    }
   }
   return m;
 }
@@ -241,7 +247,7 @@ function benchTray(d, c, op) {
 
 MODELS.book = (d, c, op) => (d.id === 'PMH' || d.id === 'PGM' ? bookStack : bookWings)(d, c, op);
 MODELS.wall = wallBoard;
-MODELS.drawers = (d, c, op) => (d.id === 'PMV' ? cassettiera60 : drawerCabinet)(d, c, op);
+MODELS.drawers = (d, c, op, o) => (d.id === 'PMV' ? cassettiera60 : drawerCabinet)(d, c, op, o);
 /* ── Carrellati 60×120 / 60×60 (OYQ) e 100×100 (PEX), come nella foto del catalogo: pannello nero alto dietro,
    piastrelle in piedi una accanto all'altra (di taglio verso chi guarda,
    la faccia verso sinistra). Ogni piastrella sta nel suo carrellino con una rotellina davanti: staccata da terra 1,5 cm.
@@ -281,13 +287,29 @@ MODELS.grid = benchTray;
    CONFIGURATORE: lo stesso modello della sala mostra, con telecamera trascinabile
    ════════════════════════════════════════════════════════════ */
 let gcam = { yaw: -30, tilt: 14, zoom: 1 }, gToken = 0;
+/* viste a pulsante (come nel girevole): [id, nome, yaw, tilt]; trascinando si gira liberamente */
+const GVIEWS = {
+  OYQ: [['A', 'Lato A', 62, 8], ['B', 'Lato B', -62, 8]],
+  PEX: [['A', 'Lato A', 62, 8], ['B', 'Lato B', -62, 8]],
+  PMV: [['front', 'Di fronte', -14, 16], ['top', "Dall'alto", 0, 58]],
+};
+function setGView(id) {
+  const v = (GVIEWS[gcam.mode] || []).find(x => x[0] === id); if (!v) return;
+  gcam.view = id; gcam.yaw = v[2]; gcam.tilt = v[3]; renderStage();
+}
 function renderModel3D(d, c, sc, W, H, st) {
-  const n = c.slots.length, op = Math.max(0, Math.min(n - 1, selSlot));
-  if (gcam.mode !== d.id) { gcam.mode = d.id; gcam.yaw = d.id === 'PMV' ? -14 : d.id === 'OYQ' || d.id === 'PEX' ? 45 : -30; gcam.tilt = d.id === 'OYQ' || d.id === 'PEX' ? 10 : d.id === 'PMV' ? 16 : { drawers: 34, grid: 30, rack: 17 }[d.mode] || 14; }   // inclinazione di partenza: dall'alto per i cassetti
-  const m = MODELS[d.mode](d, c, op);
+  const n = c.slots.length, op = Math.max(0, Math.min(n - 1, selSlot)), views = GVIEWS[d.id];
+  if (gcam.mode !== d.id) {
+    gcam.mode = d.id; gcam.view = views ? views[0][0] : null;
+    gcam.yaw = views ? views[0][2] : -30; gcam.tilt = views ? views[0][3] : { drawers: 34, grid: 30, rack: 17 }[d.mode] || 14;   // inclinazione di partenza: dall'alto per i cassetti
+  }
+  const m = MODELS[d.mode](d, c, op, { flat: gcam.view === 'top' });
   const k = gcam.zoom * Math.min((H * 0.62) / Math.max(30, m.H), (W * 0.56) / Math.max(40, m.fitW || m.L));
-  const fw = (m.L || 100) + 80, fd = (m.P || 60) + 80;
-  const camT = () => `translate3d(${W / 2}px,${H * 0.86}px,0) rotateX(${-gcam.tilt}deg) rotateY(${gcam.yaw}deg) scale3d(${k.toFixed(4)},${k.toFixed(4)},${k.toFixed(4)})`;   // anche la profondità in scala (con scale() i mobili sembravano schiacciati)
+  const fw = (m.L || 100) + 80, fd = (m.P || 60) + 80, f = views && ui.zoom && m.focus;   // zoom: dritto davanti alla piastrella aperta (di lato per i carrellati)
+  // anche la profondità in scala (con scale() i mobili sembravano schiacciati); con lo Zoom la telecamera va sul campione aperto
+  const camT = () => f
+    ? (kz => `translate3d(${W / 2}px,${H * 0.5}px,0) rotateX(${gcam.view === 'top' ? -70 : -4}deg) rotateY(${Math.abs(f.yaw) > 45 ? (gcam.yaw < 0 ? -88 : 88) : 0}deg) scale3d(${kz},${kz},${kz}) translate3d(${-f.x}px,${-f.y}px,${-f.z}px)`)(Math.min(H * 0.8 / f.h, W * 0.8 / f.w).toFixed(4))
+    : `translate3d(${W / 2}px,${H * 0.86}px,0) rotateX(${-gcam.tilt}deg) rotateY(${gcam.yaw}deg) scale3d(${k.toFixed(4)},${k.toFixed(4)},${k.toFixed(4)})`;
   sc.innerHTML = `<div class="sw-root room-scene" id="m3d" style="transform:${camT()}">
     <div class="bx" style="width:${fw}px;height:${fd}px;background:radial-gradient(ellipse at 50% 50%, rgba(0,0,0,.26), rgba(0,0,0,0) 62%);transform:translate3d(${-fw / 2}px,0.5px,${fd / 2}px) rotateX(-90deg)"></div>${m.html}</div>`;
   const token = ++gToken;
@@ -308,7 +330,7 @@ function renderModel3D(d, c, sc, W, H, st) {
       if (!s) return;
       const dx = e.clientX - s.x, dy = e.clientY - s.y;
       if (!s.moved && Math.hypot(dx, dy) < 5) return;
-      s.moved = true; window._dragMoved = true;
+      s.moved = true; window._dragMoved = true; gcam.view = null;
       gcam.yaw = Math.max(-80, Math.min(80, s.yaw + dx * 0.4)); gcam.tilt = Math.max(0, Math.min(60, s.tilt + dy * 0.3));
       const r = root(); if (r) { r.style.transition = 'none'; r.style.transform = r.style.transform.replace(/rotateX\([^)]*\) rotateY\([^)]*\)/, `rotateX(${-gcam.tilt}deg) rotateY(${gcam.yaw}deg)`); }
     });
@@ -320,4 +342,15 @@ function renderModel3D(d, c, sc, W, H, st) {
   info.textContent = `${slotName(d, op, n)} · ${sm ? sm.s + ' ' + sm.c : 'vuoto'} — trascina per girare`;
   st.appendChild(info);
   st.append(navBtn('l', '‹', op === 0, () => selectSlot(op - 1)), navBtn('r', '›', op >= n - 1, () => selectSlot(op + 1)));
+  if (views) {
+    const bar = document.createElement('div'); bar.className = 'ctrlbar';
+    views.forEach(([id, t]) => {
+      const b = document.createElement('button'); b.textContent = t; b.className = gcam.view === id ? 'on' : '';
+      b.onclick = e => { e.stopPropagation(); setGView(id); }; bar.appendChild(b);
+    });
+    const z = document.createElement('button'); z.textContent = '🔍 Zoom'; z.className = 'zoom' + (ui.zoom ? ' on' : '');
+    z.title = 'Primo piano sulla piastrella aperta';
+    z.onclick = e => { e.stopPropagation(); ui.zoom = !ui.zoom; saveUI(); renderStage(); };
+    bar.appendChild(z); st.appendChild(bar);
+  }
 }
