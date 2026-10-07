@@ -30,6 +30,18 @@ function fireStore(F, fdb, uid) {
   };
   return store;
 }
+/* il browser lascia usare IndexedDB? (Brave e le finestre private a volte lo bloccano e chi lo usa resta in attesa per sempre) */
+function idbWorks(ms = 1500) {
+  return new Promise(res => {
+    const t = setTimeout(() => res(false), ms);
+    try {
+      const r = indexedDB.open('vm_prova');
+      r.onsuccess = () => { clearTimeout(t); try { r.result.close(); } catch (e) {} res(true); };
+      r.onerror = r.onblocked = () => { clearTimeout(t); res(false); };
+    } catch (e) { clearTimeout(t); res(false); }
+  });
+}
+const wait = (p, ms, dflt) => Promise.race([p, new Promise(r => setTimeout(() => r(dflt), ms))]);
 const fotoDocId = ik => 'foto/' + encodeURIComponent(ik).replace(/\./g, '%2E');
 const AUTO_BACKUP_MS = 10 * 60 * 1000, KEEP_BACKUPS = 120;
 
@@ -119,17 +131,28 @@ const Sync = {
   /* ── online sul sito: Firebase, con accesso Google ── */
   async initFire() {
     this.provider = 'fire';
-    try {
-      const [App, A, F] = await Promise.all([import(FB_URL('app')), import(FB_URL('auth')), import(FB_URL('firestore'))]);
-      const app = App.initializeApp(FIREBASE_CONFIG);
-      let fdb;
-      try { fdb = F.initializeFirestore(app, { localCache: F.persistentLocalCache({ tabManager: F.persistentMultipleTabManager() }) }); }
-      catch (e) { fdb = F.getFirestore(app); }
-      this.fb = { A, F, auth: A.getAuth(app), fdb };
-    } catch (e) { console.warn('Firebase non raggiungibile', e); this.online = false; this.badge(); return; }
+    if (!this.fb) {
+      try {
+        const [App, A, F] = await wait(Promise.all([import(FB_URL('app')), import(FB_URL('auth')), import(FB_URL('firestore'))]), 12000, null) || [];
+        if (!App) throw new Error('Firebase non si carica');
+        const app = App.getApps().length ? App.getApp() : App.initializeApp(FIREBASE_CONFIG), idb = await idbWorks();   // già avviato (nuovo tentativo): si riusa
+        // accesso e copia locale dei dati: IndexedDB se il browser lo permette, altrimenti memoria normale (niente blocchi)
+        let auth;
+        try {
+          auth = A.initializeAuth(app, {
+            persistence: idb ? [A.indexedDBLocalPersistence, A.browserLocalPersistence] : [A.browserLocalPersistence, A.browserSessionPersistence],
+            popupRedirectResolver: A.browserPopupRedirectResolver,
+          });
+        } catch (e) { auth = A.getAuth(app); }
+        let fdb;
+        try { fdb = F.initializeFirestore(app, { localCache: idb ? F.persistentLocalCache({ tabManager: F.persistentMultipleTabManager() }) : F.memoryLocalCache() }); }
+        catch (e) { fdb = F.getFirestore(app); }
+        this.fb = { A, F, auth, fdb };
+      } catch (e) { console.warn('Firebase non raggiungibile', e); this.online = false; this.badge(); return; }
+    }
     const { A, auth } = this.fb;
-    try { await A.getRedirectResult(auth); } catch (e) {}
-    const user = await new Promise(res => { const un = A.onAuthStateChanged(auth, u => { un(); res(u); }); });
+    try { await wait(A.getRedirectResult(auth), 6000); } catch (e) {}
+    const user = await wait(new Promise(res => { const un = A.onAuthStateChanged(auth, u => { un(); res(u); }); }), 6000, null);
     if (!user) { this.needLogin = true; this.badge(); return; }   // finché non accedi, i dati restano in questo browser
     await this.startFire(user);
   },
@@ -139,7 +162,11 @@ const Sync = {
     await this.loadCloud('vm_fire_v1_' + user.uid);
   },
   async login() {
-    if (!this.fb) { toast('Collegamento a Firebase non riuscito: controlla la connessione e ricarica'); return; }
+    if (!this.fb) {                                      // non si era collegato: riprova
+      toast('Collegamento in corso…'); await this.initFire();
+      if (!this.fb) { say('Non riesco a collegarmi al salvataggio online.\n\nSe usi Brave: tocca il leone in basso e disattiva gli Shields per questo sito, poi ricarica. Oppure apri il sito con Safari.'); return; }
+      if (!this.needLogin) { if (typeof loadImages === 'function') await loadImages(); route(); return; }
+    }
     const { A, auth } = this.fb, prov = new A.GoogleAuthProvider();
     prov.setCustomParameters({ prompt: 'select_account' });
     try {
@@ -158,7 +185,7 @@ const Sync = {
     if (this.pending) await this.saveNow();
     await this.fb.A.signOut(this.fb.auth); location.reload();
   },
-  badgeClick() { if (this.needLogin) this.login(); else openVersions(); },
+  badgeClick() { if (this.needLogin || (this.provider === 'fire' && !this.online)) this.login(); else openVersions(); },
   async loadCloud(flag) {
     let d = null, meta = null;
     try {
@@ -244,7 +271,9 @@ const Sync = {
     else if (this.needLogin) { txt = '🔑 Accedi con Google'; cls = 'warn'; tip = 'Accedi per salvare tutto online, uguale su PC e telefono'; }
     else if (!this.online) {
       txt = '⚠ Solo nel browser'; cls = 'warn';
-      tip = window.claude ? 'Il database della pagina non risponde: le modifiche restano in questo browser' : 'Apri la vetrina con "AVVIA VETRINA.bat" per salvare tutto su disco';
+      tip = window.claude ? 'Il database della pagina non risponde: le modifiche restano in questo browser'
+        : this.provider === 'fire' ? 'Non collegato al salvataggio online: tocca per riprovare e accedere con Google' : 'Apri la vetrina con "AVVIA VETRINA.bat" per salvare tutto su disco';
+      if (this.provider === 'fire') txt = '⚠ Tocca per accedere';
     }
     else if (this.error) { txt = '⚠ Non salvato, riprovo…'; cls = 'warn'; tip = 'Il salvataggio non risponde: le modifiche restano nel browser e vengono salvate appena possibile'; }
     else if (this.pending || this.busy) { txt = '… Salvataggio'; cls = 'busy'; tip = ''; }
