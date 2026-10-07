@@ -242,7 +242,39 @@ function benchTray(d, c, op) {
 MODELS.book = (d, c, op) => (d.id === 'PMH' || d.id === 'PGM' ? bookStack : bookWings)(d, c, op);
 MODELS.wall = wallBoard;
 MODELS.drawers = (d, c, op) => (d.id === 'PMV' ? cassettiera60 : drawerCabinet)(d, c, op);
-MODELS.rack = (d, c, op) => (d.id === 'PP2' ? rackPlanks : d.id === 'PMK' ? drawerCabinet : rackStack)(d, c, op);
+/* ── Carrellati 60×120 / 60×60 (OYQ) e 100×100 (PEX): stessa struttura (vasca con ruote, fianchi, telaio con maniglia),
+   ma le piastrelle stanno in piedi in carrellini messi uno accanto all'altro, di taglio verso chi guarda, come nel girevole.
+   Aperto: il carrellino scorre in avanti (senza girare) e la piastrella si vede di lato, intera. */
+function cartHolders(d, c, op) {
+  const { L, P: P0, H: H0 } = parseDims(d), n = c.slots.length;
+  const sizes = (d.accept.sizes || [d.face.join('x')]).map(parseSize).map(sorted2);
+  const P = Math.max(P0, sizes[0][0] + 2), plat = 22, prof = 1.2;
+  const pitch = (L - 12) / n, xOf = i => -L / 2 + 6 + pitch * (i + 0.5), z0 = P / 2 - 1;
+  let h = bx3(-L / 2, -plat, P / 2, L, plat - 8, P);                                    // vasca
+  [[-L / 2 + 5, P / 2 - 7], [L / 2 - 10, P / 2 - 7], [-L / 2 + 5, -P / 2 + 12], [L / 2 - 10, -P / 2 + 12]].forEach(([x, z]) => { h += bx3(x, -8, z, 5, 8, 5); });   // ruote
+  h += bx3(-L / 2, -plat - 55, P / 2, 3, 55, P) + bx3(L / 2 - 3, -plat - 55, P / 2, 3, 55, P);   // fianchi laterali
+  h += bx3(-L / 2, -H0, -P / 2 + 5, 3, H0 - plat, 4) + bx3(L / 2 - 3, -H0, -P / 2 + 5, 3, H0 - plat, 4) + bx3(-L / 2, -H0, -P / 2 + 5, L, 3, 4);   // telaio con maniglia
+  const pos = [];
+  for (let i = 0; i < n; i++) {
+    const [w, th] = sizeOfSlot(c, i, sizes[0]), x = xOf(i);
+    pos[i] = { w, th };
+    h += `<div class="bx drawer3d" data-dr="${i}" style="transform:translate3d(0,0,0);transform-style:preserve-3d">`;
+    h += bx3(x - 1, -plat - 2, z0, 2, 2, w);                                             // binario sotto la piastrella
+    h += bx3(x - prof / 2 - 0.6, -plat - th - 1, z0 + prof, prof + 1.2, th + 1, prof);    // profilo nero sul bordo davanti
+    h += bx3(x - 1.5, -plat - th * 0.55, z0 + prof + 3, 3, 8, 3);                         // maniglia
+    h += tileOf(d, c, i, w, th, false, `transform:${tr(x, -plat - th, z0, 'rotateY(90deg)')}`);
+    h += `</div>`;
+  }
+  const m = { html: h, L, P, H: H0 };
+  if (op >= 0 && pos[op]) {
+    const { w, th } = pos[op], pull = w + 4;
+    m.after = [[`.drawer3d[data-dr="${op}"]`, `translate3d(0,0,${pull}px)`]];
+    m.focus = { x: xOf(op), y: -plat - th / 2, z: z0 - w / 2 + pull, w, h: th, yaw: 72, tilt: 6 };
+  }
+  return m;
+}
+
+MODELS.rack = (d, c, op) => (d.id === 'PP2' ? rackPlanks : d.id === 'PMK' ? drawerCabinet : d.id === 'OYQ' || d.id === 'PEX' ? cartHolders : rackStack)(d, c, op);
 MODELS.grid = benchTray;
 
 /* ════════════════════════════════════════════════════════════
@@ -251,7 +283,7 @@ MODELS.grid = benchTray;
 let gcam = { yaw: -30, tilt: 14, zoom: 1 }, gToken = 0;
 function renderModel3D(d, c, sc, W, H, st) {
   const n = c.slots.length, op = Math.max(0, Math.min(n - 1, selSlot));
-  if (gcam.mode !== d.id) { gcam.mode = d.id; gcam.yaw = d.id === 'PMV' ? -14 : -30; gcam.tilt = d.id === 'PMV' ? 16 : { drawers: 34, grid: 30, rack: 17 }[d.mode] || 14; }   // inclinazione di partenza: dall'alto per i cassetti
+  if (gcam.mode !== d.id) { gcam.mode = d.id; gcam.yaw = d.id === 'PMV' ? -14 : d.id === 'OYQ' || d.id === 'PEX' ? -55 : -30; gcam.tilt = d.id === 'PMV' ? 16 : { drawers: 34, grid: 30, rack: 17 }[d.mode] || 14; }   // inclinazione di partenza: dall'alto per i cassetti
   const m = MODELS[d.mode](d, c, op);
   const k = gcam.zoom * Math.min((H * 0.62) / Math.max(30, m.H), (W * 0.56) / Math.max(40, m.fitW || m.L));
   const fw = (m.L || 100) + 80, fd = (m.P || 60) + 80;
