@@ -1194,6 +1194,7 @@ function renderShelf(d, c, sc, W, H, st) {
 /* Culla modulare 35°: moduli da 94,5 cm in fila; le piastrelle stanno in piedi negli incavi,
    una dietro l'altra, viste di taglio. La selezionata esce davanti alla fila e si gira di fronte. */
 let lastCulla = {};
+let cullaToken = 0;
 function renderCulla(d, c, sc, W, H, st) {
   const n = c.slots.length, per = d.perModule || 14, mods = Math.ceil(n / per);
   const ML = 94.5, MD = 57.9, BH = 5, RAIL = 35.6;          // modulo in cm
@@ -1208,18 +1209,22 @@ function renderCulla(d, c, sc, W, H, st) {
   // come nella scheda: SX = piastrelle girate verso destra e modulo Start a destra; DX = lo specchio (Start a sinistra)
   const dx = c.side === 'DX';
   const pos = i => { const m = Math.floor(i / per), j = i % per, x = m * ML + 4 + j * pitch; return { x: dx ? x + pitch : len - x - pitch, m, j }; };
-  const outPos = i => { const [w, h] = sizeOf(i); return { x: Math.max(-10, Math.min(len - w + 10, pos(i).x - w / 2)), top: -BH - h - 6, w, h }; };
-  const tileT = (i, out) => {
+  // apertura come un girevole: la piastrella scorre fuori lungo la sua scanalatura (in diagonale, verso di te),
+  // poi, fuori dalla culla, si raddrizza parallela a te. Chiudendo fa il contrario.
+  const C74 = Math.cos(74 * Math.PI / 180), S74 = Math.sin(74 * Math.PI / 180);
+  const outPos = i => { const [w, h] = sizeOf(i), D = w + 10; return { x: dx ? pos(i).x - w + C74 * D : pos(i).x - C74 * D, z: -2 + S74 * D, top: -BH - h - 2, w, h }; };
+  const tileT = (i, st) => {                                 // st: false = nella culla, 'mid' = fuori in diagonale, true = raddrizzata
     const [w, h] = sizeOf(i);
-    if (!out) return dx ? `translate3d(${(pos(i).x - w) * k}px,${(-BH + 2 - h) * k}px,${-2 * k}px) rotateY(-74deg)` : `translate3d(${pos(i).x * k}px,${(-BH + 2 - h) * k}px,${-2 * k}px) rotateY(74deg)`;
+    if (!st) return dx ? `translate3d(${(pos(i).x - w) * k}px,${(-BH + 2 - h) * k}px,${-2 * k}px) rotateY(-74deg)` : `translate3d(${pos(i).x * k}px,${(-BH + 2 - h) * k}px,${-2 * k}px) rotateY(74deg)`;
     const o = outPos(i);
-    return `translate3d(${o.x * k}px,${o.top * k}px,${30 * k}px) rotateY(0deg)`;
+    if (st === 'mid') return `translate3d(${o.x * k}px,${(-BH + 2 - h) * k}px,${o.z * k}px) rotateY(${dx ? -74 : 74}deg)`;
+    return `translate3d(${o.x * k}px,${o.top * k}px,${o.z * k}px) rotateY(0deg)`;
   };
   const camT = s => {
     if (s.zoom) {
       const o = outPos(s.sel);
       const z = Math.min((H * 0.72) / (o.h * k), (W * 0.72) / (o.w * k)); camZ = z;
-      return `translate3d(${W / 2}px,${H * 0.46}px,0) scale(${z.toFixed(3)}) translate3d(${-(o.x + o.w / 2) * k}px,${-(o.top + o.h / 2) * k}px,${-30 * k}px)`;
+      return `translate3d(${W / 2}px,${H * 0.46}px,0) scale(${z.toFixed(3)}) translate3d(${-(o.x + o.w / 2) * k}px,${-(o.top + o.h / 2) * k}px,${-o.z * k}px)`;
     }
     return `translate3d(${W / 2}px,${H * 0.72}px,0) rotateX(-14deg) rotateY(${dx ? 26 : -26}deg) translate3d(${-len / 2 * k}px,${50 * k}px,${MD / 2 * k}px)`;
   };
@@ -1243,9 +1248,11 @@ function renderCulla(d, c, sc, W, H, st) {
   if (from.sel !== sel || target !== camT(from)) requestAnimationFrame(() => requestAnimationFrame(() => {
     const r = sc.querySelector('.sw-root'); if (!r) return;
     r.style.transform = target;
-    const a = sc.querySelector(`.ttile[data-t="${from.sel}"]`), b = sc.querySelector(`.ttile[data-t="${sel}"]`);
-    if (a) { a.style.transform = tileT(from.sel, false); if (!c.slots[from.sel]) a.style.opacity = .35; }
-    if (b) { b.style.transform = tileT(sel, true); b.style.opacity = 1; }
+    if (from.sel === sel) return;
+    const a = sc.querySelector(`.ttile[data-t="${from.sel}"]`), b = sc.querySelector(`.ttile[data-t="${sel}"]`), tok = ++cullaToken;
+    const later = (ms, fn) => setTimeout(() => { if (tok === cullaToken) fn(); }, ms);
+    if (a) { a.style.transform = tileT(from.sel, 'mid'); later(580, () => { a.style.transform = tileT(from.sel, false); if (!c.slots[from.sel]) a.style.opacity = .35; }); }   // si rigira del tutto, poi rientra
+    if (b) { b.style.opacity = 1; const t0 = a ? 300 : 0; later(t0, () => { b.style.transform = tileT(sel, 'mid'); }); later(t0 + 580, () => { b.style.transform = tileT(sel, true); }); }   // esce in diagonale, poi si raddrizza
   }));
 
   const p = pos(sel);

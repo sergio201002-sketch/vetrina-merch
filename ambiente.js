@@ -151,10 +151,11 @@ const MODELS = {
       h += tileDiv(w, th, dx ? T(xOf(i) - w, -BH + 2 - th, oz - 2, 'rotateY(-74deg)') + ';transform-origin:100% 0' : T(xOf(i), -BH + 2 - th, oz - 2, 'rotateY(74deg)'), rface(d, c, i, w, th, false) + tileBody(d, c, i, w, th, false, 1), i);
     }
     const m = { html: h, L: len, P: MD, H: RAIL };
-    if (op >= 0 && c.slots[op]) {
-      const [w, th] = sizeOfSlot(c, op, [60, 60]), xo = Math.max(ox - 10, Math.min(ox + len - w + 10, xOf(op) - w / 2));
-      m.after = [[`.ttile[data-t="${op}"]`, tr(xo, -BH - th - 6, oz + 30, 'rotateY(0deg)')]];
-      m.focus = { x: xo + w / 2, y: -BH - 6 - th / 2, z: oz + 30, w, h: th, yaw: 0, tilt: 6 };
+    if (op >= 0 && c.slots[op]) {   // esce lungo la scanalatura (in diagonale) e poi, fuori dalla culla, si raddrizza verso di te
+      const [w, th] = sizeOfSlot(c, op, [60, 60]), D = w + 10, C = Math.cos(74 * Math.PI / 180), S = Math.sin(74 * Math.PI / 180);
+      const x0 = dx ? xOf(op) - w + C * D : xOf(op) - C * D, z0 = oz - 2 + S * D, sel = `.ttile[data-t="${op}"]`;
+      m.after = [[sel, tr(x0, -BH + 2 - th, z0, `rotateY(${dx ? -74 : 74}deg)`)], [sel, tr(x0, -BH - th - 2, z0, 'rotateY(0deg)'), 580]];
+      m.focus = { x: x0 + w / 2, y: -BH - 2 - th / 2, z: z0, w, h: th, yaw: 0, tilt: 6 };
     }
     return m;
   },
@@ -612,8 +613,8 @@ function openSample(id, slot) {
     const m = roomModels[id] = roomModel(it);
     const targets = (m.after || []).map(([sel]) => root.querySelector(sel)).filter(Boolean);
     let closed = false;
-    if (showOpen) { showOpen.els.forEach(el => { if (!targets.includes(el)) { el.style.transform = el.dataset.t0; closed = true; } }); showOpen = null; }
-    applyOpen(id, m.after, closed ? 520 : 0);              // prima rientra quello aperto, poi esce il nuovo
+    if (showOpen) { showOpen.els.forEach(el => { if (!targets.includes(el)) { closeEl(el); closed = true; } }); showOpen = null; }
+    applyOpen(id, m.after, closed ? 600 : 0);              // prima rientra quello aperto, poi esce il nuovo
   }
   sharpFace(id, slot);
   focusCam(true);
@@ -638,7 +639,7 @@ function toggleRoomZoom() {
 }
 function closeSample() {
   showSel = null; cam.focus = null; ++showToken;
-  if (showOpen) { showOpen.els.forEach(el => { el.style.transform = el.dataset.t0; }); showOpen = null; }   // rientra con l'animazione
+  if (showOpen) { showOpen.els.forEach(closeEl); showOpen = null; }   // rientra con l'animazione
   restoreFace();
   if (cam.back) Object.assign(cam, cam.back);
   applyCam(true); renderShowCard();
@@ -649,10 +650,23 @@ const itemEl = id => document.querySelector(`#roomScene .ritem[data-id="${id}"]`
 function applyOpen(id, after, delay) {
   const root = itemEl(id); if (!root || !after || !after.length) return;
   const tok = ++showToken;
-  const els = after.map(([sel, tf]) => { const el = root.querySelector(sel); if (el && el.dataset.t0 == null) el.dataset.t0 = el.style.transform; return [el, tf]; }).filter(([el]) => el);
-  showOpen = { item: id, els: els.map(([el]) => el) };
-  const run = () => { if (tok === showToken) els.forEach(([el, tf]) => { el.style.transform = tf; }); };
+  // passi: [selettore, transform, ritardo]; più passi sullo stesso pezzo = movimento in due tempi (es. culla: esce, poi si raddrizza)
+  const steps = after.map(([sel, tf, dl]) => { const el = root.querySelector(sel); if (el && el.dataset.t0 == null) el.dataset.t0 = el.style.transform; return [el, tf, dl || 0]; }).filter(([el]) => el);
+  const els = [...new Set(steps.map(st => st[0]))];
+  els.forEach(el => { const own = steps.filter(st => st[0] === el); if (own.length > 1) el.dataset.mid = own[0][1]; else delete el.dataset.mid; });
+  showOpen = { item: id, els };
+  const run = () => {
+    if (tok !== showToken) return;
+    steps.forEach(([el, tf, dl]) => { el._closeTok = null; if (!dl) el.style.transform = tf; else setTimeout(() => { if (tok === showToken) el.style.transform = tf; }, dl); });
+  };
   if (delay) setTimeout(run, delay); else requestAnimationFrame(() => requestAnimationFrame(run));
+}
+/* rimette a posto un pezzo; se si era aperto in due tempi, torna indietro passando per la posizione intermedia */
+function closeEl(el) {
+  if (!el.dataset.mid) { el.style.transform = el.dataset.t0; return; }
+  const tok = el._closeTok = {};
+  el.style.transform = el.dataset.mid;
+  setTimeout(() => { if (el._closeTok === tok) el.style.transform = el.dataset.t0; }, 580);
 }
 /* la piastrella aperta si ridisegna ad alta risoluzione (da vicino nitida come negli Espositori); le altre restano leggere */
 function sharpFace(id, slot) {
