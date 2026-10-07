@@ -1,0 +1,8 @@
+# dati dei clienti e copie di sicurezza: restano solo sul PC (il repository è pubblico)
+dati/
+foto/caricate/
+# copia preparata per la vecchia pagina su claude.ai
+online/
+strumenti/
+__pycache__/
+*.pyc

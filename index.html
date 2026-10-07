@@ -1,0 +1,1897 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vetrina Merch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Inter+Tight:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --red: #C0102A; --red-d: #8F0A1E; --red-l: #FFF0F3;
+  --dark: #111; --mid: #65676B; --light: #B0B3BA;
+  --border: #E4E2DC; --bg: #F4F3EF; --bg2: #ECEAE4; --white: #FEFEFE;
+  --green: #1A7A4A;
+  --font-display: 'Inter Tight', 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --metal: #1d1d1f; --metal2: #2b2b2e;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { font-family: var(--font-body); background: var(--bg); color: var(--dark); -webkit-font-smoothing: antialiased; }
+button, input, select { font-family: inherit; font-size: inherit; }
+h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.015em; margin: 0; }
+
+/* ── Layout ─────────────────────────────────────────────── */
+.app { display: grid; grid-template-columns: 280px minmax(0, 1fr) 380px; grid-template-rows: 56px 1fr; height: 100vh; }
+header { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 0 16px; background: var(--dark); color: #fff; }
+header h1 { font-size: 18px; font-weight: 800; }
+header h1 span { color: var(--red); }
+header .sp { flex: 1; }
+.hbtn { background: #2a2a2a; color: #fff; border: 1px solid #3a3a3a; border-radius: 8px; padding: 7px 12px; font-weight: 600; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.hbtn:hover { background: #363636; }
+.hbtn.red { background: var(--red); border-color: var(--red); }
+.hbtn .n { background: rgba(255,255,255,.18); border-radius: 10px; padding: 1px 7px; margin-left: 6px; font-size: 11px; }
+
+aside.list { background: var(--white); border-right: 1px solid var(--border); overflow-y: auto; }
+.fam { padding: 14px 14px 6px; font-size: 11px; font-weight: 800; color: var(--mid); text-transform: uppercase; letter-spacing: .06em; }
+.disp { display: flex; gap: 10px; align-items: center; padding: 8px 14px; cursor: pointer; border-left: 3px solid transparent; }
+.disp:hover { background: var(--bg); }
+.disp.on { background: var(--red-l); border-left-color: var(--red); }
+.disp img { width: 46px; height: 46px; object-fit: contain; background: #fff; border-radius: 6px; border: 1px solid var(--border); flex: none; }
+.disp .t { font-size: 13px; font-weight: 700; line-height: 1.2; }
+.disp .s { font-size: 11px; color: var(--mid); margin-top: 2px; }
+.disp .fill { font-size: 10px; font-weight: 700; color: var(--green); }
+
+main { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 16px; background: var(--white); border-bottom: 1px solid var(--border); }
+.toolbar h2 { font-size: 17px; font-weight: 800; margin-right: 6px; }
+.toolbar .code { font-family: var(--font-display); font-weight: 800; font-size: 12px; color: var(--red); }
+.toolbar .sp { flex: 1; }
+.tb { background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 6px 10px; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--dark); }
+.tb:hover { background: var(--bg2); }
+.tb.on { background: var(--dark); color: #fff; border-color: var(--dark); }
+select.tb { padding: 6px 8px; }
+input.tb { cursor: text; min-width: 0; }
+
+/* ── Stage ──────────────────────────────────────────────── */
+.stage { position: relative; flex: 1; min-height: 360px; overflow: hidden; perspective: 1800px; perspective-origin: 50% 35%;
+  background: radial-gradient(ellipse at 50% 25%, #fbfaf7 0%, #ece9e2 60%, #dcd8cf 100%); user-select: none; }
+.stage::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 26%; pointer-events: none;
+  background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(80,70,55,.10) 100%); }
+.scene { position: absolute; inset: 0; transform-style: preserve-3d; }
+.nav { position: absolute; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border-radius: 50%; border: none; background: rgba(17,17,17,.82); color: #fff; font-size: 22px; cursor: pointer; z-index: 20; display: flex; align-items: center; justify-content: center; }
+.nav:disabled { opacity: .25; cursor: default; }
+.nav.l { left: 14px; } .nav.r { right: 14px; }
+.pageinfo { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: rgba(17,17,17,.8); color: #fff; font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 20px; z-index: 20; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+.pageinfo:empty { display: none; }
+.eyebtn { border: none; background: none; color: #fff; padding: 0 0 0 8px; margin: -2px 0; border-left: 1px solid rgba(255,255,255,.25); cursor: pointer; display: flex; align-items: center; opacity: .9; }
+.eyebtn:hover { opacity: 1; }
+.eyebtn svg { width: 17px; height: 17px; }
+
+/* tile faces */
+.face { position: absolute; inset: 0; background-color: #ddd; cursor: pointer; backface-visibility: hidden; -webkit-backface-visibility: hidden; transform-style: preserve-3d; }
+/* foto disegnata grande e rimpicciolita: in 3D il browser la rasterizza alla misura in pixel, così con lo zoom resta nitida */
+.ph { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; backface-visibility: inherit; -webkit-backface-visibility: inherit; }
+.face > .sheen, .face > .lbl, .face > .slotno { transform: translateZ(.1px); backface-visibility: inherit; -webkit-backface-visibility: inherit; }
+.face.empty { background: repeating-linear-gradient(45deg, #f7f6f2 0 10px, #efede7 10px 20px); outline: 2px dashed #c9c5bb; outline-offset: -6px; display: flex; align-items: center; justify-content: center; color: #a19c90; font-weight: 800; font-family: var(--font-display); }
+.face.empty.sel { box-shadow: inset 0 0 0 4px var(--red); }
+/* --lblk compensa lo zoom della telecamera: badge e descrizione restano a grandezza schermo */
+.face .lbl { position: absolute; top: calc(6px*var(--lblk,1)); right: calc(6px*var(--lblk,1)); max-width: calc(100% - 52px*var(--lblk,1)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: rgba(17,17,17,.78); color: #fff; font-size: calc(11px*var(--lblk,1)); line-height: 1.25; padding: calc(2px*var(--lblk,1)) calc(7px*var(--lblk,1)); border-radius: calc(5px*var(--lblk,1)); cursor: zoom-in; }
+.lblbig .face .lbl { top: auto; left: 6px; right: 6px; bottom: 6px; max-width: none; white-space: normal; font-size: 11px; padding: 4px 7px; border-radius: 5px; cursor: zoom-out; }
+.lblbig .ttile .lbl { left: 2px; right: 2px; bottom: 2px; font-size: 3.4px; padding: 1.5px 2.5px; border-radius: 1.5px; }
+.face .lbl b { font-weight: 800; }
+.face .lbl .nofoto { color: #ffb4bf; font-weight: 600; }
+.face .slotno { position: absolute; top: calc(6px*var(--lblk,1)); left: calc(6px*var(--lblk,1)); background: rgba(17,17,17,.78); color: #fff; font-size: calc(11px*var(--lblk,1)); font-weight: 800; padding: calc(2px*var(--lblk,1)) calc(7px*var(--lblk,1)); border-radius: calc(5px*var(--lblk,1)); pointer-events: none; font-family: var(--font-display); }
+.nolabels .face .lbl, .nolabels .face .slotno { display: none; }
+.face .sheen { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, rgba(255,255,255,.18) 0%, rgba(255,255,255,0) 35%, rgba(0,0,0,0) 65%, rgba(0,0,0,.12) 100%); }
+
+/* book (girevoli, fly, slabs) */
+.book { position: absolute; transform-style: preserve-3d; }
+.leaf { position: absolute; inset: 0; transform-origin: 0 50%; transform-style: preserve-3d; transition: transform .75s cubic-bezier(.4,.1,.2,1); }
+.leaf > .face { border: 3px solid var(--metal); }
+.leaf > .back { transform: rotateY(180deg); }
+.leaf > .back.metal { background: linear-gradient(90deg, #222 0%, #2f2f33 50%, #1a1a1c 100%); cursor: default; }
+.spine { position: absolute; background: linear-gradient(90deg, #111, #3a3a3e, #111); border-radius: 3px; }
+.basebox { position: absolute; background: linear-gradient(180deg, #2c2c2f, #141415); border-radius: 3px; box-shadow: 0 18px 30px -10px rgba(0,0,0,.45); }
+.basebox .logo { position: absolute; left: 10px; bottom: 6px; color: #b11; font-size: 9px; font-weight: 800; letter-spacing: .1em; opacity: .9; }
+.floorshadow { position: absolute; border-radius: 50%; background: radial-gradient(ellipse, rgba(0,0,0,.28), rgba(0,0,0,0) 70%); }
+
+/* swing (girevoli): portapannelli che scorrono fuori e si ribaltano a tavolo */
+.sw-root { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-style: preserve-3d; transition: transform .9s cubic-bezier(.4,.1,.2,1); }
+.bx { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+.holder { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-style: preserve-3d; transition: transform .55s cubic-bezier(.4,.1,.2,1); }
+.panel { position: absolute; transform-style: preserve-3d; transition: transform .55s cubic-bezier(.4,.1,.2,1); }
+.drawer3d { transition: transform .6s cubic-bezier(.4,.1,.2,1); }
+.ttile { transform-style: preserve-3d; transition: transform .6s cubic-bezier(.4,.1,.2,1); }
+.ttile > .face { box-shadow: inset 0 0 0 1px rgba(0,0,0,.35); }
+.teca-nozoom .ttile .lbl, .ttile > .face:not(.sel) .lbl, .ttile > .face:not(.sel) .slotno, .ttile > .face.empty:not(.sel) span { display: none; }
+.panel > .face { box-shadow: inset 0 0 0 2px rgba(20,20,22,.9); }
+.panel > .face.backx { transform: rotateY(180deg); }
+.ctrlbar { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 6px; z-index: 20; background: rgba(17,17,17,.82); padding: 5px; border-radius: 22px; }
+.ctrlbar button { border: none; background: transparent; color: #ddd; font-weight: 700; font-size: 12px; padding: 7px 13px; border-radius: 18px; cursor: pointer; white-space: nowrap; }
+.ctrlbar button.on { background: var(--red); color: #fff; }
+.ctrlbar button.zoom { border-left: 1px solid #444; border-radius: 0 18px 18px 0; }
+.ctrlbar button.zoom.on { background: #fff; color: var(--dark); }
+
+/* rack (culle, carrellati, cubo, basi) */
+.rack { position: absolute; transform-style: preserve-3d; }
+.rtile { position: absolute; bottom: 0; transform-origin: 0 100%; transition: transform .6s cubic-bezier(.4,.1,.2,1), left .6s cubic-bezier(.4,.1,.2,1); transform-style: preserve-3d; }
+.rtile > .face { box-shadow: 0 0 0 1px rgba(0,0,0,.35); backface-visibility: visible; }
+
+/* drawers */
+.cabinet { position: absolute; background: linear-gradient(90deg, #1b1b1d, #2a2a2d 50%, #1b1b1d); border-radius: 4px; padding: 8px; box-shadow: 0 30px 40px -18px rgba(0,0,0,.5); }
+.drawer { position: relative; border-top: 1px solid #3c3c40; border-bottom: 1px solid #0b0b0c; background: linear-gradient(180deg, #2b2b2f, #202023); display: flex; align-items: center; gap: 8px; padding: 0 10px; cursor: pointer; color: #ddd; font-size: 11px; overflow: hidden; }
+.drawer:hover { background: #333338; }
+.drawer.sel { background: #3a1018; color: #fff; }
+.drawer .sw { width: 34px; height: 70%; border-radius: 2px; flex: none; background-size: cover; background-position: center; box-shadow: 0 0 0 1px rgba(255,255,255,.15); }
+.drawer .n { font-family: var(--font-display); font-weight: 800; width: 20px; text-align: right; color: #999; }
+.drawer .nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tray { position: absolute; transform-origin: 50% 100%; transform-style: preserve-3d; transition: transform .6s ease; }
+.tray .frame { position: absolute; inset: -8px; background: #141416; border-radius: 3px; box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+
+/* wall (lavagna, totem) */
+.wallwrap { position: absolute; display: flex; gap: 40px; align-items: flex-end; }
+.wallitem { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.wallpanel { position: relative; border: 8px solid var(--metal); box-shadow: 0 25px 40px -15px rgba(0,0,0,.5); }
+.wallpanel .face { backface-visibility: visible; }
+.wallleg { width: 70%; height: 16px; background: var(--metal); border-radius: 3px; }
+.wallcap { font-size: 12px; font-weight: 700; color: var(--mid); }
+
+/* grid (tozzetti) */
+.gridbox { position: absolute; background: linear-gradient(180deg, #232326, #161618); border-radius: 6px; padding: 14px; display: grid; box-shadow: 0 30px 40px -18px rgba(0,0,0,.5); transform-style: preserve-3d; }
+.gcell { position: relative; }
+.gcell .face { backface-visibility: visible; box-shadow: 0 2px 4px rgba(0,0,0,.5); }
+
+/* slot strip */
+.strip { background: var(--white); border-top: 1px solid var(--border); padding: 10px 16px; display: flex; gap: 8px; overflow-x: auto; flex: none; }
+.chip { flex: none; width: 118px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; cursor: pointer; background: var(--bg); position: relative; }
+.chip.sel { border-color: var(--red); box-shadow: 0 0 0 2px var(--red); }
+.chip .th { height: 46px; background-size: cover; background-position: center; position: relative; }
+.chip .th.empty { background: repeating-linear-gradient(45deg, #f7f6f2 0 6px, #ece9e2 6px 12px); }
+.chip .no { position: absolute; top: 3px; left: 3px; background: rgba(17,17,17,.8); color: #fff; font-size: 10px; font-weight: 800; padding: 1px 5px; border-radius: 4px; font-family: var(--font-display); }
+.chip .tx { font-size: 10.5px; padding: 4px 6px; line-height: 1.2; height: 34px; overflow: hidden; }
+.chip .tx b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip .x { position: absolute; top: 2px; right: 2px; width: 18px; height: 18px; border: none; border-radius: 50%; background: rgba(17,17,17,.75); color: #fff; font-size: 11px; line-height: 18px; cursor: pointer; padding: 0; }
+
+/* ── Right panel ────────────────────────────────────────── */
+aside.side { background: var(--white); border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+.tabs { display: flex; border-bottom: 1px solid var(--border); flex: none; }
+.tabs button { flex: 1; background: none; border: none; padding: 12px; font-weight: 700; font-size: 13px; color: var(--mid); cursor: pointer; border-bottom: 2px solid transparent; }
+.tabs button.on { color: var(--dark); border-bottom-color: var(--red); }
+.pane { flex: 1; overflow-y: auto; min-height: 0; }
+.pickhead { padding: 12px 14px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--white); z-index: 2; }
+.target { font-size: 12px; color: var(--mid); margin-bottom: 8px; }
+.target b { color: var(--red); }
+.fmt { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.fmt span { background: var(--dark); color: #fff; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px; font-family: var(--font-display); }
+.search { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; background: var(--bg); }
+.filters { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.filters button { border: 1px solid var(--border); background: var(--white); border-radius: 14px; padding: 4px 10px; font-size: 11.5px; font-weight: 600; cursor: pointer; }
+.filters button.on { background: var(--dark); color: #fff; border-color: var(--dark); }
+.count { font-size: 11px; color: var(--mid); margin-top: 8px; }
+.srow { display: flex; gap: 10px; align-items: center; padding: 8px 14px; border-bottom: 1px solid #f0eee9; cursor: pointer; }
+.srow:hover { background: var(--bg); }
+.srow.used { background: #f3fbf6; }
+.srow .sw { width: 44px; height: 44px; border-radius: 5px; flex: none; background-size: cover; background-position: center; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
+.srow .info { flex: 1; min-width: 0; }
+.srow .ser { font-size: 13px; font-weight: 700; }
+.srow .col { font-size: 12px; }
+.srow .meta { font-size: 10.5px; color: var(--mid); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.srow .brand { font-size: 9.5px; font-weight: 800; color: var(--red); text-transform: uppercase; letter-spacing: .05em; }
+.cam { flex: none; border: 1px solid var(--border); background: var(--white); border-radius: 7px; width: 34px; height: 34px; cursor: pointer; font-size: 15px; }
+.cam:hover { background: var(--bg2); }
+.cam.has { border-color: #bfe3cd; background: #f0faf4; }
+.sheet { padding: 14px; }
+.sheet img { width: 100%; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+.sheet dl { display: grid; grid-template-columns: 90px 1fr; gap: 6px 10px; font-size: 13px; margin: 12px 0; }
+.sheet dt { color: var(--mid); font-weight: 600; }
+.sheet dd { margin: 0; font-weight: 600; }
+.note { font-size: 12px; background: #fff8e6; border: 1px solid #f1dfae; border-radius: 8px; padding: 8px 10px; color: #6b5414; }
+
+/* ── Modal ──────────────────────────────────────────────── */
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 100; padding: 16px; }
+.modal.open { display: flex; }
+.askbox { max-width: 420px; padding: 18px; }
+.askmsg { white-space: pre-line; font-size: 14px; line-height: 1.45; max-height: 50vh; overflow: auto; }
+.askin { width: 100%; margin-top: 12px; padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px; font: inherit; }
+.askbtns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.mbox { background: var(--white); border-radius: 12px; width: min(880px, 100%); max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; }
+.mhead { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.mhead h3 { font-size: 17px; flex: 1; }
+.mbody { overflow-y: auto; padding: 0; }
+.mfoot { padding: 12px 18px; border-top: 1px solid var(--border); font-size: 12px; color: var(--mid); }
+.imgrow { display: flex; align-items: center; gap: 12px; padding: 8px 18px; border-bottom: 1px solid #f0eee9; }
+.imgrow .sw { width: 54px; height: 54px; border-radius: 6px; background-size: cover; background-position: center; flex: none; }
+.imgrow .info { flex: 1; min-width: 0; font-size: 13px; }
+.imgrow .meta { font-size: 11px; color: var(--mid); }
+.btn { border: 1px solid var(--border); background: var(--white); border-radius: 7px; padding: 6px 10px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.btn.red { background: var(--red); color: #fff; border-color: var(--red); }
+.btn.dark { background: var(--dark); color: #fff; border-color: var(--dark); }
+.progress { height: 6px; background: var(--bg2); border-radius: 3px; overflow: hidden; margin-top: 6px; }
+.progress div { height: 100%; background: var(--green); }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%) translateY(20px); background: var(--dark); color: #fff; padding: 10px 16px; border-radius: 10px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .25s; z-index: 200; pointer-events: none; max-width: 90vw; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.mobsel { display: none; }
+.mobhead { display: none; position: sticky; top: 0; z-index: 2; background: var(--white); border-bottom: 1px solid var(--border); padding: 12px 14px; align-items: center; justify-content: space-between; font-weight: 800; font-size: 15px; }
+
+/* ── Navigazione e viste (clienti, scheda cliente, ambientazione) ── */
+.hnav { display: flex; gap: 6px; margin-left: 8px; }
+.savebadge { font-size: 12px; font-weight: 700; padding: 6px 10px; border-radius: 16px; white-space: nowrap; cursor: pointer; }
+.savebadge.ok { color: #9be3b8; background: rgba(26,122,74,.25); }
+.savebadge.busy { color: #f3e3a5; background: rgba(255,200,60,.15); }
+.savebadge.warn { color: #fff; background: var(--red); }
+body[data-view="home"] .hbtn[data-nav="home"], body[data-view="client"] .hbtn[data-nav="home"], body[data-view="show"] .hbtn[data-nav="home"],
+body[data-view="config"] .hbtn[data-nav="config"] { background: var(--red); border-color: var(--red); }
+.ctxbtn { font-weight: 700; }
+body:not([data-view="config"]) .app > :not(header) { display: none; }
+body:not([data-view="config"]) .app { height: 56px; }
+.view { position: fixed; left: 0; right: 0; top: 56px; bottom: 0; overflow-y: auto; background: var(--bg); z-index: 40; display: none; }
+body[data-view="home"] #viewHome, body[data-view="client"] #viewClient { display: block; }
+body[data-view="room"] #viewRoom, body[data-view="show"] #viewRoom { display: flex; overflow: hidden; }
+.vwrap { max-width: 1180px; margin: 0 auto; padding: 22px 16px 60px; }
+.vhead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.vhead h2 { font-size: 24px; font-weight: 800; flex: 1; min-width: 200px; }
+.vhead .search { width: 260px; max-width: 100%; }
+.card { background: var(--white); border: 1px solid var(--border); border-radius: 12px; }
+.cgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.ccard { padding: 16px; cursor: pointer; transition: box-shadow .15s, border-color .15s; display: flex; flex-direction: column; gap: 8px; }
+.ccard:hover { border-color: var(--light); box-shadow: 0 6px 18px rgba(0,0,0,.07); }
+.ccard h3 { font-size: 17px; }
+.ccard .sub { font-size: 12px; color: var(--mid); }
+.stats { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--mid); }
+.stats b { color: var(--dark); font-size: 16px; font-family: var(--font-display); display: block; }
+.newcard { border: 2px dashed var(--border2, #D5D2CA); background: transparent; align-items: center; justify-content: center; text-align: center; color: var(--mid); font-weight: 700; min-height: 120px; }
+.newcard:hover { border-color: var(--red); color: var(--red); }
+.form { padding: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.form label { font-size: 11px; font-weight: 700; color: var(--mid); display: flex; flex-direction: column; gap: 4px; }
+.form input, .form textarea { border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px; background: var(--bg); font-size: 14px; color: var(--dark); }
+.form textarea { min-height: 70px; resize: vertical; }
+.form .full { grid-column: 1 / -1; }
+.ctabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin: 18px 0 14px; overflow-x: auto; }
+.ctabs button { background: none; border: none; padding: 11px 16px; font-weight: 700; font-size: 14px; color: var(--mid); cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; }
+.ctabs button.on { color: var(--dark); border-bottom-color: var(--red); }
+.ctabs .n { background: var(--bg2); border-radius: 10px; padding: 1px 7px; font-size: 11px; margin-left: 4px; }
+.ecard { padding: 12px; display: flex; gap: 12px; align-items: center; }
+.ecard img { width: 64px; height: 64px; object-fit: contain; background: #fff; border: 1px solid var(--border); border-radius: 8px; flex: none; }
+.ecard .info { flex: 1; min-width: 0; }
+.ecard .t { font-weight: 800; font-size: 14px; }
+.ecard .s { font-size: 12px; color: var(--mid); }
+.ecard .sws { display: flex; gap: 3px; margin-top: 6px; flex-wrap: wrap; }
+.ecard .sws span { width: 22px; height: 22px; border-radius: 4px; background-size: cover; background-position: center; box-shadow: inset 0 0 0 1px rgba(0,0,0,.1); }
+.ecard .acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.dpick { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; padding: 12px; }
+.dpick .fam { grid-column: 1 / -1; padding: 8px 2px 0; }
+.dpick button { display: flex; gap: 8px; align-items: center; text-align: left; border: 1px solid var(--border); background: var(--white); border-radius: 8px; padding: 6px; cursor: pointer; font-size: 12px; font-weight: 700; }
+.dpick button:hover { border-color: var(--red); }
+.dpick img { width: 40px; height: 40px; object-fit: contain; flex: none; }
+.inv { width: 100%; border-collapse: collapse; font-size: 13px; }
+.inv th { text-align: left; font-size: 11px; color: var(--mid); text-transform: uppercase; letter-spacing: .04em; padding: 10px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--white); }
+.inv td { padding: 8px 10px; border-bottom: 1px solid #f0eee9; vertical-align: top; }
+.inv .sw { width: 38px; height: 38px; border-radius: 5px; background-size: cover; background-position: center; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
+.inv .q { font-family: var(--font-display); font-weight: 800; font-size: 16px; text-align: center; }
+.inv .where { font-size: 11.5px; color: var(--mid); }
+.inv .where a { color: var(--dark); cursor: pointer; text-decoration: underline; text-decoration-color: var(--light); }
+.inv .grp td { background: var(--bg); font-weight: 800; font-size: 12px; color: var(--red); text-transform: uppercase; letter-spacing: .05em; }
+.empty-note { padding: 30px 16px; text-align: center; color: var(--mid); font-size: 14px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.kpis .card { padding: 12px 14px; }
+.kpis b { display: block; font-family: var(--font-display); font-size: 24px; font-weight: 800; }
+.kpis span { font-size: 12px; color: var(--mid); }
+
+/* ── Ambientazione ── */
+.room-side { width: 300px; flex: none; background: var(--white); border-right: 1px solid var(--border); overflow-y: auto; }
+.room-side .sec { padding: 14px; border-bottom: 1px solid var(--border); }
+.room-side h4 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--mid); margin: 0 0 8px; }
+.room-side .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 12px; margin-bottom: 6px; }
+.room-side .row input[type=number] { width: 72px; border: 1px solid var(--border); border-radius: 6px; padding: 5px 6px; background: var(--bg); }
+.room-side .row label { display: flex; gap: 5px; align-items: center; cursor: pointer; }
+.addlist { display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto; }
+.addlist button { display: flex; gap: 8px; align-items: center; text-align: left; border: 1px solid var(--border); background: var(--white); border-radius: 8px; padding: 6px; cursor: pointer; font-size: 12px; }
+.addlist button:hover { border-color: var(--red); }
+.addlist img { width: 34px; height: 34px; object-fit: contain; flex: none; }
+.addlist .in { color: var(--green); font-weight: 700; font-size: 10.5px; }
+.addlist.layers button.sel { border-color: var(--red); background: var(--red-l); box-shadow: 0 0 0 1px var(--red); }
+.addrow { display: flex; gap: 8px; align-items: center; border: 1px solid var(--border); border-radius: 8px; padding: 6px; font-size: 12px; }
+.addrow img { width: 34px; height: 34px; object-fit: contain; flex: none; }
+.addrow span { flex: 1; min-width: 0; }
+.room-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.room-3d { position: relative; flex: 1.7; min-height: 260px; overflow: hidden; perspective: 2400px; perspective-origin: 50% 40%; cursor: grab;
+  background: linear-gradient(180deg, #e9e7e2 0%, #d9d6cf 100%); touch-action: none; user-select: none; }
+.room-3d:active { cursor: grabbing; }
+.room-scene { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-style: preserve-3d; }
+.room-scene .bx { backface-visibility: visible; }
+.rwall { position: absolute; left: 0; top: 0; transform-origin: 0 0; background: linear-gradient(180deg, #fbfbf9 0%, #f1f0ec 100%); box-shadow: inset 0 -10px 18px -12px rgba(0,0,0,.25); }
+.rwall.side { background: linear-gradient(90deg, #ecebe7 0%, #f6f5f2 100%); }
+.rfloor { position: absolute; left: 0; top: 0; transform-origin: 0 0; background-color: #b8b7b3;
+  background-image: radial-gradient(ellipse at 50% 20%, rgba(255,255,255,.22), rgba(0,0,0,.06) 80%); }
+.rfloor.grid { background-image: linear-gradient(rgba(0,0,0,.07) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,.07) 1px, transparent 1px), radial-gradient(ellipse at 50% 20%, rgba(255,255,255,.22), rgba(0,0,0,.06) 80%);
+  background-size: 50px 50px, 50px 50px, 100% 100%; }
+.ritem { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-style: preserve-3d; cursor: pointer; }
+.ritem .bx { transform-style: preserve-3d; }
+.rf { position: absolute; inset: 0; backface-visibility: hidden; background-color: #ddd; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); transform-style: preserve-3d; }
+.rf > .ph { box-shadow: inset 0 0 0 calc(var(--r) * 1px) rgba(0,0,0,.25); }
+.rf.empty { background: repeating-linear-gradient(45deg, #f2f0eb 0 6px, #e6e3dc 6px 12px); }
+.rf.metal { background: linear-gradient(90deg, #222 0%, #2f2f33 50%, #1a1a1c 100%); }
+.rf.grey { background: linear-gradient(90deg, #c6c6c2, #dcdcd8 50%, #c2c2be); }
+.fp { border: 3px dashed var(--red); background: rgba(192,16,42,.08); box-sizing: border-box; }
+.camctl { position: absolute; right: 10px; top: 10px; display: flex; gap: 5px; z-index: 5; flex-wrap: wrap; justify-content: flex-end; }
+.camctl button { border: none; background: rgba(17,17,17,.8); color: #fff; font-size: 12px; font-weight: 700; padding: 7px 11px; border-radius: 16px; cursor: pointer; }
+.camctl button.on { background: var(--red); }
+.roomhint { position: absolute; left: 12px; bottom: 10px; font-size: 11px; color: #6b6860; background: rgba(255,255,255,.7); padding: 4px 9px; border-radius: 10px; pointer-events: none; }
+.room-plan { position: relative; flex: 1; min-height: 190px; background: #f7f6f2; border-top: 1px solid var(--border); overflow: hidden; touch-action: none; }
+.plan-room { position: absolute; background: #e3e2de; background-image: linear-gradient(rgba(0,0,0,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,.06) 1px, transparent 1px); }
+.plan-room.wall-b { border-top: 6px solid #fff; box-shadow: 0 -1px 0 #bbb; }
+.plan-room.wall-l { border-left: 6px solid #fff; }
+.plan-room.wall-r { border-right: 6px solid #fff; }
+.pitem { position: absolute; background: #2a2a2d; color: #fff; border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; text-align: center; line-height: 1.1; cursor: move; overflow: visible; box-shadow: 0 2px 5px rgba(0,0,0,.25); }
+.pitem.sel { outline: 3px solid var(--red); outline-offset: 1px; z-index: 2; }
+.pitem.up { background: #55555c; border: 2px dashed #fff; }
+.pitem.wallup { background: #77777e; }
+.pitem::after { content: ''; position: absolute; left: 50%; bottom: -7px; transform: translateX(-50%); border: 6px solid transparent; border-top-color: var(--red); border-bottom: none; }
+.pitem span { padding: 0 3px; overflow: hidden; max-height: 100%; pointer-events: none; }
+.plan-legend { position: absolute; left: 10px; top: 8px; font-size: 11px; color: var(--mid); font-weight: 600; pointer-events: none; }
+.selbox .t { font-weight: 800; font-size: 14px; }
+.selbox .s { font-size: 12px; color: var(--mid); margin-bottom: 8px; }
+.selbox .btns { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 6px; }
+#viewRoom.present .room-side, #viewRoom.present .room-plan { display: none; }
+.showcard { position: absolute; left: 12px; bottom: 40px; width: 270px; max-width: calc(100% - 24px); background: var(--white); border-radius: 12px;
+  box-shadow: 0 12px 34px rgba(0,0,0,.25); overflow: hidden; z-index: 6; cursor: default; }
+.showcard .sc-img { height: 210px; background-size: contain !important; background-repeat: no-repeat; background-position: center; background-color: #2a2a2d; }
+.showcard .sc-body { padding: 10px 12px 12px; }
+.showcard .sc-pos { font-size: 11px; color: var(--mid); font-weight: 600; margin-bottom: 4px; }
+.showcard .sc-ser { font-family: var(--font-display); font-weight: 800; font-size: 17px; line-height: 1.15; }
+.showcard .sc-col { font-size: 14px; margin-bottom: 4px; }
+.showcard .sc-meta { font-size: 11.5px; color: var(--mid); margin-top: 2px; }
+.showcard .sc-btns { display: flex; gap: 6px; margin-top: 10px; }
+.showcard .sc-btns .dark { flex: 1; }
+.showcard .sc-eye { position: absolute; top: 8px; right: 8px; z-index: 2; width: 32px; height: 32px; border-radius: 50%; border: 0; background: rgba(17,17,17,.72); color: #fff; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.showcard .sc-eye svg { width: 17px; height: 17px; }
+.showcard.mini { width: auto; max-width: calc(100% - 24px); }
+.showcard .sc-mini { display: flex; align-items: center; gap: 6px; padding: 6px; }
+.showcard .sc-mini .sc-name { padding: 0 6px; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.showcard .sc-mini .sc-name b { font-family: var(--font-display); font-weight: 800; }
+.showcard .sc-mini .sc-eye { position: static; flex: none; }
+
+@media (max-width: 1100px) {
+  .app { grid-template-columns: 240px minmax(0, 1fr); grid-template-rows: 56px auto auto; height: auto; }
+  aside.side { grid-column: 1 / -1; max-height: 70vh; border-left: none; border-top: 1px solid var(--border); }
+  main { height: 700px; }
+  aside.list { max-height: 700px; }
+}
+@media (max-width: 720px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  #compName { width: 140px !important; }
+  .toolbar h2 { font-size: 15px; }
+  aside.list { display: none; }
+  /* telefono: la lista completa degli espositori (con le foto) si apre a tutto schermo */
+  body.showlist aside.list { display: block; position: fixed; inset: 0; z-index: 150; max-height: none; border: none; padding-bottom: 24px; }
+  .mobsel { display: flex; width: 100%; align-items: center; gap: 8px; justify-content: space-between; text-align: left; }
+  .mobsel .mx { font-weight: 800; color: var(--red); white-space: nowrap; }
+  .mobhead { display: flex !important; }
+  header h1 { font-size: 15px; }
+  header .hbtn .lbl { display: none; }
+  .savebadge { font-size: 0; padding: 6px 9px; }
+  .savebadge::before { content: attr(data-i); font-size: 14px; }
+  main { height: auto; }
+  .stage { flex: none; height: 440px; min-height: 0; }
+  body[data-view="room"] #viewRoom, body[data-view="show"] #viewRoom { flex-direction: column; overflow-y: auto; }
+  .room-side { width: auto; max-height: none; border-right: none; border-bottom: 1px solid var(--border); order: 2; }
+  .room-main { order: 1; flex: none; height: 78vh; }
+  .hnav { margin-left: 4px; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1 onclick="go('#/')" style="cursor:pointer" title="Clienti">Vetrina <span>Merch</span></h1>
+    <nav class="hnav">
+      <button class="hbtn" data-nav="home" onclick="go('#/')">👥<span class="lbl"> Clienti</span></button>
+      <button class="hbtn" data-nav="config" onclick="openFreeCatalog()">🗂<span class="lbl"> Espositori</span></button>
+    </nav>
+    <div class="sp"></div>
+    <span class="savebadge" id="saveBadge" onclick="openVersions()"></span>
+    <button class="hbtn" onclick="openImages()" title="Foto campioni">📷<span class="lbl"> Foto campioni</span> <span class="n" id="imgCount">0</span></button>
+    <button class="hbtn" onclick="exportBackup()" title="Scarica backup (composizioni + foto)">⬇<span class="lbl"> Backup</span></button>
+    <button class="hbtn" onclick="document.getElementById('importFile').click()" title="Ripristina un backup">⬆<span class="lbl"> Ripristina</span></button>
+    <input type="file" id="importFile" accept=".json,application/json" hidden onchange="importBackup(this.files[0]); this.value=''">
+  </header>
+
+  <aside class="list" id="dispList"></aside>
+
+  <main>
+    <div class="toolbar">
+      <button class="tb ctxbtn" id="ctxBtn" onclick="leaveConfig()">← Clienti</button>
+      <button class="tb mobsel" id="mobDisp" onclick="toggleDispList(true)"></button>
+      <h2 id="dName"></h2><span class="code" id="dCode"></span>
+      <div class="sp"></div>
+      <select class="tb" id="variantSel" onchange="setVariant(+this.value)" style="display:none"></select>
+      <select class="tb" id="compSel" onchange="selectComp(this.value)" title="Composizioni salvate"></select>
+      <input class="tb" id="compName" placeholder="Nome composizione" oninput="renameComp(this.value)" style="width:190px">
+      <button class="tb" onclick="newComp()" title="Nuova composizione">＋ Nuova</button>
+      <button class="tb" onclick="dupComp()" title="Duplica composizione">⧉</button>
+      <button class="tb" onclick="deleteComp()" title="Elimina composizione">🗑</button>
+    </div>
+    <div class="toolbar" style="padding-top:6px;padding-bottom:6px">
+      <span style="font-size:12px;color:var(--mid)" id="fillInfo"></span>
+      <div class="sp"></div>
+      <button class="tb on" id="lblBtn" onclick="toggleLabels()">Etichette</button>
+      <button class="tb" onclick="autoFill()" title="Riempie gli slot vuoti con campioni che hanno la foto">Riempi con foto</button>
+      <button class="tb" onclick="clearComp()">Svuota</button>
+      <button class="tb" onclick="copyCodes()">📋 Copia codici ordine</button>
+    </div>
+    <div class="stage" id="stage">
+      <div class="scene" id="scene"></div>
+    </div>
+    <div class="strip" id="strip"></div>
+  </main>
+
+  <aside class="side">
+    <div class="tabs">
+      <button id="tabPick" class="on" onclick="setTab('pick')">Campioni compatibili</button>
+      <button id="tabSheet" onclick="setTab('sheet')">Scheda espositore</button>
+    </div>
+    <div class="pane" id="pane"></div>
+  </aside>
+</div>
+
+<div class="modal" id="imgModal" onclick="if(event.target===this)closeImages()">
+  <div class="mbox">
+    <div class="mhead">
+      <h3>Foto campioni</h3>
+      <input class="search" id="imgSearch" placeholder="Cerca serie o colore…" style="width:220px" oninput="renderImages()">
+      <button class="btn" id="imgMissingBtn" onclick="imgOnlyMissing=!imgOnlyMissing; renderImages()">Solo mancanti</button>
+      <button class="btn red" onclick="document.getElementById('bulkFile').click()">⬆ Carica più foto</button>
+      <button class="btn" onclick="closeImages()">Chiudi</button>
+    </div>
+    <div style="padding:10px 18px;border-bottom:1px solid var(--border);font-size:12px;color:var(--mid)">
+      <div id="imgStats"></div>
+      <div class="progress"><div id="imgBar" style="width:0"></div></div>
+      <div style="margin-top:6px">Caricamento multiplo: chiama i file con il <b>codice prodotto</b> (es. <i>EKPJ_onyx.jpg</i>) oppure con <b>serie e colore</b> (es. <i>Unique Marble Calacatta Regale.jpg</i>) e vengono abbinati da soli. Una foto vale per tutti i formati di quel colore.</div>
+    </div>
+    <div class="mbody" id="imgList"></div>
+  </div>
+</div>
+
+<div class="modal" id="verModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="mbox">
+    <div class="mhead"><h3>🕘 Versioni salvate</h3><button class="btn" onclick="document.getElementById('verModal').classList.remove('open')">Chiudi</button></div>
+    <div id="verNote" style="padding:10px 18px;border-bottom:1px solid var(--border);font-size:12px;color:var(--mid)">
+      Tutto si salva da solo su disco nella cartella <b>dati</b>. Qui ci sono le copie precedenti: una ogni 10 minuti di lavoro e sempre prima di un'eliminazione.
+      Ripristinandone una, quella attuale viene salvata comunque, così puoi tornare indietro.</div>
+    <div class="mbody" id="verList"></div>
+  </div>
+</div>
+
+<div class="modal" id="askModal">
+  <div class="mbox askbox">
+    <div class="askmsg" id="askMsg"></div>
+    <input class="askin" id="askIn" hidden>
+    <div class="askbtns"><button class="btn" id="askNo">Annulla</button><button class="btn dark" id="askYes">OK</button></div>
+  </div>
+</div>
+
+<input type="file" id="oneFile" accept="image/*" hidden>
+<input type="file" id="bulkFile" accept="image/*" multiple hidden onchange="bulkUpload(this.files); this.value=''">
+<div class="toast" id="toast"></div>
+
+<script>/* sempre i dati aggiornati (foto nuove, listino) senza cache */ document.write('<script src="data.js?v=' + Date.now() + '"><\/script>');</script>
+<script>
+'use strict';
+/* ════════════════════════════════════════════════════════════
+   DATI
+   ════════════════════════════════════════════════════════════ */
+const DISPLAYS = window.ESPOSITORI;
+const DISP = Object.fromEntries(DISPLAYS.map(d => [d.id, d]));
+const SAMPLES = window.CAMPIONI.map(s => Object.assign(s, { key: [s.b, s.s, s.c, s.z].join('|'), ik: [s.b, s.s, s.c].join('|') }));
+const SAMPLE = Object.fromEntries(SAMPLES.map(s => [s.key, s]));
+const TOZ = '19,5x29,5 tozzetto';
+
+/* Campioni "tozzetto": uno per ogni prodotto da cui si ricava (marca+serie+colore+formato),
+   con la foto e i codici di quel formato (es. PIGMENTO Verde Salvia da 60×120 cardboard e da 120×278) */
+const TOZ_SAMPLES = SAMPLES.map(s => ({ b: s.b, s: s.s, c: s.c, z: TOZ, f: s.f.slice(), k: s.k.slice(), t: s.t.slice(),
+  key: s.key + '|' + TOZ, ik: s.ik, pkey: s.key, toz: true, from: [s.z] }));
+TOZ_SAMPLES.forEach(s => SAMPLE[s.key] = s);
+/* vecchi tozzetti "per colore" (composizioni fatte prima): restano leggibili, ma non si propongono più */
+(() => {
+  const m = {};
+  SAMPLES.forEach(s => {
+    const k = s.ik + '|' + TOZ;
+    if (!m[k]) m[k] = { b: s.b, s: s.s, c: s.c, z: TOZ, f: [], k: [], t: [], key: k, ik: s.ik, toz: true, from: [] };
+    const t = m[k];
+    s.t.forEach(x => { if (!t.t.includes(x)) t.t.push(x); });
+    s.f.forEach(x => { if (!t.f.includes(x)) t.f.push(x); });
+    if (!t.from.includes(s.z)) t.from.push(s.z);
+  });
+  Object.values(m).forEach(t => { if (!SAMPLE[t.key]) SAMPLE[t.key] = t; });
+})();
+
+const IMG_KEYS = [...new Set(SAMPLES.map(s => s.ik))].sort();
+
+function parseSize(z) {
+  const m = String(z).replace(/,/g, '.').match(/(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)/i);
+  return m ? [parseFloat(m[1]), parseFloat(m[2])] : null;
+}
+const sorted2 = a => a[0] <= a[1] ? [a[0], a[1]] : [a[1], a[0]];
+const fmt = z => String(z).replace('x', '×');
+
+function accepts(d, s) {
+  const a = d.accept;
+  if (a.thick && !s.t.some(t => a.thick.includes(t))) return false;
+  if (a.noThick && s.t.length && s.t.every(t => a.noThick.includes(t))) return false;   // es. tozzetti: tutto tranne il 20 mm
+  if (a.tozzetto) return !!s.toz;
+  if (s.toz) return false;
+  const sz = parseSize(s.z); if (!sz) return false;
+  const [s0, s1] = sorted2(sz);
+  if (a.sizes) return a.sizes.some(z => { const [a0, a1] = sorted2(parseSize(z)); return a0 === s0 && a1 === s1; });
+  if (a.fit) { const [f0, f1] = sorted2(a.fit); return s0 <= f0 && s1 <= f1; }
+  if (a.small) return s1 <= a.small;
+  return false;
+}
+function compatibleSamples(d) {
+  return (d.accept.tozzetto ? TOZ_SAMPLES : SAMPLES).filter(s => accepts(d, s));
+}
+function acceptLabel(d, c) {
+  const a = d.accept; const out = [];
+  if (a.sizes) out.push(...a.sizes.map(fmt));
+  if (a.fit) out.push('posa fino a ' + fmt(a.fit.join('x')));
+  if (a.tozzetto) {
+    const faces = c ? [faceOf(d, c)] : d.variantFaces ? Object.values(d.variantFaces) : [a.tozzetto];
+    out.push('tozzetto ' + faces.map(f => fmt(f.join('x').replace(/\./g, ','))).join(' / ') + ' (tutte le serie)');
+  }
+  if (a.small) out.push('piccoli formati ≤ ' + a.small + ' cm');
+  if (a.thick) out.push('spessore ' + a.thick.join(' / ') + ' mm');
+  if (a.noThick) out.push('escluso spessore ' + a.noThick.join(' / ') + ' mm');
+  return out;
+}
+
+/* ════════════════════════════════════════════════════════════
+   STATO (composizioni in localStorage)
+   ════════════════════════════════════════════════════════════ */
+const LS = {
+  get(k, def) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch (e) { return def; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { toast('Impossibile salvare: memoria del browser piena'); } }
+};
+let comps = LS.get('vm_comps_v1', {});
+let current = LS.get('vm_current_v1', {});
+let ui = LS.get('vm_ui_v1', { disp: 'PLY', labels: true, tab: 'pick' });
+let clients = LS.get('vm_clients_v1', {});   // id -> { id, name, city, contact, phone, note, upd }
+let scenes = LS.get('vm_scenes_v1', {});     // id -> ambientazione { id, client, name, w, d, h, wallL, wallR, items: [...] }
+const markDirty = () => { if (window.Sync) Sync.dirty(); };      // salvataggio su disco (salva.js)
+const saveClients = () => { LS.set('vm_clients_v1', clients); markDirty(); };
+const saveScenes = () => { LS.set('vm_scenes_v1', scenes); markDirty(); };
+let selSlot = 0, bookPage = 0, lastBook = {},brandFilter = '', onlyPhoto = false, searchQ = '';
+
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const saveComps = () => { LS.set('vm_comps_v1', comps); LS.set('vm_current_v1', current); markDirty(); };
+const saveUI = () => LS.set('vm_ui_v1', ui);
+/* Finestre di conferma della pagina (confirm/alert/prompt del browser non funzionano nella versione online) */
+function ask(msg, opts = {}) {
+  return new Promise(res => {
+    const m = document.getElementById('askModal'), inp = document.getElementById('askIn');
+    const yes = document.getElementById('askYes'), no = document.getElementById('askNo');
+    const isText = opts.text != null;
+    document.getElementById('askMsg').textContent = msg;
+    inp.hidden = !isText; if (isText) { inp.value = opts.text; inp.readOnly = !!opts.readOnly; }
+    no.hidden = !!opts.alert; yes.textContent = opts.ok || 'OK';
+    const done = v => { m.classList.remove('open'); yes.onclick = no.onclick = inp.onkeydown = null; res(v); };
+    yes.onclick = () => done(isText && !opts.readOnly ? inp.value : true);
+    no.onclick = () => done(isText && !opts.readOnly ? null : false);
+    inp.onkeydown = e => { if (e.key === 'Enter') yes.onclick(); if (e.key === 'Escape') no.onclick(); };
+    m.classList.add('open');
+    setTimeout(() => { if (isText) { inp.focus(); inp.select(); } else yes.focus(); }, 30);
+  });
+}
+const say = msg => ask(msg, { alert: true });
+const askText = (msg, def = '') => ask(msg, { text: def });
+const showCopy = (msg, txt) => ask(msg, { text: txt, readOnly: true, alert: true });
+
+function disp() { return DISP[ui.disp] || DISPLAYS[0]; }
+const defVariant = d => d.variantDefault || d.variants[d.variants.length - 1];
+function slotCount(d, c) { return d.variants ? (c && c.variant) || defVariant(d) : d.slots; }
+const ctxClient = () => (ui.client && clients[ui.client]) ? ui.client : '';
+const curKey = d => (ctxClient() ? ctxClient() + '|' : '') + d.id;
+const sameCtx = x => (x.client || '') === ctxClient();
+function comp() {
+  const d = disp();
+  let c = comps[current[curKey(d)]];
+  if (!c || c.disp !== d.id || !sameCtx(c)) {
+    const existing = Object.values(comps).filter(x => x.disp === d.id && sameCtx(x)).sort((a, b) => b.upd - a.upd)[0];
+    c = existing || makeComp(d, ctxClient() ? d.name : 'Composizione 1');
+    current[curKey(d)] = c.id; saveComps();
+  }
+  const n = slotCount(d, c);
+  if (c.slots.length !== n) { c.slots = c.slots.slice(0, n); while (c.slots.length < n) c.slots.push(null); }
+  return c;
+}
+function makeComp(d, name) {
+  const c = { id: uid(), disp: d.id, name, slots: Array(d.variants ? defVariant(d) : d.slots).fill(null), upd: Date.now() };
+  if (ctxClient()) c.client = ctxClient();
+  if (d.variants) c.variant = defVariant(d);
+  comps[c.id] = c; return c;
+}
+function touch() { const c = comp(); c.upd = Date.now(); saveComps(); }
+
+/* ════════════════════════════════════════════════════════════
+   IMMAGINI (IndexedDB) — caricate dall'utente
+   ════════════════════════════════════════════════════════════ */
+const IMG = {};   // ik -> objectURL
+let dbP = null;
+function db() {
+  if (!dbP) dbP = new Promise((res, rej) => {
+    const r = indexedDB.open('vetrina-merch', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('images');
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+  return dbP;
+}
+async function idbPut(k, v) { const d = await db(); return new Promise((res, rej) => { const t = d.transaction('images', 'readwrite'); t.objectStore('images').put(v, k); t.oncomplete = res; t.onerror = () => rej(t.error); }); }
+async function idbDel(k) { const d = await db(); return new Promise((res, rej) => { const t = d.transaction('images', 'readwrite'); t.objectStore('images').delete(k); t.oncomplete = res; t.onerror = () => rej(t.error); }); }
+async function idbAll() {
+  const d = await db();
+  return new Promise((res, rej) => {
+    const out = []; const t = d.transaction('images', 'readonly');
+    const r = t.objectStore('images').openCursor();
+    r.onsuccess = () => { const c = r.result; if (c) { out.push([c.key, c.value]); c.continue(); } else res(out); };
+    r.onerror = () => rej(r.error);
+  });
+}
+/* Foto della cartella foto/ (abbinate da build_data.py): valgono in qualsiasi browser.
+   Una foto caricata dal browser ha la precedenza; togliendola si torna a quella della cartella. */
+const FOTO = window.FOTO || {};
+const folderURL = ik => FOTO[ik] ? encodeURI(FOTO[ik]) : null;
+async function loadImages() {
+  try {
+    (await idbAll()).forEach(([k, v]) => { if (v && v.blob) IMG[k] = URL.createObjectURL(v.blob); });
+  } catch (e) { console.warn('IndexedDB non disponibile', e); }
+  if (typeof diskPhotos === 'function') Object.entries(await diskPhotos()).forEach(([k, url]) => { IMG[k] = encodeURI(url); });
+  Object.keys(FOTO).forEach(k => { if (!IMG[k]) IMG[k] = folderURL(k); });
+  Object.entries(window.FOTO_Z || {}).forEach(([k, p]) => { if (!IMG[k]) IMG[k] = encodeURI(p); });   // foto per formato
+  // foto caricate dal browser: se ne misura solo la forma, una alla volta (le altre sono già in FOTO_WH)
+  for (const k of Object.keys(IMG)) if (!dimOf(k)) await orient(k);
+  updateImgCount();
+}
+/* Forma delle foto (verticale/orizzontale): se la foto è orizzontale e la piastrella verticale (o viceversa)
+   la foto si gira di 90° con il CSS, così si vede tutta la lastra e non una fetta.
+   Niente copie ruotate né foto aperte tutte insieme all'avvio: sul telefono la pagina si chiudeva. */
+const FOTO_WH = {}; Object.entries(window.FOTO_WH || {}).forEach(([p, wh]) => { FOTO_WH[encodeURI(p)] = wh; });
+const IMGO = {};   // ik -> { src, w, h } delle foto caricate dal browser
+const dimOf = ik => { const u = IMG[ik]; if (!u) return null; if (FOTO_WH[u]) return FOTO_WH[u]; const o = IMGO[ik]; return o && o.src === u ? [o.w, o.h] : null; };
+function orient(ik) {
+  const url = IMG[ik];
+  if (!url) { delete IMGO[ik]; return Promise.resolve(); }
+  if (FOTO_WH[url]) return Promise.resolve();
+  return new Promise(res => {
+    const im = new Image();
+    im.onload = () => { IMGO[ik] = { src: url, w: im.naturalWidth, h: im.naturalHeight }; im.src = ''; res(); };
+    im.onerror = () => { delete IMGO[ik]; res(); };
+    im.src = url;
+  });
+}
+/* la foto va girata per stare in una piastrella verticale (portrait) o orizzontale? */
+function photoTurn(ik, portrait) {
+  const wh = dimOf(ik); if (!wh) return false;
+  const [w, h] = wh;
+  if (Math.max(w, h) / Math.min(w, h) < 1.15) return false;
+  return portrait ? w > h : h > w;
+}
+/* foto del formato preciso (es. il 60×120 della serie) se c'è, altrimenti quella del colore */
+const photoKey = s => (s && s.pkey && IMG[s.pkey]) ? s.pkey : (s && s.key && IMG[s.key]) ? s.key : s.ik;
+const tozFrom = s => s && s.toz && s.from && s.from.length === 1 ? ' da ' + fmt(s.from[0]) : '';   // tozzetto ricavato da…
+const hasPhoto = s => !!(s && ((s.pkey && IMG[s.pkey]) || (s.key && IMG[s.key]) || IMG[s.ik]));
+function imgFor(ik) { return IMG[ik]; }
+async function resizeImage(file, max = 1600) {
+  const bmp = await createImageBitmap(file);
+  const r = Math.min(1, max / Math.max(bmp.width, bmp.height));
+  const cv = document.createElement('canvas');
+  cv.width = Math.round(bmp.width * r); cv.height = Math.round(bmp.height * r);
+  cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+  return new Promise(res => cv.toBlob(res, 'image/jpeg', 0.86));
+}
+async function setImage(ik, file) {
+  const blob = await resizeImage(file);
+  await idbPut(ik, { blob, name: file.name, upd: Date.now() });
+  if (IMG[ik]) URL.revokeObjectURL(IMG[ik]);
+  const url = typeof uploadPhotoToDisk === 'function' ? await uploadPhotoToDisk(ik, blob) : null;   // copia su disco
+  IMG[ik] = url ? encodeURI(url) : URL.createObjectURL(blob);
+  await orient(ik);
+  updateImgCount();
+}
+async function removeImage(ik) {
+  await idbDel(ik);
+  if (typeof deletePhotoFromDisk === 'function') await deletePhotoFromDisk(ik);
+  if (IMG[ik]) URL.revokeObjectURL(IMG[ik]);
+  delete IMG[ik];
+  if (FOTO[ik]) IMG[ik] = folderURL(ik);
+  await orient(ik);
+  updateImgCount();
+}
+function updateImgCount() {
+  const n = IMG_KEYS.filter(k => IMG[k]).length;
+  document.getElementById('imgCount').textContent = n + '/' + IMG_KEYS.length;
+}
+let pendingIk = null;
+document.getElementById('oneFile').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f || !pendingIk) return;
+  await setImage(pendingIk, f);
+  toast('Foto salvata: ' + pendingIk.split('|').slice(1).join(' '));
+  pendingIk = null; renderAll();
+  if (document.getElementById('imgModal').classList.contains('open')) renderImages();
+});
+function pickImage(ik) { pendingIk = ik; document.getElementById('oneFile').click(); }
+
+/* ════════════════════════════════════════════════════════════
+   COLORE SEGNAPOSTO (finché non c'è la foto)
+   ════════════════════════════════════════════════════════════ */
+const HINTS = [
+  [/bianc|white|blanc|ivory|avorio|calacatta|statuario|carrara|snow|neve|latte|milk|panna|sale\b|salt|perla|pearl|bone|osso|sbiancat|ghiaccio|ice|polar/i, [236, 232, 223]],
+  [/grigi|grey|gray|gris|silver|cement|cenere|ash|smoke|fumo|steel|piombo|lead|pewter|fog|nebbia|stone grey|cloud/i, [158, 157, 153]],
+  [/ner[oa]|black|noir|graphit|grafite|anthrac|antracit|carbon|ebony|lava|coal|night|notte|dark/i, [62, 61, 62]],
+  [/beige|sand|sabbia|crema|cream|almond|greige|tortora|taupe|travert|ecru|camel|desert|dune|biscuit|miele|honey|lino|linen|avena|oat/i, [206, 189, 160]],
+  [/brown|marron|brun|moka|mocha|cocoa|cacao|walnut|noce|oak|rovere|teak|caramel|cognac|tabac|terra|bronz|rust|ruggin|copper|rame|ocra|ochre|cotto|chestnut|castagn|cherry|ciliegio|wenge|tan\b|cuoio|leather/i, [138, 106, 80]],
+  [/green|verde|vert|sage|salvia|oliv|emerald|smerald|bosco|forest|mint/i, [125, 140, 112]],
+  [/blue|blu|azzurr|bleu|navy|ocean|ottanio|teal|petrol|indigo|avio/i, [92, 116, 136]],
+  [/red|ross|rouge|pink|rosa|bordeaux|coral|coral|brick/i, [168, 92, 80]],
+  [/yellow|giall|gold|oro\b|ambra|amber|senape|mustard/i, [201, 168, 90]],
+];
+function hashN(s) { let h = 0; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return h; }
+function placeholderRGB(s) {
+  const txt = s.c + ' ' + s.s;
+  for (const [re, rgb] of HINTS) if (re.test(s.c)) return rgb;
+  for (const [re, rgb] of HINTS) if (re.test(txt)) return rgb;
+  const h = hashN(txt); const v = 150 + (h % 70);
+  return [v, v - 8 - (h >> 3) % 10, v - 20 - (h >> 5) % 14];
+}
+const rgb = (a, k = 0) => `rgb(${a.map(x => Math.max(0, Math.min(255, Math.round(x + k)))).join(',')})`;
+
+/* Sfondo CSS di una faccia: piastrella(e) del campione posate su una faccia faceW×faceH (cm) */
+function faceBg(s, faceW, faceH, tiled, px = 1) {
+  const [tw, th] = tileDims(s, faceW, faceH, tiled);
+  const bw = (tw / faceW * 100).toFixed(3) + '%', bh = (th / faceH * 100).toFixed(3) + '%';
+  const multi = tw < faceW - .5 || th < faceH - .5;
+  const layers = [], sizes = [], reps = [];
+  if (multi) {
+    const gl = 1.5 * px + 'px';                         // fuga (più spessa se la foto è disegnata ingrandita)
+    layers.push(`linear-gradient(to right, rgba(40,35,30,.55) 0, rgba(40,35,30,.55) ${gl}, transparent ${gl})`,
+                `linear-gradient(to bottom, rgba(40,35,30,.55) 0, rgba(40,35,30,.55) ${gl}, transparent ${gl})`);
+    sizes.push(bw + ' ' + bh, bw + ' ' + bh); reps.push('repeat', 'repeat');
+  }
+  const url = imgFor(photoKey(s));
+  if (url) {
+    layers.push(`url(${url})`); sizes.push(multi ? bw + ' ' + bh : 'cover'); reps.push(multi ? 'repeat' : 'no-repeat');
+    return `background-image:${layers.join(',')};background-size:${sizes.join(',')};background-repeat:${reps.join(',')};background-position:center;background-color:#ccc;`;
+  }
+  const c = placeholderRGB(s);
+  layers.push(`radial-gradient(ellipse at 30% 25%, ${rgb(c, 14)} 0%, ${rgb(c)} 55%, ${rgb(c, -16)} 100%)`);
+  sizes.push(multi ? bw + ' ' + bh : '100% 100%'); reps.push('repeat');
+  return `background-image:${layers.join(',')};background-size:${sizes.join(',')};background-repeat:${reps.join(',')};background-color:${rgb(c)};`;
+}
+/* Foto di una faccia 3D. Il browser rasterizza gli elementi 3D alla loro misura in pixel e poi li ingrandisce
+   con lo zoom (= foto sfocate, soprattutto i 120×120): la foto è disegnata r volte più grande e rimpicciolita. */
+const LOWMEM = (() => { try { return matchMedia("(pointer: coarse)").matches || innerWidth < 820; } catch (e) { return false; } })();   // telefono/tablet: meno memoria
+let FACE_RES = LOWMEM ? 2 : 3;
+function photoLayer(s, faceW, faceH, tiled, r = FACE_RES) {
+  const [tw, th] = tileDims(s, faceW, faceH, tiled);
+  if (photoTurn(photoKey(s), th > tw)) {
+    // foto girata di 90°: lo strato è disegnato coricato (faceH × faceW) e ruotato dentro la faccia
+    return `<div class="ph" style="--r:${r};left:100%;width:${(r * 100 * faceH / faceW).toFixed(3)}%;height:${(r * 100 * faceW / faceH).toFixed(3)}%;transform:rotate(90deg) scale(${(1 / r).toFixed(5)});${faceBg(s, faceH, faceW, tiled, r)}"></div>`;
+  }
+  return `<div class="ph" style="--r:${r};width:${r * 100}%;height:${r * 100}%;transform:scale(${(1 / r).toFixed(5)});${faceBg(s, faceW, faceH, tiled, r)}"></div>`;
+}
+/* misure (cm) della piastrella del campione posata su una faccia faceW×faceH */
+function tileDims(s, faceW, faceH, tiled) {
+  let tw = faceW, th = faceH;
+  if (tiled) {
+    const sz = parseSize(s.toz ? '19.5x29.5' : s.z);
+    if (sz) {
+      const [a, b] = sorted2(sz);
+      if (faceW > faceH) { tw = b; th = a; } else { tw = a; th = b; }
+      tw = Math.min(tw, faceW); th = Math.min(th, faceH);
+    }
+  }
+  return [tw, th];
+}
+function swatchStyle(s) {
+  // le piastrelle e le lastre sono verticali: anche le miniature usano la foto in verticale
+  if (hasPhoto(s)) return `background-image:url(${imgFor(photoKey(s), true)})`;
+  const c = placeholderRGB(s);
+  return `background:radial-gradient(ellipse at 30% 25%, ${rgb(c, 14)}, ${rgb(c, -12)})`;
+}
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+
+/* ════════════════════════════════════════════════════════════
+   SLOT HELPERS
+   ════════════════════════════════════════════════════════════ */
+function faceOf(d, c) { return (d.variantFaces && d.variantFaces[c.slots.length]) || d.face; }
+const tozFmt = (d, c) => faceOf(d, c).join('x').replace(/\./g, ',');
+/* Spessore di piastrelle e tozzetti: 1 cm, 2 cm per le serie da 20 mm (o negli espositori solo 20 mm) */
+function tileThickCm(d, c, i) {
+  const s = c && SAMPLE[c.slots[i]]; if (!s) return 0;
+  if (d.accept && d.accept.thick && d.accept.thick.every(x => x === '20')) return 2;
+  return s.t.length && s.t.every(x => x === '20') ? 2 : 1;
+}
+/* Bordi e retro dietro una faccia w×h (px), profondità T (px): da mettere nello stesso contenitore della faccia.
+   back = stile CSS del retro (di serie grigio ceramica) */
+function thickHTML(w, h, T, back) {
+  if (!T) return '';
+  const e = 'background:linear-gradient(90deg,#ddd8ce,#c8c2b7);';
+  return `<div class="bx" style="width:${T}px;height:${h}px;${e}transform:translate3d(${w}px,0,0) rotateY(90deg)"></div>` +
+    `<div class="bx" style="width:${T}px;height:${h}px;${e}transform:translate3d(0,0,0) rotateY(90deg)"></div>` +
+    `<div class="bx" style="width:${w}px;height:${T}px;${e}transform:translate3d(0,0,0) rotateX(-90deg)"></div>` +
+    `<div class="bx" style="width:${w}px;height:${T}px;${e}transform:translate3d(0,${h}px,0) rotateX(-90deg)"></div>` +
+    `<div class="bx" style="width:${w}px;height:${h}px;${back || 'background:#cfc9be'};transform:translate3d(${w}px,0,${-T}px) rotateY(180deg)"></div>`;
+}
+/* Spessore + retro di un tozzetto/piastrella del posto i: il retro mostra anche lui il campione,
+   così si riconosce da qualsiasi lato lo si guardi (fw×fh in cm, k = px per cm) */
+function tileBody(d, c, i, fw, fh, tiled, k) {
+  const s = c && SAMPLE[c.slots[i]];
+  const back = s ? faceBg(s, fw, fh, tiled) + 'filter:brightness(.9);' : 'background:#e6e3dc;';
+  return thickHTML(fw * k, fh * k, Math.max(1, tileThickCm(d, c, i)) * k, back);
+}
+function slotName(d, i, n) {
+  if ((d.mode === 'book' || d.mode === 'swing') && d.sides === 2) { const L = n / 2, [a, b] = d.sideNames || ['A', 'B']; return (i < L ? a : b) + (d.sideNames ? ' ' : '') + ((i % L) + 1); }
+  if (d.mode === 'wall' && d.sides === 2) return i === 0 ? 'Fronte' : 'Retro';
+  return String(i + 1);
+}
+function faceHTML(d, c, i, faceW, faceH, tiled, extraCls = '', style = '') {
+  const s = SAMPLE[c.slots[i]];
+  const n = c.slots.length;
+  const sel = i === selSlot ? ' sel' : '';
+  if (!s) return `<div class="face empty${sel} ${extraCls}" data-slot="${i}" style="${style}"><span>${esc(slotName(d, i, n))}</span></div>`;
+  return `<div class="face${sel} ${extraCls}" data-slot="${i}" style="${style}">${photoLayer(s, faceW, faceH, tiled)}
+    <div class="sheen"></div>
+    <span class="slotno">${esc(slotName(d, i, n))}</span>
+    <div class="lbl"><b>${esc(s.s)}</b> ${esc(s.c)} · ${esc(fmt(s.toz ? tozFmt(d, c) : s.z) + tozFrom(s))}${hasPhoto(s) ? '' : ' <span class="nofoto">· senza foto</span>'}</div>
+  </div>`;
+}
+
+/* ════════════════════════════════════════════════════════════
+   RENDER ESPOSITORE
+   ════════════════════════════════════════════════════════════ */
+function renderStage() {
+  const d = disp(), c = comp();
+  const st = document.getElementById('stage'), sc = document.getElementById('scene');
+  st.classList.toggle('nolabels', !ui.labels);
+  st.querySelectorAll('.nav,.pageinfo,.ctrlbar').forEach(e => e.remove());
+  st.classList.toggle('lblbig', !!ui.lblBig);
+  st.style.setProperty('--lblk', 1);
+  st.classList.toggle('teca-nozoom', ['teca', 'shelf', 'culla', 'cassettiera'].includes(d.mode) && !ui.zoom);
+  const W = st.clientWidth, H = st.clientHeight;
+  ({ swing: renderSwing, slide: renderSlide, cassettiera: renderCassettiera, colonna: renderColonna, teca: renderTeca, culla: renderCulla, shelf: renderShelf, book: renderModel3D, drawers: renderModel3D, rack: renderModel3D, wall: renderModel3D, grid: renderModel3D })[d.mode](d, c, sc, W, H, st);
+  // occhio: nasconde/mostra tutte le scritte sulle piastrelle (numero posto e descrizione)
+  let info = st.querySelector('.pageinfo');
+  if (!info) { info = document.createElement('div'); info.className = 'pageinfo'; st.appendChild(info); }
+  const eye = document.createElement('button'); eye.className = 'eyebtn';
+  eye.title = ui.labels ? 'Nascondi le scritte' : 'Mostra le scritte';
+  eye.innerHTML = ui.labels
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>'
+    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7c2 0 3.8.7 5.3 1.7M22 12s-3.6 7-10 7c-2 0-3.8-.7-5.3-1.7"/><path d="M3 3l18 18"/></svg>';
+  eye.onclick = e => { e.stopPropagation(); toggleLabels(); };
+  if (!info.textContent.trim()) eye.style.cssText = 'border-left:none;padding:0';
+  info.appendChild(eye);
+  sc.querySelectorAll('[data-slot]').forEach(el => el.addEventListener('click', ev => {
+    ev.stopPropagation();
+    if (window._dragMoved) { window._dragMoved = false; return; }          // era un trascinamento della telecamera
+    if (ev.target.closest('.lbl')) {                 // clic sulla descrizione: piccola <-> grande
+      ui.lblBig = !ui.lblBig; saveUI(); st.classList.toggle('lblbig', ui.lblBig); return;
+    }
+    selectSlot(+el.dataset.slot, disp().mode === 'swing');
+  }));
+}
+
+/* Girevoli: pila di portapannelli verticali. Quello scelto scorre fuori a destra (lato A)
+   e poi si ribalta in orizzontale come un tavolo mostrando il lato B. */
+function box3d(x, yTop, z, w, h, d, col) {
+  // facce di un parallelepipedo: fronte, retro, top, lato sx, lato dx (origine 0 0)
+  return `<div class="bx" style="width:${w}px;height:${h}px;background:${col.front};transform:translate3d(${x}px,${yTop}px,${z}px)"></div>
+    <div class="bx" style="width:${w}px;height:${h}px;background:${col.side};transform:translate3d(${x}px,${yTop}px,${z - d}px)"></div>
+    <div class="bx" style="width:${w}px;height:${d}px;background:${col.top};transform:translate3d(${x}px,${yTop}px,${z}px) rotateX(-90deg)"></div>
+    <div class="bx" style="width:${d}px;height:${h}px;background:${col.side};transform:translate3d(${x}px,${yTop}px,${z}px) rotateY(90deg)"></div>
+    <div class="bx" style="width:${d}px;height:${h}px;background:${col.side};transform:translate3d(${x + w}px,${yTop}px,${z}px) rotateY(90deg)"></div>`;
+}
+const METAL = { front: 'linear-gradient(180deg,#2c2c2f,#1a1a1c)', top: '#38383c', side: '#141416' };
+// swing.side: da che parte guarda la telecamera (A = davanti, B = dietro); ui.zoom: primo piano sulla piastrella aperta
+let camZ = 1;   // scala dell'ultima inquadratura zoom calcolata
+let swing = { holder: 0, pose: 'in', side: 'A' }, lastSwing = {}, swingToken = 0;
+/* Geometria del girevole a scala k (px per cm), con le misure delle schede del catalogo (d.geo):
+   W = lato lungo il fronte delle lastre, D = profondità della fila di portapannelli, Ht = altezza,
+   travel = corsa della lastra estratta (larghezza aperta − W). Origine al centro dell'ingombro a terra.
+   Ogni portapannello porta 2 piastrelle schiena contro schiena (A davanti, B dietro), spesse 1 cm ciascuna. */
+function swingDims(d, c, k) {
+  const n = c.slots.length, L = Math.ceil(n / 2), [fw, fh] = d.face;
+  const geo = d.geo || { w: fw + 37, d: L * 12.9, h: fh + 30, ext: fw * 2 + 50 };
+  const W = geo.w * k, D = geo.d * k, Ht = geo.h * k, w = fw * k, h = fh * k;
+  const yb = Math.max(4, geo.h - fh) * k;              // altezza da terra del piede delle piastrelle
+  return { n, L, fw, fh, w, h, W, D, Ht, yb, t: 1 * k,
+    pitch: D / L, travel: (geo.ext - geo.w) * k,
+    trayH: 15 * k,                                        // vasca/telaio basso in cui scorrono i carrelli
+    baseH: 15 * k,
+    hingeY: Ht * 0.52,                                    // cima del montante = cerniera della posizione "a tavolo"
+    post: 5 * k, prof: 1.5 * k };                         // montante quadrato 5×5 cm, profilo sul bordo della lastra
+}
+const swingZ = (g, i) => g.D / 2 - g.pitch / 2 - i * g.pitch;    // centro del portapannello i (0 = davanti)
+/* Carrelli + vasca di base. faceFn(i, retro, transform) disegna la faccia del posto i.
+   Ogni carrello (come nella foto dello showroom): montante quadrato 5×5 da terra fino a metà altezza sul lato
+   d'uscita, traversa sotto la lastra, profilo nero lungo il bordo verticale, binario a terra. */
+function swingModelHTML(g, holderT, panelT, poseOf, side, faceFn) {
+  const { L, w, h, W, D, Ht, yb, t, trayH, hingeY, post, prof } = g;
+  const edge = 'background:linear-gradient(90deg,#d9d4ca,#c9c3b8);';
+  const blk = (x, y, z, bw, bh, bd) => box3d(x, y, z, bw, bh, bd, METAL);
+  let html = '';
+  for (let i = L - 1; i >= 0; i--) {
+    const p = poseOf(i);
+    html += `<div class="holder" data-h="${i}" style="transform:${holderT(i, p)}">
+      <div class="panel" style="left:0;top:${-Ht}px;width:${w}px;height:${h}px;transform-origin:50% ${Ht - hingeY}px;transform:${panelT(p, side)}">
+        ${faceFn(i, false, `translateZ(${t}px)`)}${faceFn(i + L, true, `translateZ(${-t}px) rotateY(180deg)`)}
+        <div class="bx" style="width:${2 * t}px;height:${h}px;${edge}transform:translate3d(0,0,${t}px) rotateY(90deg)"></div>
+        <div class="bx" style="width:${w}px;height:${2 * t}px;${edge}transform:translate3d(0,0,${t}px) rotateX(-90deg)"></div>
+        ${blk(w - prof * 0.4, 0, t + prof * 0.4, prof * 1.2, h, 2 * t + prof * 0.8)}
+        ${blk(-prof * 0.2, h - prof, t + prof * 0.4, w + prof * 0.6, prof * 1.4, 2 * t + prof * 0.8)}
+      </div>
+      ${blk(w + prof * 0.8, -hingeY, post / 2, post, hingeY, post)}
+      ${blk(w + prof * 0.8 - post * 0.2, -hingeY - post * 0.25, post * 0.6, post * 1.4, post * 0.5, post * 1.2)}
+      ${blk(-post * 0.5, -yb, post / 2, w + post * 1.3 + prof, post * 0.8, post)}
+      ${blk(-post * 0.5, -post * 1.2, post / 2, w + post * 1.3 + prof, post * 1.2, post)}
+      ${blk(-post * 0.5, -yb, post / 2, post * 0.8, yb - post * 1.2, post)}
+    </div>`;
+  }
+  // vasca bassa aperta sopra (fondo + 4 sponde)
+  const wall = 2.5 * g.t, bh = trayH;
+  html += box3d(-W / 2, -2 * g.t, D / 2, W, 2 * g.t, D, METAL);
+  html += box3d(-W / 2, -bh, D / 2, W, bh, wall, METAL) + box3d(-W / 2, -bh, -D / 2 + wall, W, bh, wall, METAL);
+  html += box3d(-W / 2, -bh, D / 2, wall, bh, D, METAL) + box3d(W / 2 - wall, -bh, D / 2, wall, bh, D, METAL);
+  return html;
+}
+function renderSwing(d, c, sc, W, H, st) {
+  if (d.noTable && swing.pose === 'table') swing.pose = 'out';                          // carrelli delle lastre: mai a tavolo
+  const geo = d.geo || {};
+  const gw = geo.w || d.face[0] + 37, ge = geo.ext || d.face[0] * 2 + 50;
+  const k = Math.min((H * 0.62) / (geo.h || d.face[1] + 30), (W * 0.62) / (gw + (ge - gw) * 0.55));
+  const g = swingDims(d, c, k);
+  const { n, L, fw, fh, w, h, Ht, yb, travel, hingeY } = g;
+  swing.holder = Math.max(0, Math.min(L - 1, swing.holder));
+  const key = d.id + '|' + c.id + '|' + n;
+  const from = lastSwing.key === key
+    ? { holder: lastSwing.holder, pose: lastSwing.pose, side: lastSwing.side, zoom: lastSwing.zoom }
+    : { holder: swing.holder, pose: swing.pose, side: swing.side, zoom: !!ui.zoom };
+  lastSwing = { key, holder: swing.holder, pose: swing.pose, side: swing.side, zoom: !!ui.zoom };
+
+  const holderT = (i, p) => `translate3d(${-w / 2 + (p === 'in' ? 0 : travel)}px,0,${swingZ(g, i)}px)`;
+  const panelT = (p, side) => p === 'table' ? (side === 'A' ? 'rotateX(90deg)' : 'rotateX(-90deg)') : 'rotateX(0deg)';
+  // telecamera: ruota attorno a un perno; lato B = vista dalla parte opposta
+  const camT = s => {
+    const back = s.side === 'B';
+    if (s.zoom) {
+      const hx = s.pose === 'in' ? 0 : travel;
+      const hz = swingZ(g, s.pose === 'in' ? 0 : s.holder);
+      const table = s.pose === 'table';
+      const z = Math.min((H * (table ? 0.62 : 0.70)) / h, (W * (table ? 0.6 : 0.72)) / w); camZ = z;
+      const py = table ? -hingeY : -(yb + h / 2);
+      const rx = table ? -89.9 : 0, ry = back ? 180 : 0;   // inquadratura dritta, di fronte
+      return `translate3d(${W / 2}px,${H * 0.45}px,0) scale(${z.toFixed(3)}) rotateX(${rx}deg) rotateY(${ry}deg) translate3d(${-hx}px,${-py}px,${-hz}px)`;
+    }
+    const cx = s.pose === 'in' ? 0 : travel / 2;
+    const tilt = s.pose === 'table' ? 34 : 16;          // a tavolo: più dall'alto per vedere il piano
+    return `translate3d(${W / 2}px,${H * 0.82}px,0) rotateX(${-tilt}deg) rotateY(${back ? 140 : -40}deg) translate3d(${-cx}px,${Ht * 0.08}px,0)`;
+  };
+  let html = `<div class="sw-root" style="transform:${camT(from)}">`;
+  // pavimento con ombra (si muove con la telecamera)
+  html += `<div class="bx" style="width:${g.W * 4}px;height:${g.D * 3}px;background:radial-gradient(ellipse at 45% 50%, rgba(0,0,0,.24), rgba(0,0,0,0) 62%);transform:translate3d(${-g.W * 1.8}px,0.5px,${g.D * 1.5}px) rotateX(-90deg)"></div>`;
+  html += swingModelHTML(g, holderT, panelT, i => i === from.holder ? from.pose : 'in', from.side,
+    (i, back, tf) => faceHTML(d, c, i, fw, fh, true, back ? 'backx' : '', `transform:${tf}`));
+  html += `</div>`;
+  sc.innerHTML = html;
+
+  // animazione: la telecamera si sposta subito; i portapannelli a passi (rientra il vecchio, esce il nuovo, ribalta)
+  const order = ['in', 'out', 'table'];
+  const seq = [];
+  const walk = (hh, a, b) => { let ia = order.indexOf(a), ib = order.indexOf(b); while (ia !== ib) { ia += ia < ib ? 1 : -1; seq.push([hh, order[ia]]); } };
+  if (from.holder !== swing.holder) { walk(from.holder, from.pose, 'in'); walk(swing.holder, 'in', swing.pose); }
+  else walk(swing.holder, from.pose, swing.pose);
+  if (from.holder === swing.holder && swing.pose === 'table' && from.pose === 'table' && from.side !== swing.side) seq.push([swing.holder, 'table']);
+  const token = ++swingToken;
+  const target = camT({ holder: swing.holder, pose: swing.pose, side: swing.side, zoom: !!ui.zoom });
+  st.style.setProperty('--lblk', ui.zoom ? (1 / camZ).toFixed(4) : 1);
+  if (target !== camT(from)) requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (token !== swingToken) return;
+    const r = sc.querySelector('.sw-root'); if (r) r.style.transform = target;
+  }));
+  seq.forEach(([hh, p], idx) => setTimeout(() => {
+    if (token !== swingToken) return;
+    const el = sc.querySelector(`.holder[data-h="${hh}"]`); if (!el) return;
+    el.style.transform = holderT(hh, p);
+    el.querySelector('.panel').style.transform = panelT(p, hh === swing.holder ? swing.side : from.side);
+  }, 40 + idx * 580));
+
+  const info = document.createElement('div'); info.className = 'pageinfo';
+  info.textContent = `${d.sideNames ? 'Carrello' : 'Portapannello'} ${swing.holder + 1} di ${L}` +
+    (swing.pose === 'out' ? ` · estratto, lato ${(d.sideNames || ['A', 'B'])[swing.side === 'A' ? 0 : 1]}` : swing.pose === 'table' ? ` · a tavolo, lato ${swing.side}` : ' · chiuso') + (ui.zoom ? ' · zoom' : '');
+  st.appendChild(info);
+  const go = (hh, p, side) => {
+    swing = { holder: hh, pose: p, side: side || swing.side };
+    if (p !== 'in') selSlot = hh + (swing.side === 'B' ? L : 0);
+    renderStage(); renderStrip(); if (ui.tab === 'pick') renderPicker(false);
+  };
+  st.append(navBtn('l', '‹', swing.holder === 0, () => go(swing.holder - 1, swing.pose === 'in' ? 'out' : swing.pose)),
+            navBtn('r', '›', swing.holder >= L - 1, () => go(swing.holder + 1, swing.pose === 'in' ? 'out' : swing.pose)));
+  const bar = document.createElement('div'); bar.className = 'ctrlbar';
+  const open = swing.pose !== 'in';
+  const [nA, nB] = d.sideNames || ['A', 'B'];
+  [['Rientra', !open, () => go(swing.holder, 'in')],
+   ['Lato ' + nA, open && swing.side === 'A', () => go(swing.holder, swing.pose === 'table' ? 'table' : 'out', 'A')],
+   ['Lato ' + nB, open && swing.side === 'B', () => go(swing.holder, swing.pose === 'table' ? 'table' : 'out', 'B')],
+   ...(d.noTable ? [] : [['A tavolo', swing.pose === 'table', () => go(swing.holder, swing.pose === 'table' ? 'out' : 'table')]])   // i carrelli delle lastre restano sempre verticali
+  ].forEach(([t, on, fn]) => {
+    const b = document.createElement('button'); b.textContent = t; b.className = on ? 'on' : '';
+    b.onclick = e => { e.stopPropagation(); fn(); }; bar.appendChild(b);
+  });
+  const z = document.createElement('button'); z.textContent = '🔍 Zoom'; z.className = 'zoom' + (ui.zoom ? ' on' : '');
+  z.title = 'Primo piano sulla piastrella aperta';
+  z.onclick = e => { e.stopPropagation(); ui.zoom = !ui.zoom; saveUI(); go(swing.holder, swing.pose === 'in' ? 'out' : swing.pose); };
+  bar.appendChild(z);
+  st.appendChild(bar);
+}
+
+/* Mobile teca: mobile nero a 3 ripiani, tozzetti in piedi visti di sbieco.
+   Il tozzetto selezionato esce davanti al mobile e si gira di fronte. */
+let lastTeca = {};
+function renderTeca(d, c, sc, W, H, st) {
+  const n = c.slots.length, rows = d.rows || 3, cols = d.cols || Math.ceil(n / rows);
+  const [tw, th] = d.face;                                   // 19,5 × 29,5 cm
+  const CW = 100, CH = 104, CD = 45, plinth = 8, t = 2;      // mobile in cm
+  const rowH = (CH - plinth - t) / rows;
+  const k = Math.min((H * 0.72) / (CH + 10), (W * 0.62) / CW);
+  const step = (CW - 2 * t - 8 - tw * 0.31) / Math.max(1, cols - 1);
+  const sel = Math.max(0, Math.min(n - 1, selSlot));
+  const key = d.id + '|' + c.id + '|' + n;
+  const from = lastTeca.key === key ? { sel: lastTeca.sel, zoom: lastTeca.zoom } : { sel, zoom: !!ui.zoom };
+  lastTeca = { key, sel, zoom: !!ui.zoom };
+
+  const pos = i => {                       // riga 0 = ripiano in alto
+    const r = Math.floor(i / cols), j = i % cols;
+    const bottom = -plinth - (rows - 1 - r) * rowH;
+    return { x: t + 4 + j * step, top: bottom - th, j, r };
+  };
+  const sx = d.side === 'SX';                // teca SX: tozzetti in diagonale rivolti verso sinistra (specchio della DX)
+  const cs = Math.cos(72 * Math.PI / 180) * tw, sn = Math.sin(72 * Math.PI / 180) * tw;
+  const outX = i => { const x = Math.max(2, Math.min(CW - tw - 2, pos(i).x - tw / 2)); return sx ? CW - x - tw : x; };
+  const tileT = (i, out) => {
+    const p = pos(i);
+    if (out) return `translate3d(${outX(i) * k}px,${(p.top - 3) * k}px,${24 * k}px) rotateY(0deg)`;
+    if (!sx) return `translate3d(${p.x * k}px,${p.top * k}px,${-3 * k}px) rotateY(72deg)`;
+    return `translate3d(${(CW - p.x - cs) * k}px,${p.top * k}px,${(-3 - sn) * k}px) rotateY(-72deg)`;
+  };
+  const camT = (s) => {
+    if (s.zoom) {
+      const p = pos(s.sel), x = outX(s.sel);
+      const z = Math.min((H * 0.72) / (th * k), (W * 0.7) / (tw * k)); camZ = z;
+      return `translate3d(${W / 2}px,${H * 0.46}px,0) scale(${z.toFixed(3)}) translate3d(${-(x + tw / 2) * k}px,${-(p.top - 3 + th / 2) * k}px,${-24 * k}px)`;
+    }
+    return `translate3d(${W / 2}px,${H * 0.5}px,0) rotateX(-10deg) rotateY(${sx ? 20 : -20}deg) translate3d(${-CW / 2 * k}px,${CH / 2 * k}px,${CD / 2 * k}px)`;
+  };
+  const B = (x, y, z, w, h, dd) => box3d(x * k, y * k, z * k, w * k, h * k, dd * k, METAL);
+  let html = `<div class="sw-root" style="transform:${camT(from)}">`;
+  html += `<div class="bx" style="width:${CW * 2.2 * k}px;height:${CD * 3 * k}px;background:radial-gradient(ellipse at 50% 40%, rgba(0,0,0,.25), rgba(0,0,0,0) 62%);transform:translate3d(${-CW * 0.6 * k}px,0.5px,${CD * k}px) rotateX(-90deg)"></div>`;
+  html += B(0, -CH, -CD + t, CW, CH, t);                          // schienale
+  html += B(0, -CH, 0, t, CH, CD) + B(CW - t, -CH, 0, t, CH, CD); // fianchi
+  html += B(0, -CH, 0, CW, t, CD) + B(0, -plinth, 0, CW, plinth, CD); // cielo e zoccolo
+  for (let r = 1; r < rows; r++) html += B(t, -plinth - r * rowH - t / 2, 0, CW - 2 * t, t, CD); // ripiani
+  for (let i = 0; i < n; i++) {
+    html += `<div class="bx ttile" data-t="${i}" style="width:${tw * k}px;height:${th * k}px;transform:${tileT(i, i === from.sel)}">${faceHTML(d, c, i, tw, th, true, '', 'backface-visibility:visible')}${tileBody(d, c, i, tw, th, true, k)}</div>`;
+  }
+  html += `</div>`;
+  sc.innerHTML = html;
+  const target = camT({ sel, zoom: !!ui.zoom });
+  st.style.setProperty('--lblk', ui.zoom ? (1 / camZ).toFixed(4) : 1);
+  if (from.sel !== sel || target !== camT(from)) requestAnimationFrame(() => requestAnimationFrame(() => {
+    const r = sc.querySelector('.sw-root'); if (!r) return;
+    r.style.transform = target;
+    const a = sc.querySelector(`.ttile[data-t="${from.sel}"]`), b = sc.querySelector(`.ttile[data-t="${sel}"]`);
+    if (a) a.style.transform = tileT(from.sel, false);
+    if (b) b.style.transform = tileT(sel, true);
+  }));
+
+  const p = pos(sel);
+  const info = document.createElement('div'); info.className = 'pageinfo';
+  info.textContent = `Ripiano ${p.r + 1} · tozzetto ${p.j + 1} di ${cols}` + (ui.zoom ? ' · zoom' : '');
+  st.appendChild(info);
+  const go = i => { selSlot = i; renderStage(); renderStrip(); if (ui.tab === 'pick') renderPicker(false); };
+  st.append(navBtn('l', '‹', sel === 0, () => go(sel - 1)), navBtn('r', '›', sel >= n - 1, () => go(sel + 1)));
+  const bar = document.createElement('div'); bar.className = 'ctrlbar';
+  const z = document.createElement('button'); z.textContent = '🔍 Zoom'; z.className = ui.zoom ? 'on' : '';
+  z.onclick = e => { e.stopPropagation(); ui.zoom = !ui.zoom; saveUI(); renderStage(); };
+  bar.appendChild(z); st.appendChild(bar);
+}
+
+/* Mensola obliqua: barra bassa con incavi inclinati, tozzetti in piedi sfalsati.
+   Il tozzetto selezionato si alza fuori dall'incavo e si gira di fronte. */
+let lastShelf = {};
+function renderShelf(d, c, sc, W, H, st) {
+  const n = c.slots.length, [tw, th] = faceOf(d, c);
+  const [BW, BH, BD] = d.bar || [100, 8, 9], sink = 3, lift = Math.max(8, th * 0.55);   // barra in cm
+  const ang = d.angle == null ? -32 : d.angle;
+  const cos = Math.cos(ang * Math.PI / 180);
+  const step = ang ? (BW - 4 - tw * cos) / Math.max(1, n - 1) : (BW - 2 - tw) / Math.max(1, n - 1);
+  const k = Math.min((H * 0.62) / (th + BH + lift), (W * 0.8) / BW);
+  const sel = Math.max(0, Math.min(n - 1, selSlot));
+  const key = d.id + '|' + c.id + '|' + n;
+  const from = lastShelf.key === key ? { sel: lastShelf.sel, zoom: lastShelf.zoom } : { sel, zoom: !!ui.zoom };
+  lastShelf = { key, sel, zoom: !!ui.zoom };
+
+  const pos = i => ({ x: (ang ? 2 : 1) + i * step, top: -BH + sink - th, z: -BD / 2 + 1 + i * 0.05 });
+  // DX (angolo positivo): stessa diagonale in avanti ma verso destra -> il perno va spostato in avanti, non dentro il muro
+  const fwd = ang > 0 ? tw * Math.sin(ang * Math.PI / 180) : 0;
+  const outX = i => Math.max(0, Math.min(BW - tw, pos(i).x));
+  const tileT = (i, out) => {
+    const p = pos(i);
+    return out ? `translate3d(${outX(i) * k}px,${(p.top - lift) * k}px,${(BD + 6) * k}px) rotateY(0deg)`
+               : `translate3d(${p.x * k}px,${p.top * k}px,${(p.z + fwd) * k}px) rotateY(${ang}deg)`;
+  };
+  const camT = s => {
+    if (s.zoom) {
+      const p = pos(s.sel);
+      const z = Math.min((H * 0.72) / (th * k), (W * 0.7) / (tw * k)); camZ = z;
+      return `translate3d(${W / 2}px,${H * 0.46}px,0) scale(${z.toFixed(3)}) translate3d(${-(outX(s.sel) + tw / 2) * k}px,${-(p.top - lift + th / 2) * k}px,${-(BD + 6) * k}px)`;
+    }
+    return `translate3d(${W / 2}px,${H * 0.68}px,0) rotateX(-12deg) rotateY(${ang > 0 ? -16 : ang < 0 ? 16 : 12}deg) translate3d(${-BW / 2 * k}px,${(th / 2) * k}px,${BD / 2 * k}px)`;
+  };
+  let html = `<div class="sw-root" style="transform:${camT(from)}">`;
+  html += `<div class="bx" style="width:${BW * 1.6 * k}px;height:${BD * 8 * k}px;background:radial-gradient(ellipse at 50% 30%, rgba(0,0,0,.22), rgba(0,0,0,0) 60%);transform:translate3d(${-BW * 0.3 * k}px,0.5px,${BD * 3 * k}px) rotateX(-90deg)"></div>`;
+  html += box3d(0, -BH * k, 0, BW * k, BH * k, BD * k, METAL);
+  for (let i = 0; i < n; i++) {
+    html += `<div class="bx ttile" data-t="${i}" style="width:${tw * k}px;height:${th * k}px;transform:${tileT(i, i === from.sel)}">${faceHTML(d, c, i, tw, th, true, '', 'backface-visibility:visible')}${tileBody(d, c, i, tw, th, true, k)}</div>`;
+  }
+  html += `</div>`;
+  sc.innerHTML = html;
+  const target = camT({ sel, zoom: !!ui.zoom });
+  st.style.setProperty('--lblk', ui.zoom ? (1 / camZ).toFixed(4) : 1);
+  if (from.sel !== sel || target !== camT(from)) requestAnimationFrame(() => requestAnimationFrame(() => {
+    const r = sc.querySelector('.sw-root'); if (!r) return;
+    r.style.transform = target;
+    const a = sc.querySelector(`.ttile[data-t="${from.sel}"]`), b = sc.querySelector(`.ttile[data-t="${sel}"]`);
+    if (a) a.style.transform = tileT(from.sel, false);
+    if (b) b.style.transform = tileT(sel, true);
+  }));
+
+  const info = document.createElement('div'); info.className = 'pageinfo';
+  info.textContent = `Incavo ${sel + 1} di ${n}` + (ui.zoom ? ' · zoom' : '');
+  st.appendChild(info);
+  const go = i => { selSlot = i; renderStage(); renderStrip(); if (ui.tab === 'pick') renderPicker(false); };
+  st.append(navBtn('l', '‹', sel === 0, () => go(sel - 1)), navBtn('r', '›', sel >= n - 1, () => go(sel + 1)));
+  const bar = document.createElement('div'); bar.className = 'ctrlbar';
+  const z = document.createElement('button'); z.textContent = '🔍 Zoom'; z.className = ui.zoom ? 'on' : '';
+  z.onclick = e => { e.stopPropagation(); ui.zoom = !ui.zoom; saveUI(); renderStage(); };
+  bar.appendChild(z); st.appendChild(bar);
+}
+
+/* Culla modulare 35°: moduli da 94,5 cm in fila; le piastrelle stanno in piedi negli incavi,
+   una dietro l'altra, viste di taglio. La selezionata esce davanti alla fila e si gira di fronte. */
+let lastCulla = {};
+function renderCulla(d, c, sc, W, H, st) {
+  const n = c.slots.length, per = d.perModule || 14, mods = Math.ceil(n / per);
+  const ML = 94.5, MD = 57.9, BH = 5, RAIL = 35.6;          // modulo in cm
+  const len = mods * ML, pitch = (ML - 6) / per;
+  const sizeOf = i => { const s = SAMPLE[c.slots[i]]; return s ? sorted2(parseSize(s.z)) : [60, 60]; };
+  const k = Math.min((H * 0.58) / 130, (W * 0.86) / (len * 0.9 + 70));
+  const sel = Math.max(0, Math.min(n - 1, selSlot));
+  const key = d.id + '|' + c.id + '|' + n;
+  const from = lastCulla.key === key ? { sel: lastCulla.sel, zoom: lastCulla.zoom } : { sel, zoom: !!ui.zoom };
+  lastCulla = { key, sel, zoom: !!ui.zoom };
+
+  const pos = i => { const m = Math.floor(i / per), j = i % per; return { x: m * ML + 4 + j * pitch, m, j }; };
+  const outPos = i => { const [w, h] = sizeOf(i); return { x: Math.max(-10, Math.min(len - w + 10, pos(i).x - w / 2)), top: -BH - h - 6, w, h }; };
+  const tileT = (i, out) => {
+    const [w, h] = sizeOf(i);
+    if (!out) return `translate3d(${pos(i).x * k}px,${(-BH + 2 - h) * k}px,${-2 * k}px) rotateY(74deg)`;
+    const o = outPos(i);
+    return `translate3d(${o.x * k}px,${o.top * k}px,${30 * k}px) rotateY(0deg)`;
+  };
+  const camT = s => {
+    if (s.zoom) {
+      const o = outPos(s.sel);
+      const z = Math.min((H * 0.72) / (o.h * k), (W * 0.72) / (o.w * k)); camZ = z;
+      return `translate3d(${W / 2}px,${H * 0.46}px,0) scale(${z.toFixed(3)}) translate3d(${-(o.x + o.w / 2) * k}px,${-(o.top + o.h / 2) * k}px,${-30 * k}px)`;
+    }
+    return `translate3d(${W / 2}px,${H * 0.72}px,0) rotateX(-14deg) rotateY(-26deg) translate3d(${-len / 2 * k}px,${50 * k}px,${MD / 2 * k}px)`;
+  };
+  const Bx = (x, y, z, w, h, dd) => box3d(x * k, y * k, z * k, w * k, h * k, dd * k, METAL);
+  let html = `<div class="sw-root" style="transform:${camT(from)}">`;
+  html += `<div class="bx" style="width:${(len + 120) * k}px;height:${MD * 4 * k}px;background:radial-gradient(ellipse at 50% 30%, rgba(0,0,0,.22), rgba(0,0,0,0) 62%);transform:translate3d(${-60 * k}px,0.5px,${MD * 1.5 * k}px) rotateX(-90deg)"></div>`;
+  for (let m = 0; m < mods; m++) {
+    const x0 = m * ML;
+    html += Bx(x0 + 0.3, -BH, 0, ML - 0.6, BH, MD);                           // base con incavi
+    html += Bx(x0 + 0.3, -RAIL, -MD + 6, ML - 0.6, 7, 5);                     // pettine posteriore
+    html += Bx(x0 + 1, -RAIL + 7, -MD + 7, 2.5, RAIL - 7 - BH, 2.5) + Bx(x0 + ML - 3.5, -RAIL + 7, -MD + 7, 2.5, RAIL - 7 - BH, 2.5);
+  }
+  for (let i = 0; i < n; i++) {
+    const [w, h] = sizeOf(i), empty = !c.slots[i];
+    html += `<div class="bx ttile" data-t="${i}" style="width:${w * k}px;height:${h * k}px;${empty && i !== from.sel ? 'opacity:.35;' : ''}transform:${tileT(i, i === from.sel)}">${faceHTML(d, c, i, w, h, false, '', 'backface-visibility:visible')}${tileBody(d, c, i, w, h, false, k)}</div>`;
+  }
+  html += `</div>`;
+  sc.innerHTML = html;
+  const target = camT({ sel, zoom: !!ui.zoom });
+  st.style.setProperty('--lblk', ui.zoom ? (1 / camZ).toFixed(4) : 1);
+  if (from.sel !== sel || target !== camT(from)) requestAnimationFrame(() => requestAnimationFrame(() => {
+    const r = sc.querySelector('.sw-root'); if (!r) return;
+    r.style.transform = target;
+    const a = sc.querySelector(`.ttile[data-t="${from.sel}"]`), b = sc.querySelector(`.ttile[data-t="${sel}"]`);
+    if (a) { a.style.transform = tileT(from.sel, false); if (!c.slots[from.sel]) a.style.opacity = .35; }
+    if (b) { b.style.transform = tileT(sel, true); b.style.opacity = 1; }
+  }));
+
+  const p = pos(sel);
+  const mName = mods === 1 ? '' : p.m === 0 ? ' (Start)' : p.m === mods - 1 ? ' (Closing)' : ' (Middle)';
+  const info = document.createElement('div'); info.className = 'pageinfo';
+  info.textContent = `Modulo ${p.m + 1}${mName} · posto ${p.j + 1} di ${per}` + (ui.zoom ? ' · zoom' : '');
+  st.appendChild(info);
+  const go = i => { selSlot = i; renderStage(); renderStrip(); if (ui.tab === 'pick') renderPicker(false); };
+  st.append(navBtn('l', '‹', sel === 0, () => go(sel - 1)), navBtn('r', '›', sel >= n - 1, () => go(sel + 1)));
+  const bar = document.createElement('div'); bar.className = 'ctrlbar';
+  const z = document.createElement('button'); z.textContent = '🔍 Zoom'; z.className = ui.zoom ? 'on' : '';
+  z.onclick = e => { e.stopPropagation(); ui.zoom = !ui.zoom; saveUI(); renderStage(); };
+  bar.appendChild(z); st.appendChild(bar);
+}
+
+/* Espositore Slide: lastre 120×278 su pannelli affiancati, viste di taglio.
+   La lastra selezionata scorre in avanti come un cassetto e si guarda di lato.
+   Apertura DX: facce verso sinistra (si guarda da sinistra); SX: speculare. */
+let lastSlide = {};
+function renderSlide(d, c, sc, W, H, st) {
+  const n = c.slots.length, [fw, fh] = d.face;              // 120 × 278
+  const BW = 144, BD = fw, BH = 9, pitch = (BW - 16) / Math.max(1, n - 1);
+  const dx = (d.opening || 'DX') === 'DX', sgn = dx ? 1 : -1;
+  const k = Math.min((H * 0.6) / (fh + BH), (W * 0.55) / (BW + BD * 0.6));
+  const sel = Math.max(0, Math.min(n - 1, selSlot));
+  const key = d.id + '|' + c.id + '|' + n + '|' + dx;
+  const from = lastSlide.key === key ? { sel: lastSlide.sel, zoom: lastSlide.zoom } : { sel, zoom: !!ui.zoom };
+  lastSlide = { key, sel, zoom: !!ui.zoom };
+
+  const px = i => dx ? 8 + i * pitch : BW - 8 - i * pitch;   // SX speculare: la lastra 1 sta a destra
+  const OUT = BD * 1.02;
+  // DX: rotateY(-90) -> la faccia guarda verso -x; SX: rotateY(90) -> verso +x
+  const slabT = (i, out) => {
+    const z = (out ? OUT : 0);
+    return dx ? `translate3d(${px(i) * k}px,${(-BH - fh) * k}px,${(-BD + z) * k}px) rotateY(-90deg)`
+              : `translate3d(${px(i) * k}px,${(-BH - fh) * k}px,${z * k}px) rotateY(90deg)`;
+  };
+  const camT = s => {
+    if (s.zoom) {
+      const z = Math.min((H * 0.7) / (fh * k), (W * 0.75) / (fw * k)); camZ = z;
+      return `translate3d(${W / 2}px,${H * 0.5}px,0) scale(${z.toFixed(3)}) rotateY(${90 * sgn}deg) translate3d(${-px(s.sel) * k}px,${(BH + fh / 2) * k}px,${-(OUT - BD / 2) * k}px)`;
+    }
+    return `translate3d(${W / 2}px,${H * 0.86}px,0) rotateX(-10deg) rotateY(${34 * sgn}deg) translate3d(${-BW / 2 * k}px,0,${BD / 2 * k}px)`;
+  };
+  let html = `<div class="sw-root" style="transform:${camT(from)}">`;
+  html += `<div class="bx" style="width:${BW * 2.4 * k}px;height:${BD * 3.4 * k}px;background:radial-gradient(ellipse at 50% 35%, rgba(0,0,0,.24), rgba(0,0,0,0) 62%);transform:translate3d(${-BW * 0.7 * k}px,0.5px,${BD * 1.6 * k}px) rotateX(-90deg)"></div>`;
+  html += box3d(0, -BH * k, 0, BW * k, BH * k, BD * k, METAL);                    // basamento
+  html += box3d((dx ? -6 : BW) * k, -60 * k, 6 * k, 6 * k, 60 * k, 6 * k, METAL); // montante sul lato di apertura
+  for (let i = 0; i < n; i++) {
+    html += `<div class="bx ttile" data-t="${i}" style="width:${fw * k}px;height:${fh * k}px;transform:${slabT(i, i === from.sel)}">
+      ${faceHTML(d, c, i, fw, fh, true, '', '')}
+      <div class="face" style="transform:rotateY(180deg);cursor:default;background:linear-gradient(90deg,#c6c6c2,#dcdcd8 50%,#c2c2be);box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)"></div>
+    </div>`;
+  }
+  html += `</div>`;
+  sc.innerHTML = html;
+  const target = camT({ sel, zoom: !!ui.zoom });
+  st.style.setProperty('--lblk', ui.zoom ? (1 / camZ).toFixed(4) : 1);
+  if (from.sel !== sel || target !== camT(from)) requestAnimationFrame(() => requestAnimationFrame(() => {
+    const r = sc.querySelector('.sw-root'); if (!r) return;
+    r.style.transform = target;
+    const a = sc.querySelector(`.ttile[data-t="${from.sel}"]`), b = sc.querySelector(`.ttile[data-t="${sel}"]`);
+    if (a) a.style.transform = slabT(from.sel, false);
+    if (b) b.style.transform = slabT(sel, true);
+  }));
+
+  const info = document.createElement('div'); info.className = 'pageinfo';
+  info.textContent = `Lastra ${sel + 1} di ${n} · apertura ${dx ? 'DX' : 'SX'}` + (ui.zoom ? ' · zoom' : '');
+  st.appendChild(info);
+  const go = i => { selSlot = i; renderStage(); renderStrip(); if (ui.tab === 'pick') renderPicker(false); };
+  st.append(navBtn('l', '‹', sel === 0, () => go(sel - 1)), navBtn('r', '›', sel >= n - 1, () => go(sel + 1)));
+  const bar = document.createElement('div'); bar.className = 'ctrlbar';
+  const z = document.createElement('button'); z.textContent = '🔍 Zoom'; z.className = ui.zoom ? 'on' : '';
+  z.onclick = e => { e.stopPropagation(); ui.zoom = !ui.zoom; saveUI(); renderStage(); };
+  bar.appendChild(z); st.appendChild(bar);
+}
+
+/* Mobile cassettiera tozzetti (00000PGD / PU8): mobile 100×45×104 aperto davanti, 2 cassetti estraibili.
+   In ogni cassetto 5 incavi (file dal davanti al fondo) con i tozzetti in piedi, leggermente inclinati.
+   Origine al centro dell'ingombro a terra; scala k px per cm. Usato dal configuratore e dalla stanza. */
+function cassGeo(d, c, k) {
+  const drawers = d.drawers || 2, rows = d.rows || 5, cols = d.cols || 4, [tw, th] = d.face;
+  const { L, P, H } = (typeof parseDims === 'function') ? parseDims(d) : { L: 100, P: 45, H: 104 };
+  return { k, drawers, rows, cols, tw, th, W: L * k, D: P * k, Hh: H * k, t: 2 * k, plinth: 6 * k,
+    trayY: [-60 * k, -12 * k],                        // fondo del cassetto alto e basso (da terra)
+    rowPitch: 7.4 * k, colPitch: Math.min(tw + 4, (L - 8) / cols) * k, open: 30 * k, lift: 14 * k };
+}
+const cassPos = (g, i) => {               // posto i -> cassetto, fila (0 = davanti), colonna
+  const per = g.rows * g.cols, dr = Math.floor(i / per), r = Math.floor((i % per) / g.cols), col = i % g.cols;
+  return { dr, r, col };
+};
+function cassTileT(g, i, sel) {
+  const { r, col } = cassPos(g, i), k = g.k;
+  const x0 = -((g.cols - 1) * g.colPitch + g.tw * k) / 2;
+  const x = x0 + col * g.colPitch, z = g.D / 2 - 6 * k - r * g.rowPitch;
+  const y = -2 * k - g.th * k - (sel ? g.lift : 0);
+  return `translate3d(${x}px,${y}px,${z}px) rotateX(${sel ? 0 : 9}deg)`;
+}
+function cassModelHTML(g, openOf, selIdx, faceFn) {
+  const { W, D, Hh, t, plinth, k } = g, B = (x, y, z, w, h, dd) => box3d(x, y, z, w, h, dd, METAL);
+  let html = B(-W / 2, -Hh, -D / 2 + t, W, Hh, t);                                   // schienale
+  html += B(-W / 2, -Hh, D / 2, t, Hh, D) + B(W / 2 - t, -Hh, D / 2, t, Hh, D);       // fianchi
+  html += B(-W / 2, -Hh, D / 2, W, t, D) + B(-W / 2, -plinth, D / 2, W, plinth, D);    // cielo e zoccolo
+  html += B(-W / 2 + t, g.trayY[0] + 3 * k, D / 2, W - 2 * t, t, D);                 // ripiano sotto il cassetto alto
+  const per = g.rows * g.cols;
+  for (let dr = 0; dr < g.drawers; dr++) {
+    const y0 = g.trayY[dr], tw = W - 2 * t - 2 * k, tdp = D - 4 * k;
+    html += `<div class="bx drawer3d" data-dr="${dr}" style="transform:translate3d(0,${y0}px,${openOf(dr) ? g.open : 0}px);transform-style:preserve-3d">`;
+    html += B(-tw / 2, -1.5 * k, D / 2 - k, tw, 1.5 * k, tdp);                          // fondo del cassetto
+    html += B(-tw / 2, -7 * k, D / 2 - k, tw, 7 * k, 1.5 * k);                           // frontale
+    html += B(-tw / 2, -5 * k, D / 2 - k, 1.5 * k, 5 * k, tdp) + B(tw / 2 - 1.5 * k, -5 * k, D / 2 - k, 1.5 * k, 5 * k, tdp);
+    for (let r = 0; r < g.rows; r++)                                                      // listelli degli incavi
+      html += B(-tw / 2 + 1.5 * k, -3 * k, D / 2 - 6 * k - r * g.rowPitch + 1.5 * k, tw - 3 * k, 1.5 * k, 1 * k);
+    for (let j = 0; j < per; j++) {
+      const i = dr * per + j;
+      html += `<div class="bx ttile" data-t="${i}" style="width:${g.tw * k}px;height:${g.th * k}px;transform-origin:50% 100%;transform:${cassTileT(g, i, i === selIdx)}">${faceFn(i)}</div>`;
+    }
+    html += `</div>`;
+  }
+  return html;
+}
+let lastCass = {}, cassOpen = [false, false], cassToken = 0;
+function renderCassettiera(d, c, sc, W, H, st) {
+  const n = c.slots.length;
+  const k = Math.min((H * 0.70) / 110, (W * 0.62) / 100);
+  const g = cassGeo(d, c, k);
+  const sel = Math.max(0, Math.min(n - 1, selSlot)), pos = cassPos(g, sel);
+  const key = d.id + '|' + c.id + '|' + n;
+  if (lastCass.key !== key || lastCass.sel !== sel) cassOpen[pos.dr] = true;      // il cassetto del tozzetto scelto si apre
+  const from = lastCass.key === key ? lastCass : { sel, zoom: !!ui.zoom, open: cassOpen.slice() };
+  const tileX = i => { const p = cassPos(g, i); return -((g.cols - 1) * g.colPitch + g.tw * k) / 2 + p.col * g.colPitch + g.tw * k / 2; };
+  const camT = s => {
+    if (s.zoom) {
+      const p = cassPos(g, s.sel), z = Math.min((H * 0.7) / (g.th * k), (W * 0.7) / (g.tw * k)); camZ = z;
+      const ty = g.trayY[p.dr] - 2 * k - g.th * k / 2 - g.lift, tz = g.D / 2 - 6 * k - p.r * g.rowPitch + (s.open[p.dr] ? g.open : 0);
+      return `translate3d(${W / 2}px,${H * 0.46}px,0) scale(${z.toFixed(3)}) translate3d(${-tileX(s.sel)}px,${-ty}px,${-tz}px)`;
+    }
+    return `translate3d(${W / 2}px,${H * 0.86}px,0) rotateX(-14deg) rotateY(-24deg) translate3d(0,${g.Hh * 0.08}px,${-g.D * 0.2}px)`;
+  };
+  let html = `<div class="sw-root" style="transform:${camT(from)}">`;
+  html += `<div class="bx" style="width:${g.W * 2.6}px;height:${g.D * 4}px;background:radial-gradient(ellipse at 50% 35%, rgba(0,0,0,.24), rgba(0,0,0,0) 62%);transform:translate3d(${-g.W * 1.3}px,0.5px,${g.D * 2}px) rotateX(-90deg)"></div>`;
+  html += cassModelHTML(g, dr => from.open[dr], from.sel, i => faceHTML(d, c, i, g.tw, g.th, true, '', 'backface-visibility:visible') + tileBody(d, c, i, g.tw, g.th, true, k));
+  html += `</div>`;
+  sc.innerHTML = html;
+  const target = { sel, zoom: !!ui.zoom, open: cassOpen.slice() };
+  lastCass = Object.assign({ key }, target);
+  const tT = camT(target);
+  st.style.setProperty('--lblk', ui.zoom ? (1 / camZ).toFixed(4) : 1);
+  const token = ++cassToken;
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (token !== cassToken) return;                  // un disegno più recente ha già preso il posto
+    const r = sc.querySelector('.sw-root'); if (!r) return;
+    r.style.transform = tT;
+    sc.querySelectorAll('.drawer3d').forEach(el => el.style.transform = `translate3d(0,${g.trayY[+el.dataset.dr]}px,${target.open[+el.dataset.dr] ? g.open : 0}px)`);
+    const a = sc.querySelector(`.ttile[data-t="${from.sel}"]`), b = sc.querySelector(`.ttile[data-t="${sel}"]`);
+    if (a) a.style.transform = cassTileT(g, from.sel, false);
+    if (b) b.style.transform = cassTileT(g, sel, true);
+  }));
+
+  const info = document.createElement('div'); info.className = 'pageinfo';
+  info.textContent = `Cassetto ${pos.dr + 1} · incavo ${pos.r + 1} · posto ${pos.col + 1}` + (ui.zoom ? ' · zoom' : '');
+  st.appendChild(info);
+  const go = i => { selSlot = i; renderStage(); renderStrip(); if (ui.tab === 'pick') renderPicker(false); };
+  st.append(navBtn('l', '‹', sel === 0, () => go(sel - 1)), navBtn('r', '›', sel >= n - 1, () => go(sel + 1)));
+  const bar = document.createElement('div'); bar.className = 'ctrlbar';
+  [0, 1].forEach(dr => {
+    const b = document.createElement('button'); b.textContent = (cassOpen[dr] ? 'Chiudi' : 'Apri') + ' cassetto ' + (dr + 1); b.className = cassOpen[dr] ? 'on' : '';
+    b.onclick = e => { e.stopPropagation(); cassOpen[dr] = !cassOpen[dr]; lastCass.sel = sel; renderStage(); }; bar.appendChild(b);
+  });
+  const z = document.createElement('button'); z.textContent = '🔍 Zoom'; z.className = 'zoom' + (ui.zoom ? ' on' : '');
+  z.onclick = e => { e.stopPropagation(); ui.zoom = !ui.zoom; saveUI(); if (ui.zoom) cassOpen[pos.dr] = true; renderStage(); };
+  bar.appendChild(z); st.appendChild(bar);
+}
+
+/* Mobile colonna 50×45×104 (00000PGE inferiore / PGF superiore): 3 vani con cataloghi e folder, nessun campione.
+   Origine al centro dell'ingombro a terra, scala k. Usato dal configuratore e dalla stanza. */
+function colonnaModelHTML(k) {
+  const W = 50 * k, D = 45 * k, H = 104 * k, t = 2 * k, pl = 6 * k, Bx = (x, y, z, w, h, dd) => box3d(x, y, z, w, h, dd, METAL);
+  let h = Bx(-W / 2, -H, -D / 2 + t, W, H, t) + Bx(-W / 2, -H, D / 2, t, H, D) + Bx(W / 2 - t, -H, D / 2, t, H, D);
+  h += Bx(-W / 2, -H, D / 2, W, t, D) + Bx(-W / 2, -pl, D / 2, W, pl, D);
+  const sh = [-38 * k, -70 * k];
+  sh.forEach(y => h += Bx(-W / 2 + t, y, D / 2, W - 2 * t, t, D));
+  const cols = ['#ebe7df', '#d9d2c4', '#c7bca8', '#f1eee8', '#b9ae9b', '#e0dad0', '#cfc6b6'];
+  [-pl, sh[0], sh[1]].forEach((yb, r) => {
+    let x = -W / 2 + t + k;
+    for (let j = 0; j < 12; j++) {
+      const bw = (2.5 + (j * 7 + r * 3) % 3) * k, bh = (24 + (j * 5 + r * 2) % 6) * k;
+      if (x + bw > W / 2 - t - k) break;
+      h += box3d(x, yb - bh, D / 2 - 8 * k, bw, bh, 24 * k, { front: cols[(j + r) % cols.length], top: '#f4f2ed', side: '#d6d0c5' });
+      x += bw + 0.4 * k;
+    }
+  });
+  return h;
+}
+function renderColonna(d, c, sc, W, H, st) {
+  const k = Math.min((H * 0.72) / 110, (W * 0.5) / 50);
+  sc.innerHTML = `<div class="sw-root" style="transform:translate3d(${W / 2}px,${H * 0.86}px,0) rotateX(-12deg) rotateY(-26deg) translate3d(0,${4 * k}px,0)">
+    <div class="bx" style="width:${130 * k}px;height:${150 * k}px;background:radial-gradient(ellipse at 50% 35%, rgba(0,0,0,.24), rgba(0,0,0,0) 62%);transform:translate3d(${-65 * k}px,0.5px,${75 * k}px) rotateX(-90deg)"></div>
+    ${colonnaModelHTML(k)}</div>`;
+  const info = document.createElement('div'); info.className = 'pageinfo';
+  info.textContent = 'Mobile colonna per cataloghi e folder · non contiene campioni';
+  st.appendChild(info);
+}
+
+/* Lastre sfogliabili: Fly, Flipper, slabs */
+function renderBook(d, c, sc, W, H, st) {
+  const n = c.slots.length, L = Math.ceil(n / d.sides);
+  const [fw, fh] = d.face;
+  const sc1 = Math.min((H * 0.70) / fh, (W * 0.40) / fw);
+  const w = fw * sc1, h = fh * sc1;
+  bookPage = Math.max(0, Math.min(L, bookPage));
+  const top = (H - h) / 2 - H * 0.04;
+  // si parte dalla pagina mostrata prima, poi si anima verso quella nuova
+  const key = d.id + '|' + c.id + '|' + n;
+  const from = lastBook.key === key ? lastBook.page : bookPage;
+  lastBook = { key, page: bookPage };
+  const bookT = p => `rotateX(5deg) rotateY(${p === 0 ? -24 : p >= L ? 24 : 0}deg)`;
+  const leafT = (i, p) => {
+    const open = p > 0 && p < L;                       // aperto a V come un girevole vero
+    const rot = i < p ? (open ? -166 : -180) - (p - 1 - i) * 3.5   // già girate (a sinistra)
+                      : (open ? 14 : 0) + (i - p) * 3.5;           // ancora da girare (a destra)
+    return `rotateY(${rot}deg) translateZ(${(i < p ? i : L - i) * 0.01}px)`;
+  };
+  let html = `<div class="floorshadow" style="left:${W / 2 - w * 1.3}px;top:${top + h - 10}px;width:${w * 2.6}px;height:60px"></div>`;
+  html += `<div class="book" style="left:${W / 2}px;top:${top}px;width:${w}px;height:${h}px;transform:${bookT(from)};transition:transform .75s">`;
+  for (let i = 0; i < L; i++) {
+    html += `<div class="leaf" style="transform:${leafT(i, from)}">`;
+    html += faceHTML(d, c, i, fw, fh, true);
+    if (d.sides === 2 && i + L < n) html += faceHTML(d, c, i + L, fw, fh, true, 'back');
+    else html += `<div class="face back metal"></div>`;
+    html += `</div>`;
+  }
+  html += `<div class="spine" style="left:-5px;top:-8px;width:10px;height:${h + 16}px;transform:translateZ(1px)"></div>`;
+  html += `</div>`;
+  const bw = Math.min(w * 1.25, W * 0.6);
+  html += `<div class="basebox" style="left:${W / 2 - bw / 2}px;top:${top + h + 4}px;width:${bw}px;height:${Math.max(24, h * 0.12)}px"><span class="logo">EMILGROUP</span></div>`;
+  sc.innerHTML = html;
+  if (from !== bookPage) requestAnimationFrame(() => requestAnimationFrame(() => {
+    const b = sc.querySelector('.book'); if (!b) return;
+    b.style.transform = bookT(bookPage);
+    b.querySelectorAll('.leaf').forEach((el, i) => el.style.transform = leafT(i, bookPage));
+  }));
+
+  const info = document.createElement('div'); info.className = 'pageinfo';
+  const left = bookPage > 0 ? (d.sides === 2 ? slotName(d, bookPage - 1 + L, n) : 'retro ' + bookPage) : '—';
+  const right = bookPage < L ? slotName(d, bookPage, n) : '—';
+  info.textContent = d.sides === 2 ? `Aperto su ${left} | ${right}` : `Pannello ${Math.min(bookPage + 1, L)} di ${L}`;
+  st.appendChild(info);
+  const prev = navBtn('l', '‹', bookPage === 0, () => { bookPage--; renderStage(); });
+  const next = navBtn('r', '›', bookPage >= L, () => { bookPage++; renderStage(); });
+  st.append(prev, next);
+}
+function navBtn(cls, txt, dis, fn) {
+  const b = document.createElement('button'); b.className = 'nav ' + cls; b.textContent = txt; b.disabled = dis;
+  b.onclick = e => { e.stopPropagation(); fn(); }; return b;
+}
+
+/* Cassettiere: frontali + cassetto aperto in prospettiva */
+function renderDrawers(d, c, sc, W, H) {
+  const n = c.slots.length, [fw, fh] = d.face;
+  const cabW = Math.min(W * 0.62, 560);
+  const dh = Math.max(14, Math.min(26, (H * 0.40) / n));
+  const cabH = dh * n + 16;
+  const cabTop = H - cabH - 24;
+  // cassetto aperto: appoggiato sopra il mobile, visto in prospettiva
+  const room = cabTop - 40;
+  let trayW2 = cabW * 0.92, trayH = trayW2 * fh / fw;
+  if (trayH * 0.72 > room) { trayH = room / 0.72; trayW2 = trayH * fw / fh; }
+  let html = `<div class="floorshadow" style="left:${W / 2 - cabW * 0.65}px;top:${cabTop + cabH - 26}px;width:${cabW * 1.3}px;height:50px"></div>`;
+  html += `<div class="tray" style="left:${W / 2 - trayW2 / 2}px;top:${cabTop - trayH + 4}px;width:${trayW2}px;height:${trayH}px;transform:rotateX(42deg)">
+      <div class="frame"></div>${faceHTML(d, c, selSlot, fw, fh, true, '', 'backface-visibility:visible')}</div>`;
+  html += `<div class="cabinet" style="left:${W / 2 - cabW / 2}px;top:${cabTop}px;width:${cabW}px">`;
+  for (let i = 0; i < n; i++) {
+    const si = SAMPLE[c.slots[i]];
+    html += `<div class="drawer${i === selSlot ? ' sel' : ''}" data-slot="${i}" style="height:${dh}px">
+      <span class="n">${i + 1}</span>
+      <span class="sw" style="${si ? swatchStyle(si) : 'background:#18181a'}"></span>
+      <span class="nm">${si ? '<b>' + esc(si.s) + '</b> ' + esc(si.c) + ' · ' + esc(fmt(si.z)) : '<span style="color:#777">vuoto</span>'}</span>
+    </div>`;
+  }
+  html += `</div>`;
+  sc.innerHTML = html;
+}
+
+/* Fila di piastrelle: culle, carrellati, cubo, basi */
+function renderRack(d, c, sc, W, H) {
+  const n = c.slots.length;
+  const sizes = (d.accept.sizes || [d.face.join('x')]).map(parseSize).map(sorted2);
+  const maxLong = Math.max(...sizes.map(s => s[1]));
+  const maxShort = Math.max(...sizes.map(s => s[0]));
+  const k = Math.min((H * 0.56) / maxLong, (W * 0.30) / maxShort);
+  const gap = Math.max(10, Math.min(34, (W * 0.72 - maxShort * k * 1.7) / Math.max(1, n - 1)));
+  const total = gap * (n - 1) + maxShort * k * 1.7;
+  const x0 = (W - total) / 2, bottom = H * 0.80;
+  let html = `<div class="floorshadow" style="left:${x0 - 40}px;top:${bottom - 20}px;width:${total + 80}px;height:56px"></div>`;
+  html += `<div class="basebox" style="left:${x0 - 20}px;top:${bottom - 4}px;width:${total + 40}px;height:22px;transform:rotateX(30deg)"><span class="logo">EMILGROUP</span></div>`;
+  html += `<div class="rack" style="left:0;top:0;width:${W}px;height:${bottom}px">`;
+  for (let i = 0; i < n; i++) {
+    const s = SAMPLE[c.slots[i]];
+    let sz = s ? sorted2(parseSize(s.z)) : sorted2(parseSize(d.accept.sizes ? d.accept.sizes[0] : d.face.join('x')));
+    const tw = sz[0] * k, th = sz[1] * k;
+    const isSel = i === selSlot;
+    const shift = i > selSlot ? maxShort * k * 0.7 : 0;
+    const rot = isSel ? '-10deg) translateZ(30px' : '-74deg';
+    const zi = isSel ? 200 : (i < selSlot ? i : 100 - i);
+    html += `<div class="rtile" style="left:${x0 + i * gap + shift}px;width:${tw}px;height:${th}px;transform:rotateX(-6deg) rotateY(${rot});z-index:${zi}">`;
+    html += faceHTML(d, c, i, sz[0], sz[1], false);
+    html += `</div>`;
+  }
+  html += `</div>`;
+  sc.innerHTML = html;
+}
+
+/* Lastra frontale: lavagna, totem */
+function renderWall(d, c, sc, W, H) {
+  const n = c.slots.length, [fw, fh] = d.face;
+  const k = Math.min((H * 0.74) / fh, (W * 0.8 / n - 40) / fw);
+  let html = `<div class="wallwrap" style="left:0;right:0;justify-content:center;bottom:${H * 0.08}px">`;
+  for (let i = 0; i < n; i++) {
+    html += `<div class="wallitem"><div class="wallpanel" style="width:${fw * k}px;height:${fh * k}px">${faceHTML(d, c, i, fw, fh, true)}</div>
+      <div class="wallleg"></div><div class="wallcap">${esc(slotName(d, i, n))}</div></div>`;
+  }
+  html += `</div>`;
+  sc.innerHTML = html;
+}
+
+/* Griglia tozzetti: teche, mensole, banco */
+function renderGrid(d, c, sc, W, H) {
+  const n = c.slots.length, cols = d.cols || 5, rows = Math.ceil(n / cols);
+  const [fw, fh] = d.face;
+  const gapPx = 10;
+  const k = Math.min((W * 0.8 - 28 - gapPx * (cols - 1)) / (cols * fw), (H * 0.74 - 28 - gapPx * (rows - 1)) / (rows * fh));
+  const cw = fw * k, ch = fh * k;
+  const bw = cols * cw + (cols - 1) * gapPx + 28, bh = rows * ch + (rows - 1) * gapPx + 28;
+  const tilt = rows <= 3 ? 'rotateX(24deg)' : 'rotateX(4deg)';
+  let html = `<div class="floorshadow" style="left:${(W - bw) / 2 - 30}px;top:${(H - bh) / 2 + bh - 20}px;width:${bw + 60}px;height:50px"></div>`;
+  html += `<div class="gridbox" style="left:${(W - bw) / 2}px;top:${(H - bh) / 2}px;grid-template-columns:repeat(${cols},${cw}px);gap:${gapPx}px;transform:${tilt}">`;
+  for (let i = 0; i < n; i++) html += `<div class="gcell" style="width:${cw}px;height:${ch}px">${faceHTML(d, c, i, fw, fh, true)}</div>`;
+  html += `</div>`;
+  sc.innerHTML = html;
+}
+
+/* ════════════════════════════════════════════════════════════
+   UI
+   ════════════════════════════════════════════════════════════ */
+function renderList() {
+  const fams = [...new Set(DISPLAYS.map(d => d.family))];
+  let h = '';
+  fams.forEach(f => {
+    h += `<div class="fam">${esc(f)}</div>`;
+    DISPLAYS.filter(d => d.family === f).forEach(d => {
+      const c = comps[current[curKey(d)]];
+      const filled = c && sameCtx(c) ? c.slots.filter(Boolean).length : 0;
+      h += `<div class="disp${d.id === ui.disp ? ' on' : ''}" onclick="selectDisplay('${d.id}')">
+        <img src="${d.img}" alt="" loading="lazy">
+        <div><div class="t">${esc(d.name)}</div><div class="s">${esc(acceptLabel(d).slice(0, 3).join(' · '))} · ${d.variants ? d.variants.join('/') : d.slots} posti</div>
+        ${filled ? `<div class="fill">● ${filled} campioni inseriti</div>` : ''}</div></div>`;
+    });
+  });
+  document.getElementById('dispList').innerHTML = `<div class="mobhead">Tutti gli espositori (${DISPLAYS.length}) <button class="btn" onclick="toggleDispList(false)">✕ Chiudi</button></div>` + h;
+  const cur = DISP[ui.disp];
+  document.getElementById('mobDisp').innerHTML = `<span>${esc(cur ? cur.name : 'Espositore')}</span><span class="mx">Tutti gli espositori ▾</span>`;
+}
+function renderToolbar() {
+  const d = disp(), c = comp();
+  document.getElementById('dName').textContent = d.name;
+  document.getElementById('dCode').textContent = d.code;
+  const vs = document.getElementById('variantSel');
+  vs.style.display = d.variants ? '' : 'none';
+  if (d.variants) vs.innerHTML = d.variants.map(v => `<option value="${v}"${v === c.slots.length ? ' selected' : ''}>${esc((d.variantLabels && d.variantLabels[v]) || v + ' incavi')}</option>`).join('');
+  const list = Object.values(comps).filter(x => x.disp === d.id && sameCtx(x)).sort((a, b) => a.name.localeCompare(b.name));
+  const cl = clients[ctxClient()];
+  document.getElementById('ctxBtn').textContent = ui.returnTo && ui.returnTo.startsWith('#/ambiente/') ? '← Ambientazione'
+    : ui.returnTo && ui.returnTo.startsWith('#/salamostra/') ? '← Sala mostra' : cl ? '← ' + cl.name : '← Clienti';
+  document.getElementById('ctxBtn').title = cl ? 'Torna alla scheda cliente' : 'Catalogo libero (senza cliente) — torna ai clienti';
+  document.getElementById('compSel').innerHTML = list.map(x => `<option value="${x.id}"${x.id === c.id ? ' selected' : ''}>${esc(x.name)} (${x.slots.filter(Boolean).length}/${x.slots.length})</option>`).join('');
+  const nm = document.getElementById('compName');
+  if (document.activeElement !== nm) nm.value = c.name;
+  const filled = c.slots.filter(Boolean).length;
+  const noPhoto = c.slots.filter(k => k && SAMPLE[k] && !hasPhoto(SAMPLE[k])).length;
+  document.getElementById('fillInfo').innerHTML = `<b>${filled}</b> / ${c.slots.length} posti occupati` + (noPhoto ? ` · <span style="color:var(--red)">${noPhoto} senza foto</span>` : '');
+  document.getElementById('lblBtn').classList.toggle('on', ui.labels);
+}
+function renderStrip() {
+  const d = disp(), c = comp(), n = c.slots.length;
+  document.getElementById('strip').innerHTML = c.slots.map((k, i) => {
+    const s = SAMPLE[k];
+    return `<div class="chip${i === selSlot ? ' sel' : ''}" onclick="selectSlot(${i}, true)">
+      <div class="th${s ? '' : ' empty'}" style="${s ? swatchStyle(s) : ''}"><span class="no">${esc(slotName(d, i, n))}</span></div>
+      <div class="tx">${s ? `<b>${esc(s.s)}</b>${esc(s.c)} · ${esc(fmt(s.toz ? tozFmt(d, c) : s.z) + tozFrom(s))}` : '<span style="color:var(--light)">vuoto — scegli a destra</span>'}</div>
+      ${s ? `<button class="x" title="Togli" onclick="event.stopPropagation(); setSlot(${i}, null)">✕</button>` : ''}
+    </div>`;
+  }).join('');
+  const el = document.querySelector('.chip.sel'); if (el) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+function setTab(t) { ui.tab = t; saveUI(); renderPane(); }
+function renderPane() {
+  document.getElementById('tabPick').classList.toggle('on', ui.tab === 'pick');
+  document.getElementById('tabSheet').classList.toggle('on', ui.tab === 'sheet');
+  ui.tab === 'sheet' ? renderSheet() : renderPicker(true);
+}
+function renderSheet() {
+  const d = disp();
+  document.getElementById('pane').innerHTML = `<div class="sheet">
+    <img src="${d.img}" alt="${esc(d.name)}">
+    <dl><dt>Codice</dt><dd>${esc(d.code)}</dd><dt>Dimensioni</dt><dd>${esc(d.dims)}</dd>
+    <dt>Capienza</dt><dd>${esc(d.spec)}</dd><dt>Formati</dt><dd>${esc(acceptLabel(d).join(', '))}</dd>
+    <dt>Prezzo</dt><dd>€ ${esc(d.price)}</dd></dl>
+    ${/da verificare/.test(d.spec) ? `<div class="note">⚠️ ${esc(d.spec)}</div>` : ''}
+    ${d.sheet ? `<p style="font-size:12px;color:var(--mid);margin:14px 0 6px">Pagina del catalogo Showroom Displays 2026:</p><a href="${d.sheet}" target="_blank"><img src="${d.sheet}" alt="Scheda catalogo"></a>` : ''}
+  </div>`;
+}
+/* Se la ricerca trova una serie che esiste, ma non nei formati di questo espositore, lo dice */
+function otherFormatsNote(d, q, shown) {
+  if (!q.length) return '';
+  const showIk = new Set(shown.map(s => s.ik));
+  const other = SAMPLES.filter(s => !showIk.has(s.ik) && q.every(w => (s.b + ' ' + s.s + ' ' + s.c + ' ' + s.z + ' ' + s.k.join(' ')).toLowerCase().includes(w)));
+  if (!other.length) return '';
+  const bySeries = {};
+  other.forEach(s => { const k = s.b + ' · ' + s.s; (bySeries[k] = bySeries[k] || new Set()).add(fmt(s.z)); });
+  return `<div class="note" style="margin:12px 14px">Trovati anche campioni <b>non adatti a questo espositore</b> (formato diverso):<br>` +
+    Object.entries(bySeries).slice(0, 8).map(([k, z]) => `<b>${esc(k)}</b>: ${esc([...z].join(', '))}`).join('<br>') +
+    `<br>Li trovi negli espositori di quei formati.</div>`;
+}
+function renderPicker(full) {
+  const d = disp(), c = comp(), n = c.slots.length;
+  const pane = document.getElementById('pane');
+  let list = compatibleSamples(d);
+  const brands = [...new Set(list.map(s => s.b))];
+  if (brandFilter && !brands.includes(brandFilter)) brandFilter = '';
+  const q = searchQ.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const used = new Set(c.slots.filter(Boolean));
+  let shown = list.filter(s => (!brandFilter || s.b === brandFilter) && (!onlyPhoto || hasPhoto(s)) &&
+    q.every(w => (s.b + ' ' + s.s + ' ' + s.c + ' ' + s.z + ' ' + s.f.join(' ') + ' ' + s.k.join(' ')).toLowerCase().includes(w)));
+  if (full || !document.getElementById('pickList')) {
+    pane.innerHTML = `<div class="pickhead">
+      <div class="target" id="pickTarget"></div>
+      <div class="fmt">${acceptLabel(d, c).map(x => `<span>${esc(x)}</span>`).join('')}</div>
+      <input class="search" id="pickSearch" placeholder="Cerca serie, colore, finitura, codice…" value="${esc(searchQ)}">
+      <div class="filters" id="pickFilters"></div>
+      <div class="count" id="pickCount"></div>
+    </div><div id="pickList"></div>`;
+    document.getElementById('pickSearch').addEventListener('input', e => { searchQ = e.target.value; renderPicker(false); });
+  }
+  document.getElementById('pickTarget').innerHTML = `Posto selezionato: <b>${esc(slotName(d, selSlot, n))}</b> — clicca un campione per inserirlo`;
+  document.getElementById('pickFilters').innerHTML =
+    `<button class="${!brandFilter ? 'on' : ''}" onclick="brandFilter=''; renderPicker(false)">Tutti</button>` +
+    brands.map(b => `<button class="${brandFilter === b ? 'on' : ''}" onclick="brandFilter='${esc(b)}'; renderPicker(false)">${esc(b)}</button>`).join('') +
+    `<button class="${onlyPhoto ? 'on' : ''}" onclick="onlyPhoto=!onlyPhoto; renderPicker(false)">📷 solo con foto</button>`;
+  document.getElementById('pickCount').textContent = `${shown.length} campioni compatibili` + (shown.length !== list.length ? ` (su ${list.length})` : '');
+  const LIMIT = 5000;                                   // tutti i campioni compatibili
+  document.getElementById('pickList').innerHTML = shown.slice(0, LIMIT).map(s => `
+    <div class="srow${used.has(s.key) ? ' used' : ''}" data-k="${esc(s.key)}">
+      <div class="sw" style="${swatchStyle(s)}"></div>
+      <div class="info"><div class="brand">${esc(s.b)}</div><div class="ser">${esc(s.s)} <span class="col">${esc(s.c)}</span></div>
+      <div class="meta">${esc(s.toz ? 'tozzetto ' + fmt(tozFmt(d, c)) + ' · da ' + s.from.map(fmt).join(', ') : fmt(s.z))} · ${esc(s.t.map(t => t + ' mm').join('/'))}${s.f.length ? ' · ' + esc(s.f.join(', ')) : ''}</div></div>
+      <button class="cam${hasPhoto(s) ? ' has' : ''}" title="${hasPhoto(s) ? 'Cambia foto' : 'Carica foto'}" data-ik="${esc(s.ik)}">${hasPhoto(s) ? '✓' : '📷'}</button>
+    </div>`).join('') + (shown.length > LIMIT ? `<div class="count" style="padding:12px 14px">Altri ${shown.length - LIMIT}: usa la ricerca per restringere.</div>` : '') +
+    (!shown.length ? `<div class="count" style="padding:20px 14px">Nessun campione compatibile con questi filtri.</div>` : '') + otherFormatsNote(d, q, shown);
+}
+document.getElementById('pane').addEventListener('click', e => {
+  const cam = e.target.closest('.cam');
+  if (cam) { e.stopPropagation(); pickImage(cam.dataset.ik); return; }
+  const row = e.target.closest('.srow');
+  if (row) assign(row.dataset.k);
+});
+
+/* ════════════════════════════════════════════════════════════
+   AZIONI
+   ════════════════════════════════════════════════════════════ */
+function renderAll() { renderToolbar(); renderStage(); renderStrip(); renderPane(); }
+/* telefono: apre/chiude la lista completa degli espositori */
+function toggleDispList(open) { document.body.classList.toggle('showlist', open); if (open) { const el = document.querySelector('#dispList .disp.on'); if (el) el.scrollIntoView({ block: 'center' }); } }
+function selectDisplay(id) {
+  toggleDispList(false);
+  ui.disp = id; saveUI(); selSlot = 0; bookPage = 0; swing = { holder: 0, pose: 'in', side: 'A' }; searchQ = ''; brandFilter = '';
+  renderList(); renderAll();
+}
+function showSlot(i) {
+  const d = disp(), n = comp().slots.length;
+  if (d.mode === 'book') {
+    const L = Math.ceil(n / d.sides);
+    bookPage = i < L ? i : (i - L) + 1;
+  }
+  if (d.mode === 'swing') {
+    const L = Math.ceil(n / 2);
+    swing = { holder: i % L, pose: swing.pose === 'table' && !d.noTable ? 'table' : 'out', side: i < L ? 'A' : 'B' };
+  }
+}
+function selectSlot(i, reveal) {
+  selSlot = i; if (reveal) showSlot(i);
+  renderStage(); renderStrip(); if (ui.tab === 'pick') renderPicker(false); else setTab('pick');
+}
+function setSlot(i, key) {
+  const c = comp(); c.slots[i] = key; touch();
+  renderToolbar(); renderStage(); renderStrip(); renderList(); if (ui.tab === 'pick') renderPicker(false);
+}
+function assign(key) {
+  const c = comp();
+  c.slots[selSlot] = key; touch();
+  // passa al prossimo posto libero
+  const next = c.slots.findIndex((k, i) => i > selSlot && !k);
+  const any = next >= 0 ? next : c.slots.findIndex(k => !k);
+  showSlot(selSlot);
+  if (any >= 0) { selSlot = any; }
+  renderAll(); renderList();
+}
+function setVariant(v) { const c = comp(); c.variant = v; touch(); if (selSlot >= v) selSlot = 0; renderAll(); }
+function selectComp(id) { current[curKey(disp())] = id; saveComps(); selSlot = 0; bookPage = 0; renderAll(); renderList(); }
+function renameComp(v) { const c = comp(); c.name = v || 'Senza nome'; touch(); renderToolbar(); }
+function newComp() {
+  const d = disp(); const n = Object.values(comps).filter(x => x.disp === d.id && sameCtx(x)).length + 1;
+  const c = makeComp(d, (ctxClient() ? d.name + ' ' : 'Composizione ') + n); c.explicit = true; current[curKey(d)] = c.id; saveComps(); selSlot = 0; bookPage = 0;
+  renderAll(); renderList(); document.getElementById('compName').select();
+}
+function dupComp() {
+  const d = disp(), c = comp();
+  const x = Object.assign({}, c, { id: uid(), name: c.name + ' (copia)', slots: c.slots.slice(), upd: Date.now() });
+  comps[x.id] = x; current[curKey(d)] = x.id; saveComps(); renderAll(); toast('Composizione duplicata');
+}
+async function deleteComp() {
+  const d = disp(), c = comp();
+  if (!await ask(`Eliminare la composizione "${c.name}"?`)) return;
+  delete comps[c.id]; delete current[curKey(d)]; saveComps(); selSlot = 0; bookPage = 0; renderAll(); renderList();
+}
+async function clearComp() {
+  const c = comp(); if (!c.slots.some(Boolean)) return;
+  if (!await ask('Svuotare tutti i posti di questa composizione?')) return;
+  c.slots = c.slots.map(() => null); touch(); selSlot = 0; bookPage = 0; renderAll(); renderList();
+}
+function autoFill() {
+  const d = disp(), c = comp();
+  const used = new Set(c.slots.filter(Boolean));
+  const pool = compatibleSamples(d).filter(s => hasPhoto(s) && !used.has(s.key));
+  if (!pool.length) { toast('Nessun campione compatibile con foto ancora caricata'); return; }
+  let p = 0; c.slots = c.slots.map(k => k || (pool[p] ? pool[p++].key : null));
+  touch(); renderAll(); renderList(); toast(`Inseriti ${p} campioni con foto`);
+}
+function toggleLabels() { ui.labels = !ui.labels; saveUI(); renderToolbar(); renderStage(); }
+function copyCodes() {
+  const d = disp(), c = comp(), n = c.slots.length;
+  const lines = [`${d.name} — cod. ${d.code}`, `Composizione: ${c.name}`, ''];
+  if (d.moduleCodes) {
+    const m = Math.ceil(n / d.perModule), mid = Math.max(0, m - 2);
+    const row = side => { const [s, md, e] = d.moduleCodes[side]; return m === 1 ? `1× ${s}` : `1× ${s} (Start) · ${mid ? mid + '× ' + md + ' (Middle) · ' : ''}1× ${e} (Closing)`; };
+    lines.splice(2, 0, `Moduli: ${m} — SX: ${row('SX')} | DX: ${row('DX')}`);
+  }
+  c.slots.forEach((k, i) => {
+    const s = SAMPLE[k];
+    lines.push(`${slotName(d, i, n)}\t` + (s ? `${s.b} ${s.s} ${s.c} ${s.toz ? 'tozzetto' + tozFrom(s) : s.z}\t${s.k.join(' / ')}\t${s.f.join(' / ')}` : '(vuoto)'));
+  });
+  const txt = lines.join('\n');
+  (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(
+    () => toast('Elenco copiato: incollalo in mail o in Oracle'),
+    () => { showCopy('Copia l\'elenco:', txt); });
+}
+let toastT;
+function toast(m) { const t = document.getElementById('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); }
+
+/* ════════════════════════════════════════════════════════════
+   GESTIONE FOTO (modal)
+   ════════════════════════════════════════════════════════════ */
+let imgOnlyMissing = false;
+function openImages() { document.getElementById('imgModal').classList.add('open'); renderImages(); }
+function closeImages() { document.getElementById('imgModal').classList.remove('open'); renderAll(); }
+function renderImages() {
+  const q = document.getElementById('imgSearch').value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  document.getElementById('imgMissingBtn').classList.toggle('dark', imgOnlyMissing);
+  const have = IMG_KEYS.filter(k => IMG[k]).length;
+  document.getElementById('imgStats').innerHTML = `<b>${have}</b> foto caricate su <b>${IMG_KEYS.length}</b> serie/colori`;
+  document.getElementById('imgBar').style.width = (have / IMG_KEYS.length * 100) + '%';
+  const keys = IMG_KEYS.filter(k => (!imgOnlyMissing || !IMG[k]) && q.every(w => k.toLowerCase().includes(w)));
+  const sizesBy = {};
+  SAMPLES.forEach(s => { (sizesBy[s.ik] = sizesBy[s.ik] || []).includes(s.z) || sizesBy[s.ik].push(s.z); });
+  document.getElementById('imgList').innerHTML = keys.slice(0, 300).map(k => {
+    const [b, s, c] = k.split('|');
+    const st = IMG[k] ? `background-image:url(${imgFor(k, true)})` : swatchStyle({ ik: k, s, c });
+    return `<div class="imgrow"><div class="sw" style="${st}"></div>
+      <div class="info"><b>${esc(s)}</b> ${esc(c)}<div class="meta">${esc(b)} · ${esc(sizesBy[k].map(fmt).join(', '))}</div></div>
+      ${IMG[k] && IMG[k] === folderURL(k) ? `<span class="meta" title="${esc(FOTO[k])}">📁 dalla cartella foto</span>` : ''}
+      ${IMG[k] && IMG[k] !== folderURL(k) ? `<button class="btn" onclick="removeImage('${esc(k).replace(/'/g, "\\'")}').then(renderImages)">Rimuovi</button>` : ''}
+      <button class="btn ${IMG[k] ? '' : 'red'}" onclick="pickImage('${esc(k).replace(/'/g, "\\'")}')">${IMG[k] ? 'Cambia' : '📷 Carica'}</button></div>`;
+  }).join('') + (keys.length > 300 ? `<div class="mfoot">Altri ${keys.length - 300}: usa la ricerca.</div>` : '');
+}
+const normTxt = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+async function bulkUpload(files) {
+  const idx = IMG_KEYS.map(k => { const [b, s, c] = k.split('|'); return { k, s: normTxt(s), c: normTxt(c), b: normTxt(b) }; });
+  const byCode = {};
+  SAMPLES.forEach(s => s.k.forEach(k => byCode[k.toUpperCase()] = s.ik));
+  let ok = 0; const bad = [];
+  for (const f of files) {
+    const codeHit = f.name.replace(/\.[^.]+$/, '').toUpperCase().split(/[^A-Z0-9]+/).map(t => byCode[t]).find(Boolean);
+    if (codeHit) { await setImage(codeHit, f); ok++; continue; }
+    const name = ' ' + normTxt(f.name.replace(/\.[^.]+$/, '')) + ' ';
+    const hits = idx.filter(x => name.includes(' ' + x.s + ' ') && (!x.c || name.includes(' ' + x.c + ' ')));
+    hits.sort((a, b) => (b.s.length + b.c.length + (name.includes(' ' + b.b + ' ') ? 1 : 0)) - (a.s.length + a.c.length + (name.includes(' ' + a.b + ' ') ? 1 : 0)));
+    const best = hits[0];
+    const tie = hits[1] && (hits[1].s.length + hits[1].c.length) === (best.s.length + best.c.length) && !name.includes(' ' + best.b + ' ');
+    if (!best || tie) { bad.push(f.name); continue; }
+    await setImage(best.k, f); ok++;
+  }
+  renderImages();
+  if (bad.length) say(`${ok} foto abbinate.\n\nNon abbinate (${bad.length}) — rinominale "Serie Colore" o caricale dalla riga:\n\n` + bad.slice(0, 30).join('\n'));
+  else toast(`${ok} foto abbinate`);
+}
+
+/* ════════════════════════════════════════════════════════════
+   BACKUP
+   ════════════════════════════════════════════════════════════ */
+const dataURLtoBlob = u => { const [h, b] = u.split(','), bin = atob(b), a = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return new Blob([a], { type: (h.match(/:(.*?);/) || [])[1] || '' }); };
+const blobToDataURL = b => new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(b); });
+async function exportBackup() {
+  toast('Preparo il backup…');
+  const images = {};
+  for (const [k, v] of await idbAll()) images[k] = { name: v.name, upd: v.upd, data: await blobToDataURL(v.blob) };
+  const blob = new Blob([JSON.stringify({ app: 'vetrina-merch', v: 2, date: new Date().toISOString(), comps, current, clients, scenes, images })], { type: 'application/json' });
+  const fname = 'vetrina-merch-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+  if (window.Sync && Sync.mode === 'cloud') { await Sync.download(fname, blob); return; }   // online: il file lo salva il visualizzatore
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = fname; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+async function importBackup(file) {
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    if (data.app !== 'vetrina-merch') throw new Error('File non valido');
+    if (!await ask(`Ripristinare il backup del ${String(data.date).slice(0, 10)}?\nClienti, composizioni, ambientazioni e foto del backup verranno aggiunti/sovrascritti.`)) return;
+    Object.assign(comps, data.comps || {}); Object.assign(current, data.current || {}); saveComps();
+    Object.assign(clients, data.clients || {}); saveClients();
+    Object.assign(scenes, data.scenes || {}); saveScenes();
+    for (const [k, v] of Object.entries(data.images || {})) {
+      const blob = dataURLtoBlob(v.data);
+      await idbPut(k, { blob, name: v.name, upd: v.upd });
+      if (IMG[k]) URL.revokeObjectURL(IMG[k]);
+      IMG[k] = URL.createObjectURL(blob);
+    }
+    await Promise.all(Object.keys(data.images || {}).map(orient));
+    updateImgCount(); route(); toast('Backup ripristinato');
+  } catch (e) { say('Impossibile leggere il backup: ' + e.message); }
+}
+
+/* ════════════════════════════════════════════════════════════
+   AVVIO
+   ════════════════════════════════════════════════════════════ */
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input, select, textarea')) return;
+  if (document.body.dataset.view !== 'config') return;
+  const d = disp(), n = comp().slots.length;
+  if (d.mode === 'book') {
+    const L = Math.ceil(n / d.sides);
+    if (e.key === 'ArrowRight' && bookPage < L) { bookPage++; renderStage(); }
+    if (e.key === 'ArrowLeft' && bookPage > 0) { bookPage--; renderStage(); }
+  } else {
+    if (e.key === 'ArrowRight' && selSlot < n - 1) selectSlot(selSlot + 1, true);
+    if (e.key === 'ArrowLeft' && selSlot > 0) selectSlot(selSlot - 1, true);
+  }
+  if ((e.key === 'Delete' || e.key === 'Backspace') && comp().slots[selSlot]) setSlot(selSlot, null);
+});
+let rT; window.addEventListener('resize', () => { clearTimeout(rT); rT = setTimeout(() => { if (document.body.dataset.view === 'config') renderStage(); }, 120); });
+/* L'avvio aspetta che siano caricati anche clienti.js e ambiente.js (router e viste) */
+window.addEventListener('DOMContentLoaded', async () => {
+  if (!DISP[ui.disp]) ui.disp = DISPLAYS[0].id;
+  if (window.Sync) await Sync.init();          // i dati salvati su disco
+  route();
+  await loadImages();
+  route();
+});
+</script>
+<script src="salva.js"></script>
+<script src="clienti.js"></script>
+<script src="ambiente.js"></script>
+<script src="espositori3d.js"></script>
+</body>
+</html>
