@@ -351,6 +351,8 @@ def borrow_photos(samples, photos):
                     continue
                 if (tok(c) ^ tok(o)) & MUST_MATCH:
                     continue
+                if (tok(c) - COLOR_WORDS) != (tok(o) - COLOR_WORDS):   # grafiche diverse (Neutra/Sassi/Ritmo, Gemma Fine/Giant) = prodotti diversi: niente prestito
+                    continue
                 cw = tok(c) & COLOR_WORDS
                 if cw and not cw <= tok(o):              # se il nome dice il colore, deve essere lo stesso (Grey Rock non da Blue Rock)
                     continue
