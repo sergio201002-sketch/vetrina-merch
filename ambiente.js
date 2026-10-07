@@ -451,18 +451,11 @@ function applyCam(animate) {
   sc.querySelectorAll('[data-wall="r"]').forEach(e => e.style.display = sy > -0.05 ? '' : 'none');
   sc.querySelectorAll('[data-wall="b"]').forEach(e => e.style.display = Math.cos(cam.yaw * Math.PI / 180) > -0.05 ? '' : 'none');
 }
-/* campione aperto: si nascondono gli espositori che stanno tra la telecamera e il campione (lo coprirebbero) */
+/* campione aperto: resta solo l'espositore che si sta guardando, gli altri si nascondono (da qualsiasi lato
+   lo guardi nessuno si mette in mezzo); chiudendo il campione ricompaiono */
 function hideBlockers() {
-  const items = document.querySelectorAll('#roomScene .ritem');
-  if (!cam.focus || !showSel) { items.forEach(e => { e.style.visibility = ''; }); return; }
-  const a = cam.yaw * Math.PI / 180, dx = Math.sin(a), dz = Math.cos(a), f = cam.focus;
-  items.forEach(e => {
-    const it = room.items.find(i => i.id === e.dataset.id), m = it && roomModels[it.id];
-    if (!it || !m || it.id === showSel.item) { e.style.visibility = ''; return; }
-    const rx = it.x - f.x, rz = it.z - f.z, along = rx * dx + rz * dz, perp = Math.abs(rx * dz - rz * dx);
-    const r = Math.hypot(m.L, m.P) / 2;
-    e.style.visibility = along > -r && perp < r + f.w * 0.75 + 15 ? 'hidden' : '';
-  });
+  const open = cam.focus && showSel ? showSel.item : null;
+  document.querySelectorAll('#roomScene .ritem').forEach(e => { e.style.visibility = open && e.dataset.id !== open ? 'hidden' : ''; });
 }
 let orbitMoved = false;
 function bindOrbit(el) {
