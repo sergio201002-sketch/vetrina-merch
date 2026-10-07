@@ -153,7 +153,12 @@ const Sync = {
     const { A, auth } = this.fb;
     try { await wait(A.getRedirectResult(auth), 6000); } catch (e) {}
     const user = await wait(new Promise(res => { const un = A.onAuthStateChanged(auth, u => { un(); res(u); }); }), 6000, null);
-    if (!user) { this.needLogin = true; this.badge(); return; }   // finché non accedi, i dati restano in questo browser
+    let tried = false; try { tried = sessionStorage.getItem('vm_login_try') === '1'; sessionStorage.removeItem('vm_login_try'); } catch (e) {}
+    if (!user) {
+      this.needLogin = true; this.badge();                         // finché non accedi, i dati restano in questo browser
+      if (tried) setTimeout(() => say(`Accesso non completato.\n\nIl browser ha bloccato l'ultimo passaggio dell'accesso con Google (succede con Brave e con le protezioni anti-tracciamento).\n\n• Brave: tocca il leone in basso, spegni gli Shields per questo sito, poi tocca di nuovo 🔑\n• Oppure apri il sito con Safari o Chrome`), 600);   // tornato dalla pagina di Google ma senza accesso
+      return;
+    }
     await this.startFire(user);
   },
   async startFire(user) {
@@ -170,13 +175,19 @@ const Sync = {
     const { A, auth } = this.fb, prov = new A.GoogleAuthProvider();
     prov.setCustomParameters({ prompt: 'select_account' });
     try {
-      const r = await A.signInWithPopup(auth, prov);
+      const pop = A.signInWithPopup(auth, prov);
+      const r = await Promise.race([pop, new Promise((_, rej) => setTimeout(() => rej({ code: 'auth/timeout-vetrina' }), 120000))]);
       await this.startFire(r.user);
       if (typeof loadImages === 'function') await loadImages();
       route(); toast('Accesso fatto: ' + (r.user.email || ''));
     } catch (e) {
       // telefono: se la finestra di Google non si può aprire, si va alla pagina di Google e poi si torna qui
-      if (['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment', 'auth/cancelled-popup-request'].includes(e.code)) await A.signInWithRedirect(auth, prov);
+      if (['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment', 'auth/cancelled-popup-request'].includes(e.code)) {
+        try { sessionStorage.setItem('vm_login_try', '1'); } catch (er) {}
+        await A.signInWithRedirect(auth, prov);
+      }
+      else if (['auth/network-request-failed', 'auth/web-storage-unsupported', 'auth/internal-error'].includes(e.code)) say(`Accesso non completato.\n\nIl browser ha bloccato l'ultimo passaggio dell'accesso con Google (succede con Brave e con le protezioni anti-tracciamento).\n\n• Brave: tocca il leone in basso, spegni gli Shields per questo sito, poi tocca di nuovo 🔑\n• Oppure apri il sito con Safari o Chrome`);
+      else if (e.code === 'auth/timeout-vetrina') say(`Accesso non completato.\n\nIl browser ha bloccato l'ultimo passaggio dell'accesso con Google (succede con Brave e con le protezioni anti-tracciamento).\n\n• Brave: tocca il leone in basso, spegni gli Shields per questo sito, poi tocca di nuovo 🔑\n• Oppure apri il sito con Safari o Chrome`);
       else if (e.code !== 'auth/popup-closed-by-user') say('Accesso non riuscito: ' + (e.message || e.code));
     }
   },
