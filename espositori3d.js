@@ -284,11 +284,11 @@ MODELS.grid = benchTray;
 let gcam = { yaw: -30, tilt: 14, zoom: 1 }, gToken = 0;
 function renderModel3D(d, c, sc, W, H, st) {
   const n = c.slots.length, op = Math.max(0, Math.min(n - 1, selSlot));
-  if (gcam.mode !== d.id) { gcam.mode = d.id; gcam.yaw = d.id === 'PMV' ? -14 : d.id === 'OYQ' || d.id === 'PEX' ? 70 : -30; gcam.tilt = d.id === 'PMV' ? 16 : { drawers: 34, grid: 30, rack: 17 }[d.mode] || 14; }   // inclinazione di partenza: dall'alto per i cassetti
+  if (gcam.mode !== d.id) { gcam.mode = d.id; gcam.yaw = d.id === 'PMV' ? -14 : d.id === 'OYQ' || d.id === 'PEX' ? 45 : -30; gcam.tilt = d.id === 'OYQ' || d.id === 'PEX' ? 10 : d.id === 'PMV' ? 16 : { drawers: 34, grid: 30, rack: 17 }[d.mode] || 14; }   // inclinazione di partenza: dall'alto per i cassetti
   const m = MODELS[d.mode](d, c, op);
   const k = gcam.zoom * Math.min((H * 0.62) / Math.max(30, m.H), (W * 0.56) / Math.max(40, m.fitW || m.L));
   const fw = (m.L || 100) + 80, fd = (m.P || 60) + 80;
-  const camT = () => `translate3d(${W / 2}px,${H * 0.86}px,0) rotateX(${-gcam.tilt}deg) rotateY(${gcam.yaw}deg) scale(${k.toFixed(4)})`;
+  const camT = () => `translate3d(${W / 2}px,${H * 0.86}px,0) rotateX(${-gcam.tilt}deg) rotateY(${gcam.yaw}deg) scale3d(${k.toFixed(4)},${k.toFixed(4)},${k.toFixed(4)})`;   // anche la profondità in scala (con scale() i mobili sembravano schiacciati)
   sc.innerHTML = `<div class="sw-root room-scene" id="m3d" style="transform:${camT()}">
     <div class="bx" style="width:${fw}px;height:${fd}px;background:radial-gradient(ellipse at 50% 50%, rgba(0,0,0,.26), rgba(0,0,0,0) 62%);transform:translate3d(${-fw / 2}px,0.5px,${fd / 2}px) rotateX(-90deg)"></div>${m.html}</div>`;
   const token = ++gToken;
