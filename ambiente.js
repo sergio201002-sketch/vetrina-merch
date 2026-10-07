@@ -606,9 +606,30 @@ function closeSample() {
   if (cam.back) Object.assign(cam, cam.back);
   renderRoom(); applyCam(true); renderShowCard();
 }
+/* Girevoli uguali messi uno accanto all'altro (stessa fila, attaccati): si sfogliano come un unico espositore.
+   Restituisce gli elementi della fila da sinistra a destra (un solo elemento se è staccato dagli altri). */
+function swingRow(it) {
+  const d = DISP[it.disp]; if (!d || d.mode !== 'swing') return [it];
+  const same = room.items.filter(o => o.disp === it.disp && (o.rot || 0) === (it.rot || 0) && elevY(o) === elevY(it) && comps[o.comp]);
+  const L = o => (roomModels[o.id] || roomModel(o)).L;
+  const touch = (a, b) => Math.abs(a.z - b.z) <= 6 && Math.abs(Math.abs(a.x - b.x) - (L(a) + L(b)) / 2) <= 6;
+  const row = [it], todo = [it];
+  while (todo.length) { const a = todo.pop(); same.forEach(b => { if (!row.includes(b) && touch(a, b)) { row.push(b); todo.push(b); } }); }
+  return row.sort((a, b) => a.x - b.x);
+}
 function stepSample(dir) {
   if (!showSel) return;
   const it = room.items.find(i => i.id === showSel.item), c = it && comps[it.comp]; if (!c) return;
+  const row = swingRow(it);
+  if (row.length > 1) {   // fila di girevoli attaccati: tutto il lato A della fila, poi tutto il lato B (in giro)
+    const seq = [];
+    for (const side of [0, 1]) row.forEach(o => {
+      const cs = comps[o.comp].slots, L = Math.ceil(cs.length / 2);
+      for (let h = 0; h < L; h++) { const s = h + side * L; if (s < cs.length && cs[s]) seq.push([o.id, s]); }
+    });
+    const k = seq.findIndex(([id, s]) => id === it.id && s === showSel.slot);
+    if (seq.length && k >= 0) { const [id, s] = seq[(k + dir + seq.length) % seq.length]; openSample(id, s); return; }
+  }
   let i = showSel.slot;
   for (let k = 0; k < c.slots.length; k++) { i = (i + dir + c.slots.length) % c.slots.length; if (c.slots[i]) break; }
   openSample(showSel.item, i);
