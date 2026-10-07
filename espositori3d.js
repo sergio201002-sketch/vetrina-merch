@@ -152,14 +152,18 @@ function cassettiera60(d, c, op) {
     h += bx3(-Wi / 2 + 1, y - 2.2, zf + 2, 5, 1.6, 2.5) + bx3(Wi / 2 - 6, y - 2.2, zf + 2, 5, 1.6, 2.5);   // maniglie
     if (s) {
       h += tileDiv(fw, fh, `transform:${tr(-fw / 2, yf, zf - 1 - fh, 'rotateX(90deg)')};transform-style:preserve-3d`, rface(d, c, i, fw, fh, true) + tileBody(d, c, i, fw, fh, true, 1), i);
-      h += `<div class="bx" style="width:${fw}px;height:${T}px;${faceBg(s, fw, T * 2, false)}transform:translate3d(${-fw / 2}px,${yf}px,${zf - 0.95}px)"></div>`;   // bordo della lastra, del suo colore
+      h += `<div class="bx cedge" data-e="${i}" style="width:${fw}px;height:${T}px;${faceBg(s, fw, T * 2, false)}transform:translate3d(${-fw / 2}px,${yf}px,${zf - 0.95}px)"></div>`;   // bordo della lastra, del suo colore
     }
     h += `</div>`;
   }
   const m = { html: h, L, P, H };
   if (op >= 0 && op < n) {
-    m.after = [[`.drawer3d[data-dr="${op}"]`, `translate3d(0,0,${pull}px)`]];
-    m.focus = { x: 0, y: yb(op) - 2, z: zf - 1 - fh / 2 + pull, w: fw, h: fh * 0.9, yaw: 0, tilt: 52 };
+    // il cassetto esce, poi la lastra si alza in piedi sul bordo del vassoio (appena inclinata indietro):
+    // così si vede tutta la 60×120 di fronte e non solo il suo spessore
+    const y = yb(op), T = Math.max(1, tileThickCm(d, c, op)), yf = y - 0.6 - T, a = 10, ra = a * Math.PI / 180, zb = zf - 2;
+    const up = tr(-fw / 2, yf - fh * Math.cos(ra), zb - fh * Math.sin(ra), `rotateX(${a}deg)`);
+    m.after = [[`.drawer3d[data-dr="${op}"]`, `translate3d(0,0,${pull}px)`], [`.ttile[data-t="${op}"]`, up, 560], [`.cedge[data-e="${op}"]`, `translate3d(${-fw / 2}px,${yf}px,${zf - 0.95}px) scale3d(0,0,0)`, 560]];
+    m.focus = { x: 0, y: yf - fh / 2, z: zb + pull - 5, w: fw, h: fh, yaw: 0, tilt: 6 };
   }
   return m;
 }
@@ -257,7 +261,10 @@ function renderModel3D(d, c, sc, W, H, st) {
   const token = ++gToken;
   if (m.after) requestAnimationFrame(() => requestAnimationFrame(() => {
     if (token !== gToken) return;
-    m.after.forEach(([sel, tf]) => { const el = sc.querySelector(sel); if (el) el.style.transform = tf; });
+    m.after.forEach(([sel, tf, dl]) => {   // dl = secondo tempo (es. cassettiera: esce il cassetto, poi si alza la lastra)
+      const el = sc.querySelector(sel); if (!el) return;
+      if (!dl) el.style.transform = tf; else setTimeout(() => { if (token === gToken) el.style.transform = tf; }, dl);
+    });
   }));
   // telecamera: si trascina per girare, rotella per lo zoom
   if (!st._orbit) {
