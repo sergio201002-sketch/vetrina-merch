@@ -650,7 +650,7 @@ function renderShowCard() {
       <button class="btn" onclick="stepSample(1)">›</button>${eye}<button class="btn" onclick="closeSample()" title="Chiudi">✕</button></div>`;
     return;
   }
-  box.innerHTML = `${eye}<div class="sc-img" style="${s ? swatchStyle(s) : ''}"></div>
+  box.innerHTML = `${eye}<div class="sc-img" style="${s ? swatchStyle(s, true) : ''}"></div>
     <div class="sc-body">
       <div class="sc-pos">${esc(itemLabel(it))} · posto ${esc(slotName(d, showSel.slot, c.slots.length))}</div>
       ${s ? `<div class="sc-ser">${esc(s.s)}</div><div class="sc-col">${esc(s.c)}</div>

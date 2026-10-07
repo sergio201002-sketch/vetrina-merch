@@ -8,30 +8,36 @@
    Si rispettano i formati: un campione che non entra in un espositore non ci va.
    ════════════════════════════════════════════════════════════ */
 document.head.insertAdjacentHTML('beforeend', `<style>
-.cs-modal .mbox { width: min(1100px, 100%); height: 92vh; max-height: 92vh; position: relative; }
-.cs-hint { padding: 8px 18px; font-size: 12px; color: var(--mid); border-bottom: 1px solid var(--border); }
+.cs-modal { padding: 0; }
+.cs-modal .mbox { width: 100vw; height: 100vh; height: 100dvh; max-height: none; border-radius: 0; position: relative; }
+.cs-modal .mhead { padding: 8px 14px; }
+.cs-size { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--mid); }
+.cs-size .btn { min-width: 34px; font-size: 16px; padding: 3px 8px; }
+@media (max-height: 640px) { .cs-hint { display: none; } }
+.cs-hint { padding: 6px 14px; font-size: 12px; color: var(--mid); border-bottom: 1px solid var(--border); }
 .cs-tabs { display: flex; gap: 6px; padding: 8px 14px; border-bottom: 1px solid var(--border); overflow-x: auto; flex: none; }
 .cs-tabs button { flex: none; border: 1px solid var(--border); background: var(--white); border-radius: 999px; padding: 6px 12px; font-size: 12.5px; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .cs-tabs button .k { color: var(--mid); font-weight: 600; margin-left: 4px; }
 .cs-tabs button.on { background: var(--dark); color: #fff; border-color: var(--dark); }
 .cs-tabs button.on .k { color: #ccc; }
-.cs-body { overflow-y: auto; padding: 10px 14px 80px; flex: 1; -webkit-overflow-scrolling: touch; }
-.cs-sec { margin: 8px 0 18px; }
+.cs-body { overflow-y: auto; padding: 10px 14px 80px; flex: 1; -webkit-overflow-scrolling: touch; display: flex; flex-wrap: wrap; gap: 6px 26px; align-content: flex-start; }
+.cs-sec { flex: none; margin: 4px 0 10px; max-width: 100%; }
 .cs-sec h4 { margin: 0 0 2px; font-size: 14px; }
 .cs-sec .s { font-size: 11.5px; color: var(--mid); margin-bottom: 6px; }
 .cs-side { font-size: 10.5px; font-weight: 800; color: var(--mid); text-transform: uppercase; letter-spacing: .05em; margin: 6px 0 4px; }
-.cs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
-.cslot { position: relative; height: 104px; border-radius: 8px; background: #e9e6df; background-size: cover; background-position: center; overflow: hidden;
+.cs-grid { display: grid; grid-template-columns: repeat(var(--cols, 8), var(--t, 70px)); gap: 4px; max-width: 100%; overflow-x: auto; }
+.cslot { position: relative; width: var(--t, 70px); height: calc(var(--t, 70px) * 1.22); border-radius: 8px; background: #e9e6df; background-size: cover; background-position: center; overflow: hidden;
   box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); cursor: grab; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .cslot.empty { background: repeating-linear-gradient(45deg, #f7f6f2 0 8px, #efede7 8px 16px); box-shadow: inset 0 0 0 1.5px #cfcbc2; cursor: pointer; }
 .cslot.empty::after { content: '+'; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 26px; color: #b5b0a5; font-weight: 300; }
-.cslot .p { position: absolute; top: 4px; left: 4px; background: rgba(17,17,17,.78); color: #fff; font-size: 10px; font-weight: 800; padding: 1px 5px; border-radius: 4px; }
-.cslot .n { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(transparent, rgba(0,0,0,.78)); color: #fff; font-size: 10px; line-height: 1.2; padding: 14px 5px 4px; }
-.cslot .n b { display: block; font-size: 9.5px; text-transform: uppercase; letter-spacing: .02em; }
+.cslot .p { position: absolute; top: 3px; left: 3px; background: rgba(17,17,17,.78); color: #fff; font-size: calc(var(--t, 70px) * .13); font-weight: 800; padding: 1px 5px; border-radius: 4px; }
+.cslot .n { position: absolute; left: 0; right: 0; bottom: 0; background: linear-gradient(transparent, rgba(0,0,0,.78)); color: #fff; font-size: calc(var(--t, 70px) * .13); line-height: 1.15; padding: 10px 4px 3px; overflow: hidden; }
+.cs-small .cslot .n b { display: none; }
+.cslot .n b { display: block; font-size: calc(var(--t, 70px) * .12); text-transform: uppercase; letter-spacing: .02em; }
 .cslot.src { opacity: .35; }
 .cslot.over { box-shadow: inset 0 0 0 3px var(--red); }
 .cslot.bad { box-shadow: inset 0 0 0 3px #999; filter: grayscale(.6); }
-.cs-ghost { position: fixed; z-index: 400; width: 84px; height: 104px; border-radius: 8px; pointer-events: none; background-size: cover; background-position: center;
+.cs-ghost { position: fixed; z-index: 400; width: 84px; height: 102px; border-radius: 8px; pointer-events: none; background-size: cover; background-position: center;
   box-shadow: 0 10px 24px rgba(0,0,0,.35); transform: translate(-50%, -60%) rotate(-3deg); opacity: .95; }
 .cs-pick { position: absolute; left: 0; right: 0; bottom: 0; height: 72%; background: var(--white); border-top: 1px solid var(--border); box-shadow: 0 -10px 30px rgba(0,0,0,.18);
   display: flex; flex-direction: column; border-radius: 14px 14px 0 0; }
@@ -62,8 +68,10 @@ function openSampleBoard() {
   let m = document.getElementById('csModal');
   if (!m) {
     document.body.insertAdjacentHTML('beforeend', `<div class="modal cs-modal" id="csModal"><div class="mbox">
-      <div class="mhead"><h3>🧩 Sistema i campioni</h3><button class="btn dark" onclick="closeSampleBoard()">Fatto</button></div>
-      <div class="cs-hint">Trascina un campione su un altro posto per spostarlo o scambiarlo, anche tra espositori diversi (sul telefono: tieni premuto un attimo e poi trascina). Tocca un posto per inserire, cambiare o togliere il campione.</div>
+      <div class="mhead"><h3>🧩 Sistema i campioni</h3>
+        <div class="cs-size">Grandezza <button class="btn" onclick="csZoom(-1)" title="Quadratini più piccoli: ne vedi di più">−</button><button class="btn" onclick="csZoom(1)" title="Quadratini più grandi">+</button></div>
+        <button class="btn dark" onclick="closeSampleBoard()">Fatto</button></div>
+      <div class="cs-hint">Trascina per spostare o scambiare (telefono: tieni premuto e trascina) · tocca un posto per inserire, cambiare o togliere · con − e + vedi più o meno quadratini.</div>
       <div class="cs-tabs" id="csTabs"></div>
       <div class="cs-body" id="csBody"></div>
       <div class="cs-pick" id="csPick" hidden></div></div></div>`);
@@ -71,12 +79,20 @@ function openSampleBoard() {
     bindBoardDrag(document.getElementById('csBody'));
   }
   m.classList.add('open');
+  const rs = document.getElementById('roomScene'); if (rs) rs.style.display = 'none';   // la sala 3D si ferma mentre sistemi i campioni (niente rallentamenti)
   renderSampleBoard();
+}
+const CS_SIZES = [44, 52, 60, 70, 82, 96, 112, 130];
+function csSize() { const t = ui.csT || (innerWidth < 700 ? 60 : 70); return CS_SIZES.includes(t) ? t : 70; }
+function csZoom(dir) {
+  const i = CS_SIZES.indexOf(csSize()), t = CS_SIZES[Math.max(0, Math.min(CS_SIZES.length - 1, i + dir))];
+  ui.csT = t; saveUI(); renderSampleBoard();
 }
 function closeSampleBoard() {
   document.getElementById('csModal').classList.remove('open');
   document.getElementById('csPick').hidden = true; csPickAt = null;
   roomModels = {}; showSel = null; cam.focus = null;
+  const rs = document.getElementById('roomScene'); if (rs) rs.style.display = '';
   renderRoom(); renderRoomSide(); if (typeof applyCam === 'function') applyCam();
 }
 function slotTile(cid, i, d, c) {
@@ -95,9 +111,11 @@ function renderSampleBoard() {
   document.getElementById('csTabs').innerHTML = `<button class="${csGroup ? '' : 'on'}" onclick="csGroup=''; renderSampleBoard()">Tutti<span class="k">${all.length}</span></button>` +
     [...groups].map(([k, g]) => `<button class="${csGroup === k ? 'on' : ''}" title="${esc([...g.names].join(', '))}" onclick="csGroup='${k}'; document.getElementById('csBody').scrollTop=0; renderSampleBoard()">${esc(g.label)}<span class="k">${g.n}</span></button>`).join('');
   const areas = csGroup ? all.filter(a => csKey(a.d) === csGroup) : all;
+  const t = csSize(); body.style.setProperty('--t', t + 'px'); body.classList.toggle('cs-small', t < 60);
   body.innerHTML = areas.length ? areas.map(({ c, d, items }) => {
     const n = c.slots.length, two = d.mode === 'swing' && d.sides === 2, L = Math.ceil(n / 2), [a, b] = d.sideNames || ['A', 'B'];
-    const grid = (from, to) => `<div class="cs-grid">${Array.from({ length: to - from }, (_, k) => slotTile(c.id, from + k, d, c)).join('')}</div>`;
+    const cols = two ? L : Math.min(n, d.cols && d.cols * 2 <= 12 ? d.cols * 2 : 10);
+    const grid = (from, to) => `<div class="cs-grid" style="--cols:${cols}">${Array.from({ length: to - from }, (_, k) => slotTile(c.id, from + k, d, c)).join('')}</div>`;
     return `<div class="cs-sec"><h4>${esc(c.name)}${items.length > 1 ? ` <span style="color:var(--mid);font-weight:600">×${items.length}</span>` : ''}</h4>
       <div class="s">${esc(d.name)} · ${filledOf(c)}/${n} posti · ${esc(acceptLabel(d, c).slice(0, 3).join(' · '))}</div>
       ${two ? `<div class="cs-side">Lato ${esc(a)}</div>${grid(0, L)}<div class="cs-side">Lato ${esc(b)}</div>${grid(L, n)}` : grid(0, n)}</div>`;
@@ -157,7 +175,7 @@ function bindBoardDrag(body) {
       if (!csDrag.filled) return;
       start(e); tick();
     }
-    moveGhost(e.clientX, e.clientY);
+    if (!csDrag.raf) csDrag.raf = requestAnimationFrame(() => { if (!csDrag) return; csDrag.raf = 0; if (csDrag.on && csDrag.last) moveGhost(csDrag.last.clientX, csDrag.last.clientY); });   // un aggiornamento per fotogramma
   });
   // durante il trascinamento col dito la pagina non deve scorrere
   body.addEventListener('touchmove', e => { if (csDrag && csDrag.on) e.preventDefault(); }, { passive: false });

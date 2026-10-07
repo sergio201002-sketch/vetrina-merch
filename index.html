@@ -793,9 +793,10 @@ function tileDims(s, faceW, faceH, tiled) {
   }
   return [tw, th];
 }
-function swatchStyle(s) {
-  // le piastrelle e le lastre sono verticali: anche le miniature usano la foto in verticale
-  if (hasPhoto(s)) return `background-image:url(${imgFor(photoKey(s), true)})`;
+/* miniature (foto/mini, 240 px) per quadratini ed elenchi: molto più leggere delle foto grandi */
+const FOTO_MINI = {}; Object.entries(window.FOTO_MINI || {}).forEach(([p, m]) => { FOTO_MINI[encodeURI(p)] = encodeURI(m); });
+function swatchStyle(s, big) {
+  if (hasPhoto(s)) { const u = imgFor(photoKey(s)); return `background-image:url(${(!big && FOTO_MINI[u]) || u})`; }
   const c = placeholderRGB(s);
   return `background:radial-gradient(ellipse at 30% 25%, ${rgb(c, 14)}, ${rgb(c, -12)})`;
 }
