@@ -13,7 +13,7 @@ function parseDims(d) {
 }
 const T = (x, y, z, tf) => `transform:translate3d(${x}px,${y}px,${z}px)${tf ? ' ' + tf : ''}`;
 /* faccia di una piastrella (senza scritte); data-slot = posto, per aprirla in sala mostra */
-let ROOM_RES = LOWMEM ? 1.5 : 2;   // in stanza 1 px = 1 cm: foto un po' ingrandite; il campione aperto si ridisegna nitido (sharpFace)
+let ROOM_RES = 2;   // in stanza 1 px = 1 cm: foto un po' ingrandite; il campione aperto si ridisegna nitido (sharpFace)
 function rface(d, c, i, fw, fh, tiled, back) {
   const s = c && SAMPLE[c.slots[i]];
   const tf = back ? 'transform:rotateY(180deg);' : '';
@@ -674,7 +674,7 @@ function sharpFace(id, slot) {
   restoreFace();
   const it = room.items.find(i => i.id === id), d = DISP[it.disp], c = comps[it.comp], s = c && SAMPLE[c.slots[slot]], root = itemEl(id);
   if (!s || !root) return;
-  const hi = LOWMEM ? 7 : 14, tiled = !['rack', 'culla'].includes(d.mode);
+  const hi = LOWMEM ? 11 : 14, tiled = !['rack', 'culla'].includes(d.mode);
   root.querySelectorAll(`.rf[data-slot="${slot}"]`).forEach(el => {
     const w = el.offsetWidth, h = el.offsetHeight; if (!w || !h) return;
     showHi = showHi || [];

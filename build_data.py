@@ -367,7 +367,7 @@ def borrow_photos(samples, photos):
 
 
 def make_medium():
-    """Foto medie (max 1000 px, webp) in foto/medie/: le usa il telefono. Le foto originali sono AVIF fino a
+    """Foto medie (max 1600 px, webp) in foto/medie/: le usa il telefono. Le foto originali sono AVIF fino a
     1920 px: alcuni iPhone non leggono l'AVIF e con tante foto grandi il browser del telefono ne lascia alcune vuote."""
     from PIL import Image
     folder, med, out = os.path.join(HERE, 'foto'), os.path.join(HERE, 'foto', 'medie'), {}
@@ -382,8 +382,8 @@ def make_medium():
             try:
                 with Image.open(src) as im:
                     im = im.convert('RGB')
-                    im.thumbnail((1000, 1000))
-                    im.save(dst, 'WEBP', quality=78)
+                    im.thumbnail((1600, 1600))
+                    im.save(dst, "WEBP", quality=84)
             except Exception:
                 continue
         out['foto/' + fn] = 'foto/medie/' + name

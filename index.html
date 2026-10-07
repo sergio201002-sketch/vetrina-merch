@@ -802,7 +802,7 @@ function faceBg(s, faceW, faceH, tiled, px = 1) {
 /* Foto di una faccia 3D. Il browser rasterizza gli elementi 3D alla loro misura in pixel e poi li ingrandisce
    con lo zoom (= foto sfocate, soprattutto i 120×120): la foto è disegnata r volte più grande e rimpicciolita. */
 const LOWMEM = (() => { try { return matchMedia("(pointer: coarse)").matches || innerWidth < 820; } catch (e) { return false; } })();   // telefono/tablet: meno memoria
-let FACE_RES = LOWMEM ? 2 : 3;
+let FACE_RES = LOWMEM ? 2.5 : 3;
 function photoLayer(s, faceW, faceH, tiled, r = FACE_RES) {
   const [tw, th] = tileDims(s, faceW, faceH, tiled);
   if (photoTurn(photoKey(s), th > tw)) {
