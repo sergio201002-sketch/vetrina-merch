@@ -3,15 +3,40 @@
    SALVATAGGIO — due modi, scelti da soli all'avvio:
    • sul PC (AVVIA VETRINA.bat): ogni modifica viene scritta da server.py in dati/vetrina.json,
      versioni precedenti in dati/backup/;
-   • online (pagina su claude.ai): ogni modifica va nel database della pagina, uguale su tutti i
-     dispositivi; versioni precedenti nella raccolta "backup"; foto caricate tra i file della pagina.
+   • online sul sito (GitHub Pages): si accede con Google e ogni modifica va su Firebase (Firestore),
+     uguale su PC e telefono; versioni precedenti nella raccolta "backup"; foto caricate nella raccolta "foto";
+   • online come pagina su claude.ai: stesso schema, nel database della pagina.
    Il browser tiene solo una copia di lavoro. Senza nessuno dei due, l'indicatore in alto lo dice.
    ════════════════════════════════════════════════════════════ */
 const PARTS = ['clients', 'comps', 'scenes', 'current'];
+const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyChf_3YvySt6Y01j8xY9gP_hRPQRBjRt3k',
+  authDomain: 'vetrina-merch.firebaseapp.com',
+  projectId: 'vetrina-merch',
+  storageBucket: 'vetrina-merch.firebasestorage.app',
+  messagingSenderId: '705335581673',
+  appId: '1:705335581673:web:d37dbdf0b15d48114d8978',
+};
+const FB_V = '10.13.2', FB_URL = m => `https://www.gstatic.com/firebasejs/${FB_V}/firebase-${m}.js`;
+/* Firestore con le stesse chiamate del database della pagina claude.ai (doc/collection/get/set/delete/onSnapshot):
+   i dati stanno sotto vetrine/<id Google>/… e solo quell'account li legge e scrive (regole Firestore) */
+function fireStore(F, fdb, uid) {
+  const ref = p => F.doc(fdb, 'vetrine', uid, ...p.split('/'));
+  const wrap = sn => ({ id: sn.id, exists: sn.exists(), data: () => sn.data(), metadata: sn.metadata });
+  const store = {
+    doc: p => ({ get: async () => wrap(await F.getDoc(ref(p))), set: d => F.setDoc(ref(p), d), delete: () => F.deleteDoc(ref(p)),
+                 onSnapshot: (cb, err) => F.onSnapshot(ref(p), sn => cb(wrap(sn)), err) }),
+    collection: c => ({ get: async () => ({ docs: (await F.getDocs(F.collection(fdb, 'vetrine', uid, c))).docs.map(wrap) }), doc: id => store.doc(c + '/' + id) }),
+  };
+  return store;
+}
+const fotoDocId = ik => 'foto/' + encodeURIComponent(ik).replace(/\./g, '%2E');
 const AUTO_BACKUP_MS = 10 * 60 * 1000, KEEP_BACKUPS = 120;
 
 const Sync = {
   mode: null,              // 'disk' | 'cloud' | null (solo nel browser)
+  provider: null,          // con mode 'cloud': 'fire' = Firebase (sito), 'claude' = pagina claude.ai
+  fb: null, user: null, needLogin: false,
   online: false, pending: false, busy: false, again: false, error: false, timer: null, lastSaved: null,
   db: null, assets: null, sent: {}, lastBackup: 0, lastCounts: null, fotoMap: {},
 
@@ -26,7 +51,7 @@ const Sync = {
       const r = await fetch('/api/data', { cache: 'no-store' });
       if (!r.ok) throw new Error(r.status);
       d = await r.json(); this.online = true; this.mode = 'disk';
-    } catch (e) { this.online = false; this.badge(); return; }
+    } catch (e) { return this.initFire(); }               // niente server del PC: sito online con Firebase
     const hasDisk = d && d.app === 'vetrina-merch' && d.comps;
     this.adopt(hasDisk ? d : null, 'vm_disk_v1');
     this.lastSaved = hasDisk ? d.saved : null;
@@ -87,20 +112,71 @@ const Sync = {
     let db = null;
     try { db = await window.claude.use('db'); } catch (e) {}
     if (!db) { this.online = false; this.badge(); return; }
-    this.db = db;
+    this.db = db; this.provider = 'claude';
     try { this.assets = await window.claude.use('assets'); } catch (e) {}
+    return this.loadCloud('vm_cloud_v1');
+  },
+  /* ── online sul sito: Firebase, con accesso Google ── */
+  async initFire() {
+    this.provider = 'fire';
+    try {
+      const [App, A, F] = await Promise.all([import(FB_URL('app')), import(FB_URL('auth')), import(FB_URL('firestore'))]);
+      const app = App.initializeApp(FIREBASE_CONFIG);
+      let fdb;
+      try { fdb = F.initializeFirestore(app, { localCache: F.persistentLocalCache({ tabManager: F.persistentMultipleTabManager() }) }); }
+      catch (e) { fdb = F.getFirestore(app); }
+      this.fb = { A, F, auth: A.getAuth(app), fdb };
+    } catch (e) { console.warn('Firebase non raggiungibile', e); this.online = false; this.badge(); return; }
+    const { A, auth } = this.fb;
+    try { await A.getRedirectResult(auth); } catch (e) {}
+    const user = await new Promise(res => { const un = A.onAuthStateChanged(auth, u => { un(); res(u); }); });
+    if (!user) { this.needLogin = true; this.badge(); return; }   // finché non accedi, i dati restano in questo browser
+    await this.startFire(user);
+  },
+  async startFire(user) {
+    this.user = user; this.needLogin = false;
+    this.db = fireStore(this.fb.F, this.fb.fdb, user.uid);
+    await this.loadCloud('vm_fire_v1_' + user.uid);
+  },
+  async login() {
+    if (!this.fb) { toast('Collegamento a Firebase non riuscito: controlla la connessione e ricarica'); return; }
+    const { A, auth } = this.fb, prov = new A.GoogleAuthProvider();
+    prov.setCustomParameters({ prompt: 'select_account' });
+    try {
+      const r = await A.signInWithPopup(auth, prov);
+      await this.startFire(r.user);
+      if (typeof loadImages === 'function') await loadImages();
+      route(); toast('Accesso fatto: ' + (r.user.email || ''));
+    } catch (e) {
+      // telefono: se la finestra di Google non si può aprire, si va alla pagina di Google e poi si torna qui
+      if (['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment', 'auth/cancelled-popup-request'].includes(e.code)) await A.signInWithRedirect(auth, prov);
+      else if (e.code !== 'auth/popup-closed-by-user') say('Accesso non riuscito: ' + (e.message || e.code));
+    }
+  },
+  async logout() {
+    if (!this.fb) return;
+    if (this.pending) await this.saveNow();
+    await this.fb.A.signOut(this.fb.auth); location.reload();
+  },
+  badgeClick() { if (this.needLogin) this.login(); else openVersions(); },
+  async loadCloud(flag) {
     let d = null, meta = null;
     try {
       meta = await this.read('stato/meta');
       if (meta) { d = { app: 'vetrina-merch' }; for (const k of PARTS) d[k] = (await this.read('stato/' + k) || {}).v || {}; }
-      this.fotoMap = (await this.read('stato/foto') || {}).v || {};
-    } catch (e) { console.warn('Database non raggiungibile', e); this.online = false; this.badge(); return; }
+      if (this.provider === 'claude') this.fotoMap = (await this.read('stato/foto') || {}).v || {};
+    } catch (e) {
+      console.warn('Database non raggiungibile', e); this.online = false; this.badge();
+      if (this.provider === 'fire') say('Non riesco a leggere i dati online (' + (e.code || e.message) + '). Controlla le regole di Firestore.');
+      return;
+    }
     this.online = true; this.mode = 'cloud';
+    const db = this.db;
     if (d) PARTS.forEach(k => { this.sent[k] = JSON.stringify(d[k]); });
     this.lastSaved = meta ? meta.saved : null;
     this.lastCounts = d ? this.counts(d) : null;
     this.lastBackup = Date.now();
-    this.adopt(d, 'vm_cloud_v1');
+    this.adopt(d, flag);
     // modifiche fatte da un altro dispositivo: arrivano da sole
     db.doc('stato/meta').onSnapshot(s => {
       const m = s.exists ? s.data() : null;
@@ -127,7 +203,7 @@ const Sync = {
     for (const k of PARTS) {
       const txt = JSON.stringify(snap[k]);
       if (txt === this.sent[k]) continue;
-      if (txt.length > 240000) throw new Error('Troppi dati in ' + k);
+      if (txt.length > (this.provider === 'fire' ? 900000 : 240000)) throw new Error('Troppi dati in ' + k);
       await this.db.doc('stato/' + k).set({ v: snap[k] });
       this.sent[k] = txt;
     }
@@ -154,6 +230,7 @@ const Sync = {
     } catch (e) {}
   },
   async download(filename, blob) {
+    if (this.provider === 'fire') { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); return; }
     let dl = null; try { dl = await window.claude.use('downloads'); } catch (e) {}
     if (!dl) { toast('Il salvataggio del file non è disponibile qui'); return; }
     try { await dl.save({ filename, data: blob }); } catch (e) { if (e && e.code !== 'cancelled') toast('File non salvato'); }
@@ -161,16 +238,17 @@ const Sync = {
 
   badge() {
     const el = document.getElementById('saveBadge'); if (!el) return;
-    const where = this.mode === 'cloud' ? 'online' : 'su disco';
+    const where = this.mode === 'cloud' ? 'online' + (this.user && this.user.email ? ' (' + this.user.email + ')' : '') : 'su disco';
     let txt, cls, tip;
-    if (!this.online) {
+    if (this.needLogin) { txt = '🔑 Accedi con Google'; cls = 'warn'; tip = 'Accedi per salvare tutto online, uguale su PC e telefono'; }
+    else if (!this.online) {
       txt = '⚠ Solo nel browser'; cls = 'warn';
       tip = window.claude ? 'Il database della pagina non risponde: le modifiche restano in questo browser' : 'Apri la vetrina con "AVVIA VETRINA.bat" per salvare tutto su disco';
     }
     else if (this.error) { txt = '⚠ Non salvato, riprovo…'; cls = 'warn'; tip = 'Il salvataggio non risponde: le modifiche restano nel browser e vengono salvate appena possibile'; }
     else if (this.pending || this.busy) { txt = '… Salvataggio'; cls = 'busy'; tip = ''; }
     else { txt = '✓ Salvato'; cls = 'ok'; tip = 'Tutto salvato ' + where + (this.lastSaved ? ' · ' + new Date(this.lastSaved).toLocaleString('it-IT') : ''); }
-    el.textContent = txt; el.className = 'savebadge ' + cls; el.title = tip; el.dataset.i = txt.charAt(0);
+    el.textContent = txt; el.className = 'savebadge ' + cls; el.title = tip; el.dataset.i = Array.from(txt)[0];
   },
 };
 window.Sync = Sync;
@@ -195,7 +273,7 @@ async function openVersions() {
   try { list = await listVersions(); } catch (e) {}
   const m = document.getElementById('verModal'), body = document.getElementById('verList');
   const note = document.getElementById('verNote');
-  if (note) note.innerHTML = (Sync.mode === 'cloud' ? 'Tutto si salva da solo <b>online</b>, uguale su tutti i tuoi dispositivi.' : 'Tutto si salva da solo su disco nella cartella <b>dati</b>.')
+  if (note) note.innerHTML = (Sync.mode === 'cloud' ? 'Tutto si salva da solo <b>online</b>, uguale su tutti i tuoi dispositivi.' + (Sync.user ? ` Account: <b>${esc(Sync.user.email || '')}</b> · <a href="#" onclick="Sync.logout(); return false">Esci</a>.` : '') : 'Tutto si salva da solo su disco nella cartella <b>dati</b>.')
     + ' Qui ci sono le copie precedenti: una ogni 10 minuti di lavoro e sempre prima di un\'eliminazione. Ripristinandone una, quella attuale viene salvata comunque, così puoi tornare indietro.';
   const nice = f => { const x = f.match(/(\d{4})(\d\d)(\d\d)-(\d\d)(\d\d)(\d\d)-(.+?)(\.json)?$/); if (!x) return f;
     return `<b>${x[3]}/${x[2]}/${x[1]} ${x[4]}:${x[5]}</b> · ${WHY[x[7]] || x[7]}`; };
@@ -231,6 +309,12 @@ async function restoreVersion(f) {
 async function uploadPhotoToDisk(ik, blob) {
   if (!Sync.online) return null;
   try {
+    if (Sync.provider === 'fire') {        // foto ridotta salvata dentro il documento (niente servizio a pagamento)
+      const data = await blobToDataURL(blob);
+      if (data.length > 950000) { toast('Foto troppo grande per il salvataggio online'); return null; }
+      await Sync.db.doc(fotoDocId(ik)).set({ ik, data, upd: Date.now() });
+      return data;
+    }
     if (Sync.mode === 'cloud') {
       if (!Sync.assets) return null;
       const r = await Sync.assets.upload(blob, { type: blob.type || 'image/jpeg' });
@@ -246,6 +330,7 @@ async function uploadPhotoToDisk(ik, blob) {
 async function deletePhotoFromDisk(ik) {
   if (!Sync.online) return;
   try {
+    if (Sync.provider === 'fire') { await Sync.db.doc(fotoDocId(ik)).delete(); return; }
     if (Sync.mode === 'cloud') {
       const id = Sync.fotoMap[ik]; if (!id) return;
       delete Sync.fotoMap[ik]; await Sync.db.doc('stato/foto').set({ v: Sync.fotoMap });
@@ -257,6 +342,11 @@ async function deletePhotoFromDisk(ik) {
 }
 async function diskPhotos() {
   if (!Sync.online) return {};
+  if (Sync.provider === 'fire') {
+    const o = {};
+    try { (await Sync.db.collection('foto').get()).docs.forEach(d => { const v = d.data(); if (v && v.ik && v.data) o[v.ik] = v.data; }); } catch (e) {}
+    return o;
+  }
   if (Sync.mode === 'cloud') { const o = {}; Object.entries(Sync.fotoMap).forEach(([k, id]) => { o[k] = '/_blob/' + id; }); return o; }
   try { return await (await fetch('/api/foto', { cache: 'no-store' })).json(); } catch (e) { return {}; }
 }

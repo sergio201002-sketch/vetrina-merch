@@ -6,3 +6,6 @@ online/
 strumenti/
 __pycache__/
 *.pyc
+
+# dati dei clienti da importare online: non vanno su GitHub
+DATI-PC-da-importare.json
