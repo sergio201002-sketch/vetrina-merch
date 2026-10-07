@@ -704,7 +704,9 @@ function photoTurn(ik, portrait) {
 const photoKey = s => (s && s.pkey && IMG[s.pkey]) ? s.pkey : (s && s.key && IMG[s.key]) ? s.key : s.ik;
 const tozFrom = s => s && s.toz && s.from && s.from.length === 1 ? ' da ' + fmt(s.from[0]) : '';   // tozzetto ricavato da…
 const hasPhoto = s => !!(s && ((s.pkey && IMG[s.pkey]) || (s.key && IMG[s.key]) || IMG[s.ik]));
-function imgFor(ik) { return IMG[ik]; }
+/* telefono e tablet: foto medie in WebP (le leggono tutti e pesano poco); PC: foto originali */
+const FOTO_MED = {}; Object.entries(window.FOTO_MED || {}).forEach(([p, m]) => { FOTO_MED[encodeURI(p)] = encodeURI(m); });
+function imgFor(ik) { const u = IMG[ik]; return (LOWMEM && FOTO_MED[u]) || u; }
 async function resizeImage(file, max = 1600) {
   const bmp = await createImageBitmap(file);
   const r = Math.min(1, max / Math.max(bmp.width, bmp.height));
@@ -820,7 +822,7 @@ function tileDims(s, faceW, faceH, tiled) {
 /* miniature (foto/mini, 240 px) per quadratini ed elenchi: molto più leggere delle foto grandi */
 const FOTO_MINI = {}; Object.entries(window.FOTO_MINI || {}).forEach(([p, m]) => { FOTO_MINI[encodeURI(p)] = encodeURI(m); });
 function swatchStyle(s, big) {
-  if (hasPhoto(s)) { const u = imgFor(photoKey(s)); return `background-image:url(${(!big && FOTO_MINI[u]) || u})`; }
+  if (hasPhoto(s)) { const o = IMG[photoKey(s)], u = imgFor(photoKey(s)); return `background-image:url(${(!big && FOTO_MINI[o]) || u})`; }
   const c = placeholderRGB(s);
   return `background:radial-gradient(ellipse at 30% 25%, ${rgb(c, 14)}, ${rgb(c, -12)})`;
 }

@@ -366,6 +366,33 @@ def borrow_photos(samples, photos):
     return out
 
 
+def make_medium():
+    """Foto medie (max 1000 px, webp) in foto/medie/: le usa il telefono. Le foto originali sono AVIF fino a
+    1920 px: alcuni iPhone non leggono l'AVIF e con tante foto grandi il browser del telefono ne lascia alcune vuote."""
+    from PIL import Image
+    folder, med, out = os.path.join(HERE, 'foto'), os.path.join(HERE, 'foto', 'medie'), {}
+    os.makedirs(med, exist_ok=True)
+    for fn in sorted(os.listdir(folder)):
+        src = os.path.join(folder, fn)
+        if not (os.path.isfile(src) and fn.lower().endswith(IMG_EXT)):
+            continue
+        name = os.path.splitext(fn)[0] + '.webp'
+        dst = os.path.join(med, name)
+        if not os.path.isfile(dst) or os.path.getmtime(dst) < os.path.getmtime(src):
+            try:
+                with Image.open(src) as im:
+                    im = im.convert('RGB')
+                    im.thumbnail((1000, 1000))
+                    im.save(dst, 'WEBP', quality=78)
+            except Exception:
+                continue
+        out['foto/' + fn] = 'foto/medie/' + name
+    for fn in os.listdir(med):
+        if 'foto/medie/' + fn not in out.values():
+            os.remove(os.path.join(med, fn))
+    return out
+
+
 def make_thumbs():
     """Miniature (max 240 px, webp) delle foto in foto/mini/: le usano i quadratini e gli elenchi,
     così non si caricano centinaia di foto grandi (lento soprattutto sul telefono). Rifà solo quelle cambiate."""
@@ -422,6 +449,7 @@ def main():
         f.write('window.FOTO_Z = ' + json.dumps(photos_z, ensure_ascii=False) + ';\n')
         f.write('window.FOTO_WH = ' + json.dumps(photo_sizes(), ensure_ascii=False, separators=(',', ':')) + ';\n')
         f.write('window.FOTO_MINI = ' + json.dumps(make_thumbs(), ensure_ascii=False, separators=(',', ':')) + ';\n')
+        f.write('window.FOTO_MED = ' + json.dumps(make_medium(), ensure_ascii=False, separators=(',', ':')) + ';\n')
     print(len(DISPLAYS), 'espositori,', len(samples), 'campioni,', len(photos), 'colori con foto,', len(photos_z), 'formati con la loro foto ->', out)
     for ik, path in photos.items():
         print('  ', path, '->', ik.replace('|', ' · '))
