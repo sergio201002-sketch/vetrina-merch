@@ -284,7 +284,7 @@ MODELS.grid = benchTray;
 let gcam = { yaw: -30, tilt: 14, zoom: 1 }, gToken = 0;
 function renderModel3D(d, c, sc, W, H, st) {
   const n = c.slots.length, op = Math.max(0, Math.min(n - 1, selSlot));
-  if (gcam.mode !== d.id) { gcam.mode = d.id; gcam.yaw = d.id === 'PMV' ? -14 : d.id === 'OYQ' || d.id === 'PEX' ? 35 : -30; gcam.tilt = d.id === 'PMV' ? 16 : { drawers: 34, grid: 30, rack: 17 }[d.mode] || 14; }   // inclinazione di partenza: dall'alto per i cassetti
+  if (gcam.mode !== d.id) { gcam.mode = d.id; gcam.yaw = d.id === 'PMV' ? -14 : d.id === 'OYQ' || d.id === 'PEX' ? 70 : -30; gcam.tilt = d.id === 'PMV' ? 16 : { drawers: 34, grid: 30, rack: 17 }[d.mode] || 14; }   // inclinazione di partenza: dall'alto per i cassetti
   const m = MODELS[d.mode](d, c, op);
   const k = gcam.zoom * Math.min((H * 0.62) / Math.max(30, m.H), (W * 0.56) / Math.max(40, m.fitW || m.L));
   const fw = (m.L || 100) + 80, fd = (m.P || 60) + 80;
