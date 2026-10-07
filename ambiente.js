@@ -137,8 +137,8 @@ const MODELS = {
   /* Culla modulare: moduli in fila, piastrelle in piedi negli incavi. Aperto: la piastrella esce davanti alla fila */
   culla(d, c, op) {
     const n = c.slots.length, per = d.perModule || 14, mods = Math.ceil(n / per), ML = 94.5, MD = 57.9, BH = 5, RAIL = 35.6;
-    const len = mods * ML, pitch = (ML - 6) / per, ox = -len / 2, oz = MD / 2;
-    const xOf = i => ox + Math.floor(i / per) * ML + 4 + (i % per) * pitch;
+    const len = mods * ML, pitch = (ML - 6) / per, ox = -len / 2, oz = MD / 2, dx = c.side === 'DX';
+    const xOf = i => { const x = Math.floor(i / per) * ML + 4 + (i % per) * pitch; return ox + (dx ? x + pitch : len - x - pitch); };   // SX: Start a destra; DX: a sinistra
     let h = '';
     for (let mm = 0; mm < mods; mm++) {
       const x0 = ox + mm * ML;
@@ -148,7 +148,7 @@ const MODELS = {
     for (let i = 0; i < n; i++) {
       if (!c.slots[i]) continue;
       const [w, th] = sizeOfSlot(c, i, [60, 60]);
-      h += tileDiv(w, th, T(xOf(i), -BH + 2 - th, oz - 2, 'rotateY(74deg)'), rface(d, c, i, w, th, false) + tileBody(d, c, i, w, th, false, 1), i);
+      h += tileDiv(w, th, dx ? T(xOf(i) - w, -BH + 2 - th, oz - 2, 'rotateY(-74deg)') + ';transform-origin:100% 0' : T(xOf(i), -BH + 2 - th, oz - 2, 'rotateY(74deg)'), rface(d, c, i, w, th, false) + tileBody(d, c, i, w, th, false, 1), i);
     }
     const m = { html: h, L: len, P: MD, H: RAIL };
     if (op >= 0 && c.slots[op]) {
@@ -282,6 +282,7 @@ const stackedAbove = it => isSystem(it) ? room.items.filter(o => o !== it && isS
 const isUpper = it => isSystem(it) && elevY(it) > 1;
 function itemCode(it) {
   const d = DISP[it.disp]; if (!d) return '';
+  if (d.moduleCodes) { const c = comps[it.comp]; return d.moduleCodes[c && c.side === 'DX' ? 'DX' : 'SX'].join('/'); }
   let c = d.codes;
   if (!c) return d.code;
   if (c.inf) c = c[isUpper(it) ? 'sup' : 'inf'];

@@ -327,6 +327,12 @@ body[data-view="room"] #viewRoom, body[data-view="show"] #viewRoom { display: fl
 .roomrow { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; flex-wrap: wrap; }
 .roomrow .info { flex: 1; min-width: 140px; }
 .roomrow .meta { font-size: 12px; color: var(--mid); }
+.cullabar { position: absolute; left: 50%; top: 46px; transform: translateX(-50%); z-index: 6; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 10px;
+  background: rgba(17,17,17,.82); color: #fff; border-radius: 12px; padding: 5px 8px; max-width: calc(100% - 20px); }
+.cullabar .g { display: flex; align-items: center; gap: 3px; }
+.cullabar .l { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: #bbb; margin-right: 2px; }
+.cullabar button { border: none; background: rgba(255,255,255,.12); color: #fff; font-size: 12px; font-weight: 700; padding: 4px 9px; border-radius: 8px; cursor: pointer; }
+.cullabar button.on { background: var(--red); }
 .camctl { position: absolute; right: 10px; top: 10px; display: flex; gap: 5px; z-index: 5; flex-wrap: wrap; justify-content: flex-end; }
 .camctl button { border: none; background: rgba(17,17,17,.8); color: #fff; font-size: 12px; font-weight: 700; padding: 7px 11px; border-radius: 16px; cursor: pointer; }
 .camctl button.on { background: var(--red); }
@@ -543,6 +549,10 @@ function accepts(d, s) {
   if (a.small) return s1 <= a.small;
   return false;
 }
+/* come accepts, ma tiene conto delle scelte della composizione (es. culla con un solo formato) */
+const sameFmt = (a, b) => { const x = parseSize(a), y = parseSize(b); return !!(x && y) && sorted2(x).join('x') === sorted2(y).join('x'); };
+function acceptsIn(c, s) { const d = DISP[c.disp]; return !!d && accepts(d, s) && (!c.fmt || s.toz || sameFmt(s.z, c.fmt)); }
+const compatibleFor = c => compatibleSamples(DISP[c.disp]).filter(s => acceptsIn(c, s));
 function compatibleSamples(d) {
   return (d.accept.tozzetto ? TOZ_SAMPLES : SAMPLES).filter(s => accepts(d, s));
 }
@@ -869,7 +879,7 @@ function renderStage() {
   const d = disp(), c = comp();
   const st = document.getElementById('stage'), sc = document.getElementById('scene');
   st.classList.toggle('nolabels', !ui.labels);
-  st.querySelectorAll('.nav,.pageinfo,.ctrlbar').forEach(e => e.remove());
+  st.querySelectorAll('.nav,.pageinfo,.ctrlbar,.cullabar').forEach(e => e.remove());
   st.classList.toggle('lblbig', !!ui.lblBig);
   st.style.setProperty('--lblk', 1);
   st.classList.toggle('teca-nozoom', ['teca', 'shelf', 'culla', 'cassettiera'].includes(d.mode) && !ui.zoom);
@@ -1195,11 +1205,13 @@ function renderCulla(d, c, sc, W, H, st) {
   const from = lastCulla.key === key ? { sel: lastCulla.sel, zoom: lastCulla.zoom } : { sel, zoom: !!ui.zoom };
   lastCulla = { key, sel, zoom: !!ui.zoom };
 
-  const pos = i => { const m = Math.floor(i / per), j = i % per; return { x: m * ML + 4 + j * pitch, m, j }; };
+  // come nella scheda: SX = piastrelle girate verso destra e modulo Start a destra; DX = lo specchio (Start a sinistra)
+  const dx = c.side === 'DX';
+  const pos = i => { const m = Math.floor(i / per), j = i % per, x = m * ML + 4 + j * pitch; return { x: dx ? x + pitch : len - x - pitch, m, j }; };
   const outPos = i => { const [w, h] = sizeOf(i); return { x: Math.max(-10, Math.min(len - w + 10, pos(i).x - w / 2)), top: -BH - h - 6, w, h }; };
   const tileT = (i, out) => {
     const [w, h] = sizeOf(i);
-    if (!out) return `translate3d(${pos(i).x * k}px,${(-BH + 2 - h) * k}px,${-2 * k}px) rotateY(74deg)`;
+    if (!out) return dx ? `translate3d(${(pos(i).x - w) * k}px,${(-BH + 2 - h) * k}px,${-2 * k}px) rotateY(-74deg)` : `translate3d(${pos(i).x * k}px,${(-BH + 2 - h) * k}px,${-2 * k}px) rotateY(74deg)`;
     const o = outPos(i);
     return `translate3d(${o.x * k}px,${o.top * k}px,${30 * k}px) rotateY(0deg)`;
   };
@@ -1209,7 +1221,7 @@ function renderCulla(d, c, sc, W, H, st) {
       const z = Math.min((H * 0.72) / (o.h * k), (W * 0.72) / (o.w * k)); camZ = z;
       return `translate3d(${W / 2}px,${H * 0.46}px,0) scale(${z.toFixed(3)}) translate3d(${-(o.x + o.w / 2) * k}px,${-(o.top + o.h / 2) * k}px,${-30 * k}px)`;
     }
-    return `translate3d(${W / 2}px,${H * 0.72}px,0) rotateX(-14deg) rotateY(-26deg) translate3d(${-len / 2 * k}px,${50 * k}px,${MD / 2 * k}px)`;
+    return `translate3d(${W / 2}px,${H * 0.72}px,0) rotateX(-14deg) rotateY(${dx ? 26 : -26}deg) translate3d(${-len / 2 * k}px,${50 * k}px,${MD / 2 * k}px)`;
   };
   const Bx = (x, y, z, w, h, dd) => box3d(x * k, y * k, z * k, w * k, h * k, dd * k, METAL);
   let html = `<div class="sw-root" style="transform:${camT(from)}">`;
@@ -1222,7 +1234,7 @@ function renderCulla(d, c, sc, W, H, st) {
   }
   for (let i = 0; i < n; i++) {
     const [w, h] = sizeOf(i), empty = !c.slots[i];
-    html += `<div class="bx ttile" data-t="${i}" style="width:${w * k}px;height:${h * k}px;${empty && i !== from.sel ? 'opacity:.35;' : ''}transform:${tileT(i, i === from.sel)}">${faceHTML(d, c, i, w, h, false, '', 'backface-visibility:visible')}${tileBody(d, c, i, w, h, false, k)}</div>`;
+    html += `<div class="bx ttile" data-t="${i}" style="width:${w * k}px;height:${h * k}px;${dx ? 'transform-origin:100% 0;' : ''}${empty && i !== from.sel ? 'opacity:.35;' : ''}transform:${tileT(i, i === from.sel)}">${faceHTML(d, c, i, w, h, false, '', 'backface-visibility:visible')}${tileBody(d, c, i, w, h, false, k)}</div>`;
   }
   html += `</div>`;
   sc.innerHTML = html;
@@ -1247,6 +1259,18 @@ function renderCulla(d, c, sc, W, H, st) {
   const z = document.createElement('button'); z.textContent = '🔍 Zoom'; z.className = ui.zoom ? 'on' : '';
   z.onclick = e => { e.stopPropagation(); ui.zoom = !ui.zoom; saveUI(); renderStage(); };
   bar.appendChild(z); st.appendChild(bar);
+  const cb = document.createElement('div'); cb.className = 'cullabar';
+  const btn = (txt, on, fn, tip) => `<button class="${on ? 'on' : ''}" title="${esc(tip || '')}" onclick="event.stopPropagation(); ${fn}">${txt}</button>`;
+  cb.innerHTML = `<span class="g"><span class="l">Moduli</span>${(d.variants || [n]).map(v => btn(v / per, v === n, `setVariant(${v})`, (d.variantLabels || {})[v])).join('')}</span>
+    <span class="g"><span class="l">Versione</span>${btn('◄ SX', !dx, `setCullaSide('SX')`, 'Piastrelle girate verso destra · codici PUB/PUD/PUE')}${btn('DX ►', dx, `setCullaSide('DX')`, 'Piastrelle girate verso sinistra · codici PUF/PUG/PUH')}</span>
+    <span class="g"><span class="l">Formato</span>${btn('Misti', !c.fmt, `setCullaFmt('')`, 'Formati diversi insieme')}${(d.accept.sizes || []).map(z => btn(fmt(z), c.fmt === z, `setCullaFmt('${z}')`, 'Solo ' + fmt(z))).join('')}</span>`;
+  st.appendChild(cb);
+}
+function setCullaSide(side) { const c = comp(); c.side = side; touch(); renderAll(); toast('Versione ' + side); }
+function setCullaFmt(z) {
+  const c = comp(); c.fmt = z || ''; touch(); renderAll();
+  const other = z ? c.slots.filter(k => k && SAMPLE[k] && !sameFmt(SAMPLE[k].z, z)).length : 0;
+  toast(!z ? 'Formati misti' : other ? `Solo ${fmt(z)} · ${other} campioni di altri formati sono ancora dentro: cambiali o toglili` : `Solo ${fmt(z)}`);
 }
 
 /* Espositore Slide: lastre 120×278 su pannelli affiancati, viste di taglio.
@@ -1661,7 +1685,7 @@ function otherFormatsNote(d, q, shown) {
 function renderPicker(full) {
   const d = disp(), c = comp(), n = c.slots.length;
   const pane = document.getElementById('pane');
-  let list = compatibleSamples(d);
+  let list = compatibleFor(c);
   const brands = [...new Set(list.map(s => s.b))];
   if (brandFilter && !brands.includes(brandFilter)) brandFilter = '';
   const q = searchQ.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -1767,7 +1791,7 @@ async function clearComp() {
 function autoFill() {
   const d = disp(), c = comp();
   const used = new Set(c.slots.filter(Boolean));
-  const pool = compatibleSamples(d).filter(s => hasPhoto(s) && !used.has(s.key));
+  const pool = compatibleFor(c).filter(s => hasPhoto(s) && !used.has(s.key));
   if (!pool.length) { toast('Nessun campione compatibile con foto ancora caricata'); return; }
   let p = 0; c.slots = c.slots.map(k => k || (pool[p] ? pool[p++].key : null));
   touch(); renderAll(); renderList(); toast(`Inseriti ${p} campioni con foto`);
@@ -1779,7 +1803,8 @@ function copyCodes() {
   if (d.moduleCodes) {
     const m = Math.ceil(n / d.perModule), mid = Math.max(0, m - 2);
     const row = side => { const [s, md, e] = d.moduleCodes[side]; return m === 1 ? `1× ${s}` : `1× ${s} (Start) · ${mid ? mid + '× ' + md + ' (Middle) · ' : ''}1× ${e} (Closing)`; };
-    lines.splice(2, 0, `Moduli: ${m} — SX: ${row('SX')} | DX: ${row('DX')}`);
+    const side = c.side === 'DX' ? 'DX' : 'SX';
+    lines.splice(2, 0, `Moduli: ${m} · versione ${side} — ${row(side)}` + (c.fmt ? ` · solo ${fmt(c.fmt)}` : ''));
   }
   c.slots.forEach((k, i) => {
     const s = SAMPLE[k];

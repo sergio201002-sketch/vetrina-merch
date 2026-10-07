@@ -128,8 +128,8 @@ function moveSample(fromC, fromI, toC, toI) {
   if (fromC === toC && fromI === toI) return;
   const c1 = comps[fromC], c2 = comps[toC], d1 = DISP[c1.disp], d2 = DISP[c2.disp];
   const k1 = c1.slots[fromI], k2 = c2.slots[toI], s1 = SAMPLE[k1], s2 = SAMPLE[k2];
-  if (s1 && !accepts(d2, s1)) { toast(`${s1.s} ${s1.c} (${fmt(s1.z)}) non entra in ${d2.name}`); return; }
-  if (s2 && !accepts(d1, s2)) { toast(`Scambio non possibile: ${s2.s} ${s2.c} non entra in ${d1.name}`); return; }
+  if (s1 && !acceptsIn(c2, s1)) { toast(`${s1.s} ${s1.c} (${fmt(s1.z)}) non entra in ${c2.name}`); return; }
+  if (s2 && !acceptsIn(c1, s2)) { toast(`Scambio non possibile: ${s2.s} ${s2.c} non entra in ${c1.name}`); return; }
   c1.slots[fromI] = k2 || null; c2.slots[toI] = k1 || null;
   c1.upd = c2.upd = Date.now(); saveComps();
   renderSampleBoard();
@@ -153,7 +153,7 @@ function bindBoardDrag(body) {
     const t = tileAt(x, y);
     if (t && t !== csDrag.el) {
       const s1 = SAMPLE[comps[csDrag.el.dataset.c].slots[+csDrag.el.dataset.i]], c2 = comps[t.dataset.c], s2 = SAMPLE[c2.slots[+t.dataset.i]];
-      const ok = accepts(DISP[c2.disp], s1) && (!s2 || accepts(DISP[comps[csDrag.el.dataset.c].disp], s2));
+      const ok = acceptsIn(c2, s1) && (!s2 || acceptsIn(comps[csDrag.el.dataset.c], s2));
       t.classList.add(ok ? 'over' : 'bad');
     }
     const r = body.getBoundingClientRect();              // scorre da solo vicino ai bordi
@@ -211,7 +211,7 @@ function renderSlotPicker() {
   const c = comps[csPickAt.cid], d = DISP[c.disp];
   const inRoom = new Set(); csItems().forEach(a => a.c.slots.forEach(k => k && inRoom.add(k)));
   const q = normTxt(csQ || '').trim().split(/\s+/).filter(Boolean);
-  let list = compatibleSamples(d).filter(s => { if (!q.length) return true; const h = normTxt([s.b, s.s, s.c, s.z, ...(s.k || [])].join(' ')); return q.every(w => h.includes(w)); });
+  let list = compatibleFor(c).filter(s => { if (!q.length) return true; const h = normTxt([s.b, s.s, s.c, s.z, ...(s.k || [])].join(' ')); return q.every(w => h.includes(w)); });
   list.sort((a, b) => (hasPhoto(b) - hasPhoto(a)) || a.s.localeCompare(b.s) || a.c.localeCompare(b.c));
   const more = list.length > 150; list = list.slice(0, 150);
   document.getElementById('csList').innerHTML = list.map(s => `<div class="srow${inRoom.has(s.key) ? ' used' : ''}" onclick="setBoardSlot('${s.key.replace(/'/g, "\\'")}')">
