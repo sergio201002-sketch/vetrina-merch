@@ -665,13 +665,18 @@ async function idbAll() {
    Una foto caricata dal browser ha la precedenza; togliendola si torna a quella della cartella. */
 const FOTO = window.FOTO || {};
 const folderURL = ik => FOTO[ik] ? encodeURI(FOTO[ik]) : null;
-async function loadImages() {
-  try {
-    (await idbAll()).forEach(([k, v]) => { if (v && v.blob) IMG[k] = URL.createObjectURL(v.blob); });
-  } catch (e) { console.warn('IndexedDB non disponibile', e); }
-  if (typeof diskPhotos === 'function') Object.entries(await diskPhotos()).forEach(([k, url]) => { IMG[k] = encodeURI(url); });
+/* foto della cartella foto/ (sempre disponibili): subito, senza aspettare nient'altro */
+function folderImages() {
   Object.keys(FOTO).forEach(k => { if (!IMG[k]) IMG[k] = folderURL(k); });
   Object.entries(window.FOTO_Z || {}).forEach(([k, p]) => { if (!IMG[k]) IMG[k] = encodeURI(p); });   // foto per formato
+  updateImgCount();
+}
+async function loadImages() {
+  try {
+    (await within(idbAll(), 4000, [])).forEach(([k, v]) => { if (v && v.blob) IMG[k] = URL.createObjectURL(v.blob); });
+  } catch (e) { console.warn('IndexedDB non disponibile', e); }
+  try { if (typeof diskPhotos === 'function') Object.entries(await within(diskPhotos(), 8000, {})).forEach(([k, url]) => { IMG[k] = encodeURI(url); }); } catch (e) {}
+  folderImages();
   // foto caricate dal browser: se ne misura solo la forma, una alla volta (le altre sono già in FOTO_WH)
   for (const k of Object.keys(IMG)) if (!dimOf(k)) await orient(k);
   updateImgCount();
@@ -1934,11 +1939,21 @@ document.addEventListener('keydown', e => {
 });
 let rT; window.addEventListener('resize', () => { clearTimeout(rT); rT = setTimeout(() => { if (document.body.dataset.view === 'config') renderStage(); }, 120); });
 /* L'avvio aspetta che siano caricati anche clienti.js e ambiente.js (router e viste) */
+/* avvio a prova di blocco: pagina e foto dei campioni subito; poi salvataggio (disco o Firebase) e foto caricate,
+   ognuno con un tempo massimo. Se un passaggio non risponde (es. browser che blocca IndexedDB o Firebase) la pagina va avanti */
+const within = (p, ms, dflt) => Promise.race([p, new Promise(r => setTimeout(() => r(dflt), ms))]);
 window.addEventListener('DOMContentLoaded', async () => {
   if (!DISP[ui.disp]) ui.disp = DISPLAYS[0].id;
-  if (window.Sync) await Sync.init();          // i dati salvati su disco
+  folderImages(); route();
+  if (window.Sync) {
+    Sync.connecting = true; Sync.badge();
+    let done = false;
+    const p = Promise.resolve().then(() => Sync.init()).catch(e => console.warn('Avvio salvataggio', e)).then(() => { done = true; Sync.connecting = false; Sync.badge(); });
+    await within(p, 10000);
+    if (!done) { Sync.connecting = false; Sync.badge(); p.then(async () => { route(); await within(loadImages(), 15000); route(); }); }   // arriva tardi: si aggiorna quando c'è
+  }
   route();
-  await loadImages();
+  await within(loadImages(), 15000);
   route();
 });
 </script>

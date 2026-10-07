@@ -240,7 +240,8 @@ const Sync = {
     const el = document.getElementById('saveBadge'); if (!el) return;
     const where = this.mode === 'cloud' ? 'online' + (this.user && this.user.email ? ' (' + this.user.email + ')' : '') : 'su disco';
     let txt, cls, tip;
-    if (this.needLogin) { txt = '🔑 Accedi con Google'; cls = 'warn'; tip = 'Accedi per salvare tutto online, uguale su PC e telefono'; }
+    if (this.connecting && !this.online && !this.needLogin) { txt = '… Collegamento'; cls = 'busy'; tip = 'Collegamento al salvataggio in corso'; }
+    else if (this.needLogin) { txt = '🔑 Accedi con Google'; cls = 'warn'; tip = 'Accedi per salvare tutto online, uguale su PC e telefono'; }
     else if (!this.online) {
       txt = '⚠ Solo nel browser'; cls = 'warn';
       tip = window.claude ? 'Il database della pagina non risponde: le modifiche restano in questo browser' : 'Apri la vetrina con "AVVIA VETRINA.bat" per salvare tutto su disco';
