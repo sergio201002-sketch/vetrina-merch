@@ -323,6 +323,7 @@ function openRoom(id, mode) {
         <div class="room-scene" id="roomScene"></div>
         <div class="camctl">
           <button data-v="front">Frontale</button><button data-v="persp">Prospettiva ↙</button><button data-v="persp2">Prospettiva ↘</button>
+          <button id="rZoom" class="${ui.roomZoom ? 'on' : ''}" onclick="event.stopPropagation(); toggleRoomZoom()" title="Campione aperto: dritto di fronte e da vicino">🔍 Zoom</button>
           <button id="rPresent">⛶ Presenta</button></div>
         <div class="roomhint">Trascina per girare la vista · rotella per lo zoom · clicca un campione per aprirlo</div>
         <div class="showcard" id="showCard" hidden></div>
@@ -425,10 +426,9 @@ function renderRoom() {
     html += `<div class="ritem" data-id="${it.id}" style="transform:${itemT(it)}">${fp}${m.html}</div>`;
   });
   document.getElementById('roomScene').innerHTML = html;
-  const anim = room.items.filter(it => roomModels[it.id] && roomModels[it.id].after);
-  if (anim.length) requestAnimationFrame(() => requestAnimationFrame(() => anim.forEach(it => roomModels[it.id].after.forEach(([sel, tf]) => {
-    const el = document.querySelector(`#roomScene .ritem[data-id="${it.id}"] ${sel}`); if (el) el.style.transform = tf;
-  }))));
+  showOpen = null; showHi = null;
+  room.items.forEach(it => { const m = roomModels[it.id]; if (m && m.after) applyOpen(it.id, m.after, 0); });
+  if (showSel) sharpFace(showSel.item, showSel.slot);
   applyCam(); renderPlan(); renderRoomSide();
 }
 const itemT = it => `translate3d(${it.x}px,${-elevY(it)}px,${it.z}px) rotateY(${it.rot || 0}deg)`;
@@ -440,7 +440,7 @@ function applyCam(animate) {
   const s = cam.zoom * Math.min(W * 0.9 / spanW, H * 0.86 / spanH);
   sc.style.transition = animate ? 'transform .7s cubic-bezier(.4,.1,.2,1)' : 'none';
   if (cam.focus) {
-    const f = cam.focus, fs = cam.zoom * Math.min(W * 0.42 / Math.max(25, f.w), H * 0.62 / Math.max(25, f.h));
+    const f = cam.focus, fs = cam.zoom * (ui.roomZoom ? Math.min(W * 0.86 / Math.max(20, f.w), H * 0.80 / Math.max(20, f.h)) : Math.min(W * 0.42 / Math.max(25, f.w), H * 0.62 / Math.max(25, f.h)));
     sc.style.transform = `translate3d(${W / 2}px,${H * 0.48}px,0) scale(${fs.toFixed(4)}) rotateX(${-cam.tilt}deg) rotateY(${cam.yaw}deg) translate3d(${-f.x}px,${-f.y}px,${-f.z}px)`;
   } else
   sc.style.transform = `translate3d(${W / 2}px,${H * (0.5 + 0.12 * Math.cos(t))}px,0) scale(${s.toFixed(4)}) rotateX(${-cam.tilt}deg) rotateY(${cam.yaw}deg) translate3d(${-w / 2}px,${h * 0.35}px,${-d / 2}px)`;
@@ -594,19 +594,69 @@ function openSample(id, slot) {
   }
   if (!showSel) cam.back = { yaw: cam.yaw, tilt: cam.tilt, zoom: cam.zoom };
   showSel = { item: id, slot };
-  delete roomModels[id];
-  renderRoom();
-  const m = roomModels[id], f = m.focus, r = (it.rot || 0) * Math.PI / 180, y0 = elevY(it);
+  // niente ridisegno della stanza: si muovono solo i pezzi, come negli Espositori
+  const root = itemEl(id);
+  if (!root) renderRoom();
+  else {
+    const m = roomModels[id] = roomModel(it);
+    const targets = (m.after || []).map(([sel]) => root.querySelector(sel)).filter(Boolean);
+    let closed = false;
+    if (showOpen) { showOpen.els.forEach(el => { if (!targets.includes(el)) { el.style.transform = el.dataset.t0; closed = true; } }); showOpen = null; }
+    applyOpen(id, m.after, closed ? 520 : 0);              // prima rientra quello aperto, poi esce il nuovo
+  }
+  sharpFace(id, slot);
+  focusCam(true);
+  renderShowCard();
+}
+/* telecamera sul campione aperto: vista di sbieco, oppure con lo Zoom dritta di fronte e a tutto schermo */
+function focusCam(animate) {
+  if (!showSel) return;
+  const it = room.items.find(i => i.id === showSel.item), m = it && roomModels[it.id]; if (!m || !m.focus) return;
+  const f = m.focus, r = (it.rot || 0) * Math.PI / 180, y0 = elevY(it);
   cam.focus = { x: it.x + f.x * Math.cos(r) + f.z * Math.sin(r), y: f.y - y0, z: it.z - f.x * Math.sin(r) + f.z * Math.cos(r), w: f.w, h: f.h };
-  let yaw = f.yaw - (it.rot || 0); yaw = ((yaw + 540) % 360) - 180;
-  cam.yaw = yaw; cam.tilt = f.tilt || 6; cam.zoom = 1;
-  applyCam(true); renderShowCard();
+  let fy = f.yaw, ft = f.tilt || 6;
+  if (ui.roomZoom) { fy = Math.abs(f.yaw) > 45 ? Math.sign(f.yaw) * 90 : 0; ft = ft > 30 ? 86 : 0; }   // dritto di fronte (dall'alto per le lastre distese)
+  let yaw = fy - (it.rot || 0); yaw = ((yaw + 540) % 360) - 180;
+  cam.yaw = yaw; cam.tilt = ft; cam.zoom = 1;
+  applyCam(animate);
+}
+function toggleRoomZoom() {
+  ui.roomZoom = !ui.roomZoom; saveUI();
+  const b = document.getElementById('rZoom'); if (b) b.classList.toggle('on', !!ui.roomZoom);
+  if (showSel) focusCam(true); else toast(ui.roomZoom ? 'Zoom attivo: apri un campione per vederlo dritto e da vicino' : 'Zoom spento');
 }
 function closeSample() {
-  showSel = null; cam.focus = null; roomModels = {};
+  showSel = null; cam.focus = null; ++showToken;
+  if (showOpen) { showOpen.els.forEach(el => { el.style.transform = el.dataset.t0; }); showOpen = null; }   // rientra con l'animazione
+  restoreFace();
   if (cam.back) Object.assign(cam, cam.back);
-  renderRoom(); applyCam(true); renderShowCard();
+  applyCam(true); renderShowCard();
 }
+/* pezzi spostati per il campione aperto (carrello, cassetto, pagina...) con la loro posizione di partenza */
+let showOpen = null, showToken = 0, showHi = null;
+const itemEl = id => document.querySelector(`#roomScene .ritem[data-id="${id}"]`);
+function applyOpen(id, after, delay) {
+  const root = itemEl(id); if (!root || !after || !after.length) return;
+  const tok = ++showToken;
+  const els = after.map(([sel, tf]) => { const el = root.querySelector(sel); if (el && el.dataset.t0 == null) el.dataset.t0 = el.style.transform; return [el, tf]; }).filter(([el]) => el);
+  showOpen = { item: id, els: els.map(([el]) => el) };
+  const run = () => { if (tok === showToken) els.forEach(([el, tf]) => { el.style.transform = tf; }); };
+  if (delay) setTimeout(run, delay); else requestAnimationFrame(() => requestAnimationFrame(run));
+}
+/* la piastrella aperta si ridisegna ad alta risoluzione (da vicino nitida come negli Espositori); le altre restano leggere */
+function sharpFace(id, slot) {
+  restoreFace();
+  const it = room.items.find(i => i.id === id), d = DISP[it.disp], c = comps[it.comp], s = c && SAMPLE[c.slots[slot]], root = itemEl(id);
+  if (!s || !root) return;
+  const hi = LOWMEM ? 7 : 14, tiled = !['rack', 'culla'].includes(d.mode);
+  root.querySelectorAll(`.rf[data-slot="${slot}"]`).forEach(el => {
+    const w = el.offsetWidth, h = el.offsetHeight; if (!w || !h) return;
+    showHi = showHi || [];
+    showHi.push([el, el.innerHTML]);
+    el.innerHTML = photoLayer(s, w, h, tiled, hi);
+  });
+}
+function restoreFace() { if (showHi) showHi.forEach(([el, html]) => { el.innerHTML = html; }); showHi = null; }
 /* Girevoli uguali messi uno accanto all'altro (stessa fila, attaccati): si sfogliano come un unico espositore.
    Restituisce gli elementi della fila da sinistra a destra (un solo elemento se è staccato dagli altri). */
 function swingRow(it) {
