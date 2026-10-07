@@ -24,6 +24,7 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .cs-sec { flex: none; margin: 4px 0 10px; max-width: 100%; }
 .cs-sec h4 { margin: 0 0 2px; font-size: 14px; }
 .cs-sec .s { font-size: 11.5px; color: var(--mid); margin-bottom: 6px; }
+.cs-shared { font-size: 12px; background: #fff6e0; border: 1px solid #f0d58a; border-radius: 8px; padding: 6px 8px; margin: 2px 0 8px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; max-width: 640px; }
 .cs-side { font-size: 10.5px; font-weight: 800; color: var(--mid); text-transform: uppercase; letter-spacing: .05em; margin: 6px 0 4px; }
 .cs-grid { display: grid; grid-template-columns: repeat(var(--cols, 8), var(--t, 70px)); gap: 4px; max-width: 100%; overflow-x: auto; }
 .cslot { position: relative; width: var(--t, 70px); height: calc(var(--t, 70px) * 1.22); border-radius: 8px; background: #e9e6df; background-size: cover; background-position: center; overflow: hidden;
@@ -117,10 +118,24 @@ function renderSampleBoard() {
     const cols = two ? L : Math.min(n, d.cols && d.cols * 2 <= 12 ? d.cols * 2 : 10);
     const grid = (from, to) => `<div class="cs-grid" style="--cols:${cols}">${Array.from({ length: to - from }, (_, k) => slotTile(c.id, from + k, d, c)).join('')}</div>`;
     return `<div class="cs-sec"><h4>${esc(c.name)}${items.length > 1 ? ` <span style="color:var(--mid);font-weight:600">×${items.length}</span>` : ''}</h4>
+      ${items.length > 1 ? `<div class="cs-shared">Questi ${items.length} espositori hanno gli <b>stessi campioni</b> (sono collegati: cambiandone uno cambiano tutti).
+        <button class="btn dark" onclick="splitShared('${c.id}')">Separa: ognuno con i suoi campioni</button></div>` : ''}
       <div class="s">${esc(d.name)} · ${filledOf(c)}/${n} posti · ${esc(acceptLabel(d, c).slice(0, 3).join(' · '))}</div>
       ${two ? `<div class="cs-side">Lato ${esc(a)}</div>${grid(0, L)}<div class="cs-side">Lato ${esc(b)}</div>${grid(L, n)}` : grid(0, n)}</div>`;
   }).join('') : `<div class="empty-note">In questa sala mostra non ci sono ancora espositori con posti per i campioni.</div>`;
   body.scrollTop = top;
+}
+
+/* espositori della sala che condividono la stessa composizione: ognuno riceve la sua copia (stessi campioni, poi indipendenti) */
+function splitShared(cid) {
+  const items = room.items.filter(it => it.comp === cid).sort((a, b) => a.x - b.x || elevY(a) - elevY(b));
+  if (items.length < 2) return;
+  const c = comps[cid], base = c.name;
+  items.slice(1).forEach((it, k) => { it.comp = cloneCompFor(it, k + 2); });
+  c.name = base + ' (1)'; c.upd = Date.now();
+  saveComps(); room.upd = Date.now(); saveRoom();
+  renderSampleBoard();
+  toast(`Separati: ${items.length} espositori, ognuno con i suoi campioni`);
 }
 
 /* ── spostare / scambiare ── */

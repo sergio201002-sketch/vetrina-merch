@@ -768,9 +768,16 @@ function toWall() {
   kids.forEach(o => { o.rot = 0; o.z = it.z; o.x = it.x; });
   saveRoom(); renderRoom();
 }
+/* copia indipendente della composizione di un espositore (stessi campioni, ma da qui in poi separati) */
+function cloneCompFor(it, n) {
+  const c = comps[it.comp]; if (!c) return null;
+  const x = Object.assign({}, c, { id: uid(), name: c.name + ' (' + n + ')', slots: c.slots.slice(), upd: Date.now(), explicit: true });
+  comps[x.id] = x; return x.id;
+}
 function dupItem() {
   const it = selItem(); if (!it) return;
   const x = Object.assign({}, it, { id: uid() }); const m = roomModels[it.id], p = freeSpot(m.L, m.P); x.x = p.x; x.z = p.z;
+  if (comps[it.comp]) { x.comp = cloneCompFor(it, room.items.filter(o => o.disp === it.disp).length + 1); saveComps(); }   // la copia ha i suoi campioni
   if (isSystem(x)) x.y = 0;
   room.items.push(x); roomModels[x.id] = m; snapItem(x); roomSel = x.id; saveRoom(); renderRoom();
 }
