@@ -309,6 +309,61 @@ def match_photos(samples):
     return found, found_z, unmatched
 
 
+DECOR_WORDS = {'onde', 'ritmo', 'dune', 'cardboard', 'rilievi', 'decoro', 'kalco', 'mural', 'trame', 'splitstone',
+               'metalriddle', 'acanto', 'pointes', 'roma', 'magna', 'slim', 'opus', 'rebus', 'breccia', 'brecciato', 'brecc', 'ligne'}
+# parole che devono coincidere: un "Dark Grey" non presta a un "Grey", un effetto legno non presta a un effetto cemento
+COLOR_WORDS = {'white', 'bianco', 'blanc', 'beige', 'greige', 'grey', 'gray', 'gris', 'grigio', 'black', 'noir', 'nero', 'sand', 'sabbia',
+               'sale', 'ivory', 'avorio', 'cream', 'crema', 'taupe', 'brown', 'chocolate', 'anthracite', 'antracite', 'smoke', 'blue', 'blu',
+               'green', 'verde', 'pink', 'rosa', 'cenere', 'basalto', 'perla', 'cotone', 'mandorla', 'terracotta', 'ocra', 'rosato', 'naturel',
+               'silver', 'gold', 'oro', 'talc', 'talco', 'ash', 'lead', 'piombo', 'corda', 'cappuccino', 'salvia', 'amaranto', 'avio', 'calamine',
+               'steel', 'dark', 'light', 'cielo', 'polvere', 'siena', 'rosso', 'red', 'malva', 'miele', 'giada', 'turchese', 'azure', 'ambra'}
+MUST_MATCH = {'dark', 'light', 'extra', 'super', 'superwhite', 'wood', 'brick', 'majolica', 'concrete', 'cement'}
+
+
+def borrow_photos(samples, photos):
+    """Colori senza foto: prendono quella di un colore della stessa serie con lo stesso colore di base
+    (es. MATERA STONE Neutra White -> Sassi White, GEMMASTONE Sale Gemma Fine -> Sale Gemma Giant).
+    Conta di più la parola che distingue il colore (White, Sale...) di quella comune a molti (Neutra, Gemma...).
+    Mai da un decoro e mai per un decoro, così il liscio non si confonde con il decorato (es. i Dune)."""
+    import math
+    by_series = {}
+    for s in samples:
+        if s.get('toz'):
+            continue
+        by_series.setdefault((s['b'], s['s']), set()).add(s['c'])
+    tok = lambda c: {t for t in re.findall(r'[a-z0-9]+', norm(c)) if len(t) > 1}   # niente lettere singole (Peonia A / Carioca A)
+    decor = lambda c: bool(tok(c) & DECOR_WORDS)
+    out, orig = {}, dict(photos)                     # si presta solo da foto vere, mai a catena
+    for (b, ser), cols in by_series.items():
+        n = len(cols)
+        df = {}
+        for c in cols:
+            for t in tok(c):
+                df[t] = df.get(t, 0) + 1
+        for c in sorted(cols):
+            ik = '|'.join([b, ser, c])
+            if ik in photos or decor(c):
+                continue
+            best = None
+            for o in cols:
+                oik = '|'.join([b, ser, o])
+                if o == c or oik not in orig or decor(o):
+                    continue
+                if (tok(c) ^ tok(o)) & MUST_MATCH:
+                    continue
+                cw = tok(c) & COLOR_WORDS
+                if cw and not cw <= tok(o):              # se il nome dice il colore, deve essere lo stesso (Grey Rock non da Blue Rock)
+                    continue
+                shared = tok(c) & tok(o)
+                score = sum(math.log(n / df[t]) for t in shared if df[t] < n)
+                if score > 0 and (best is None or score > best[0]):
+                    best = (score, oik)
+            if best:
+                photos[ik] = orig[best[1]]
+                out[ik] = best[1]
+    return out
+
+
 def make_thumbs():
     """Miniature (max 240 px, webp) delle foto in foto/mini/: le usano i quadratini e gli elenchi,
     così non si caricano centinaia di foto grandi (lento soprattutto sul telefono). Rifà solo quelle cambiate."""
@@ -355,6 +410,7 @@ def main():
     samples = build_samples(load_products())
     display_images()
     photos, photos_z, unmatched = match_photos(samples)
+    borrowed = borrow_photos(samples, photos)
     out = os.path.join(HERE, 'data.js')
     with open(out, 'w', encoding='utf-8') as f:
         f.write('// Generato da build_data.py — non modificare a mano\n')
@@ -367,6 +423,10 @@ def main():
     print(len(DISPLAYS), 'espositori,', len(samples), 'campioni,', len(photos), 'colori con foto,', len(photos_z), 'formati con la loro foto ->', out)
     for ik, path in photos.items():
         print('  ', path, '->', ik.replace('|', ' · '))
+    if borrowed:
+        print('Colori senza foto propria, con la foto di un colore uguale della stessa serie:')
+        for ik, src in sorted(borrowed.items()):
+            print('   ', ik.split('|', 1)[1], '<-', src.split('|')[2])
     if unmatched:
         print('Foto NON abbinate (metti il codice prodotto o "Serie Colore" nel nome):', unmatched)
     missing = [d['id'] for d in DISPLAYS if 'img' not in d]
