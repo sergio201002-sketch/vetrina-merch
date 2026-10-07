@@ -315,6 +315,18 @@ body[data-view="room"] #viewRoom, body[data-view="show"] #viewRoom { display: fl
 .rf.metal { background: linear-gradient(90deg, #222 0%, #2f2f33 50%, #1a1a1c 100%); }
 .rf.grey { background: linear-gradient(90deg, #c6c6c2, #dcdcd8 50%, #c2c2be); }
 .fp { border: 3px dashed var(--red); background: rgba(192,16,42,.08); box-sizing: border-box; }
+.roomtabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.roomtabs button { border: 1px solid var(--border); background: var(--white); border-radius: 999px; padding: 6px 12px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.roomtabs button.on { background: var(--dark); color: #fff; border-color: var(--dark); }
+.roomtabs button.add { border-style: dashed; color: var(--mid); }
+.roomtabs.float { position: absolute; left: 10px; top: 10px; z-index: 5; max-width: 44%; }
+.roomtabs.float ~ .camctl { max-width: 54%; }   /* schede stanze a sinistra, comandi vista a destra: non si sovrappongono */
+.roomtabs.float button { background: rgba(255,255,255,.92); box-shadow: 0 2px 8px rgba(0,0,0,.12); }
+.roomtabs.float button.on { background: var(--dark); }
+.roomlist { display: flex; flex-direction: column; gap: 6px; }
+.roomrow { display: flex; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; flex-wrap: wrap; }
+.roomrow .info { flex: 1; min-width: 140px; }
+.roomrow .meta { font-size: 12px; color: var(--mid); }
 .camctl { position: absolute; right: 10px; top: 10px; display: flex; gap: 5px; z-index: 5; flex-wrap: wrap; justify-content: flex-end; }
 .camctl button { border: none; background: rgba(17,17,17,.8); color: #fff; font-size: 12px; font-weight: 700; padding: 7px 11px; border-radius: 16px; cursor: pointer; }
 .camctl button.on { background: var(--red); }

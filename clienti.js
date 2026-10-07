@@ -15,12 +15,13 @@ window.addEventListener('hashchange', route);
 function route() {
   document.body.classList.remove('showlist');                       // lista espositori a tutto schermo (telefono) chiusa cambiando pagina
   window.scrollTo(0, 0);
-  const [, a, id] = (location.hash || '#/').split('/');
+  const [, a, id, sub] = (location.hash || '#/').split('/');
   if (a === 'cliente' && clients[id]) { document.body.dataset.view = 'client'; renderClient(id); return; }
   if (a === 'ambiente' && scenes[id]) { document.body.dataset.view = 'room'; openRoom(id); return; }
   if (a === 'salamostra' && clients[id]) {
-    const sid = clients[id].showroom;
-    if (scenes[sid]) { document.body.dataset.view = 'show'; openRoom(sid, 'show'); return; }
+    const rooms = showRooms(id), last = (ui.showRoom || {})[id];
+    const s = rooms.find(r => r.id === sub) || rooms.find(r => r.id === last) || rooms[0];
+    if (s) { ui.showRoom = Object.assign({}, ui.showRoom, { [id]: s.id }); saveUI(); document.body.dataset.view = 'show'; openRoom(s.id, 'show'); return; }
     return go('#/cliente/' + id);
   }
   if (a === 'espositori') {
@@ -37,7 +38,10 @@ const clientComps = cid => Object.values(comps).filter(c => c.client === cid);
 const visibleComps = cid => clientComps(cid).filter(c => c.explicit || c.slots.some(Boolean))
   .sort((a, b) => (DISP[a.disp] ? DISPLAYS.indexOf(DISP[a.disp]) : 99) - (DISP[b.disp] ? DISPLAYS.indexOf(DISP[b.disp]) : 99) || a.name.localeCompare(b.name));
 const clientScenes = cid => Object.values(scenes).filter(s => s.client === cid && !s.showroom).sort((a, b) => b.upd - a.upd);
-const clientShowroom = cid => { const s = clients[cid] && scenes[clients[cid].showroom]; return s && s.client === cid ? s : null; };
+const clientShowroom = cid => { const s = clients[cid] && scenes[clients[cid].showroom]; return s && s.client === cid ? s : (showRooms(cid)[0] || null); };
+/* la sala mostra di un cliente può avere più stanze: tutte le ambientazioni del cliente segnate come sala mostra */
+const showRooms = cid => Object.values(scenes).filter(s => s.client === cid && s.showroom)
+  .sort((a, b) => (a.order ?? (clients[cid] && clients[cid].showroom === a.id ? -1 : 0)) - (b.order ?? (clients[cid] && clients[cid].showroom === b.id ? -1 : 0)) || (a.created || 0) - (b.created || 0) || a.name.localeCompare(b.name));
 const filledOf = c => c.slots.filter(k => k && SAMPLE[k]).length;
 const dateIt = t => t ? new Date(t).toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
 const jsq = s => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
@@ -297,17 +301,38 @@ function showroomHTML(cid) {
         ${others.map(o => `<button class="btn" style="margin:4px 4px 0 0" onclick="useAsShowroom('${cid}','${o.id}')">${esc(o.name)}</button>`).join('')}</div>` : ''}
     </div>`;
   }
-  const filled = s.items.reduce((n, it) => n + (comps[it.comp] ? filledOf(comps[it.comp]) : 0), 0);
+  const rooms = showRooms(cid), fill = r => r.items.reduce((n, it) => n + (comps[it.comp] ? filledOf(comps[it.comp]) : 0), 0);
+  const tot = rooms.reduce((n, r) => n + fill(r), 0), nEsp = rooms.reduce((n, r) => n + r.items.length, 0);
   return `<div class="card" style="padding:22px">
     <h3 style="font-size:18px;margin-bottom:6px">🏬 Sala mostra di ${esc(cl.name)}</h3>
-    <div class="stats" style="margin:10px 0 16px"><div><b>${s.items.length}</b>espositori</div><div><b>${filled}</b>campioni esposti</div><div><b>${s.w}×${s.d}</b>cm</div></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <div class="stats" style="margin:10px 0 16px"><div><b>${rooms.length}</b>${rooms.length === 1 ? 'stanza' : 'stanze'}</div><div><b>${nEsp}</b>espositori</div><div><b>${tot}</b>campioni esposti</div></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
       <button class="btn red" style="font-size:14px;padding:10px 16px" onclick="go('#/salamostra/${cid}')">▶ Entra nella sala mostra</button>
-      <button class="btn" onclick="go('#/ambiente/${s.id}')">✎ Modifica disposizione</button></div>
+      <button class="btn" onclick="addShowRoom('${cid}')">＋ Aggiungi una stanza</button></div>
+    <div class="roomlist">${rooms.map(r => `<div class="roomrow">
+      <div class="info"><b>${esc(r.name)}</b><div class="meta">${r.items.length} espositori · ${fill(r)} campioni · ${r.w}×${r.d} cm</div></div>
+      <button class="btn dark" onclick="go('#/salamostra/${cid}/${r.id}')">▶ Entra</button>
+      <button class="btn" onclick="go('#/ambiente/${r.id}')">✎ Modifica</button>
+      ${rooms.length > 1 ? `<button class="btn" title="Elimina questa stanza" onclick="delShowRoom('${r.id}')">🗑</button>` : ''}</div>`).join('')}</div>
   </div>`;
 }
+/* nuova stanza della sala mostra (si apre subito per mettere gli espositori) */
+function addShowRoom(cid) {
+  const rooms = showRooms(cid), n = rooms.length + 1;
+  const s = { id: uid(), client: cid, name: 'Stanza ' + n, showroom: true, order: n - 1, created: Date.now(), w: 600, d: 420, h: 300, wallL: true, wallR: false, grid: true, swingFront: true, items: [], upd: Date.now() };
+  rooms.forEach((r, i) => { if (r.order == null) r.order = i; });
+  scenes[s.id] = s; if (!clients[cid].showroom) clients[cid].showroom = s.id;
+  saveScenes(); saveClients(); go('#/ambiente/' + s.id); toast(`${s.name} creata: metti gli espositori, poi "Vedi sala mostra"`);
+}
+async function delShowRoom(sid) {
+  const s = scenes[sid]; if (!s) return;
+  if (!await ask(`Eliminare la stanza "${s.name}" della sala mostra?\n\nGli espositori e i loro campioni restano nel cliente: si toglie solo la stanza.`, { ok: 'Elimina' })) return;
+  const cid = s.client; delete scenes[sid];
+  if (clients[cid] && clients[cid].showroom === sid) { const r = showRooms(cid)[0]; clients[cid].showroom = r ? r.id : ''; saveClients(); }
+  saveScenes(); renderClient(cid); toast('Stanza eliminata');
+}
 function createShowroom(cid) {
-  const s = { id: uid(), client: cid, name: 'Sala mostra', showroom: true, w: 600, d: 420, h: 300, wallL: true, wallR: false, grid: true, swingFront: true, items: [], upd: Date.now() };
+  const s = { id: uid(), client: cid, name: 'Sala mostra', showroom: true, order: 0, created: Date.now(), w: 600, d: 420, h: 300, wallL: true, wallR: false, grid: true, swingFront: true, items: [], upd: Date.now() };
   scenes[s.id] = s; clients[cid].showroom = s.id; saveScenes(); saveClients(); go('#/ambiente/' + s.id);
 }
 function useAsShowroom(cid, sid) {

@@ -312,7 +312,9 @@ function openRoom(id, mode) {
     v.innerHTML = `
     <aside class="room-side">
       <div class="sec"><button class="btn" onclick="go('#/cliente/${room.client}')">← ${clName}</button></div>
-      <div class="sec"><h4>Sala mostra</h4><div style="font-weight:800;font-size:17px;font-family:var(--font-display)">${clName}</div>
+      <div class="sec"><h4>Stanze</h4><div class="roomtabs">${showRooms(room.client).map(r => `<button class="${r.id === room.id ? 'on' : ''}" onclick="go('#/salamostra/${room.client}/${r.id}')">${esc(r.name)}</button>`).join('')}
+        <button class="add" onclick="addShowRoom('${room.client}')" title="Aggiungi una stanza alla sala mostra">＋ Stanza</button></div></div>
+      <div class="sec"><h4>Sala mostra · ${esc(room.name)}</h4><div style="font-weight:800;font-size:17px;font-family:var(--font-display)">${clName}</div>
         <div style="font-size:12px;color:var(--mid);margin:6px 0 10px">Clicca un espositore (qui sotto o nella stanza) per aprirlo: sfogli i girevoli, apri i cassetti, tiri fuori i tozzetti e guardi i campioni.</div>
         <button class="btn dark" onclick="openSampleBoard()" style="width:100%;margin-bottom:6px">🧩 Sistema i campioni</button>
         <button class="btn" onclick="go('#/ambiente/${room.id}')" style="width:100%">✎ Modifica disposizione</button></div>
@@ -321,6 +323,7 @@ function openRoom(id, mode) {
     <div class="room-main">
       <div class="room-3d" id="room3d">
         <div class="room-scene" id="roomScene"></div>
+        ${showRooms(room.client).length > 1 ? `<div class="roomtabs float">${showRooms(room.client).map(r => `<button class="${r.id === room.id ? 'on' : ''}" onclick="event.stopPropagation(); go('#/salamostra/${room.client}/${r.id}')">${esc(r.name)}</button>`).join('')}</div>` : ''}
         <div class="camctl">
           <button data-v="front">Frontale</button><button data-v="persp">Prospettiva ↙</button><button data-v="persp2">Prospettiva ↘</button>
           <button id="rZoom" class="${ui.roomZoom ? 'on' : ''}" onclick="event.stopPropagation(); toggleRoomZoom()" title="Campione aperto: dritto di fronte e da vicino">🔍 Zoom</button>
@@ -339,7 +342,7 @@ function openRoom(id, mode) {
     <aside class="room-side">
       <div class="sec" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
         <button class="btn" onclick="go('#/cliente/${room.client}')">← ${clName}</button>
-        ${room.showroom ? `<button class="btn red" onclick="go('#/salamostra/${room.client}')">▶ Vedi sala mostra</button>` : ''}</div>
+        ${room.showroom ? `<button class="btn red" onclick="go('#/salamostra/${room.client}/${room.id}')">▶ Vedi sala mostra</button>` : ''}</div>
       <div class="sec"><h4>${room.showroom ? 'Sala mostra (disposizione reale)' : 'Ambientazione'}</h4>
         <input class="search" id="roomName" value="${esc(room.name)}">
         <div class="row" style="margin-top:10px">Larghezza <input type="number" id="rW" min="200" max="2000" step="10" value="${room.w}"> cm</div>
@@ -460,7 +463,7 @@ function hideBlockers() {
 let orbitMoved = false;
 function bindOrbit(el) {
   let st = null;
-  el.addEventListener('pointerdown', e => { if (e.target.closest('.camctl') || e.target.closest('.showcard')) return;   // comandi e scheda campione: non sono clic sulla stanza
+  el.addEventListener('pointerdown', e => { if (e.target.closest('.camctl') || e.target.closest('.showcard') || e.target.closest('.roomtabs')) return;   // comandi e scheda campione: non sono clic sulla stanza
     st = { x: e.clientX, y: e.clientY, yaw: cam.yaw, tilt: cam.tilt }; orbitMoved = false; el.setPointerCapture(e.pointerId); });
   el.addEventListener('pointermove', e => {
     if (!st) return;
