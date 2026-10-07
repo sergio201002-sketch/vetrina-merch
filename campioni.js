@@ -38,7 +38,16 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .cslot.src { opacity: .35; }
 .cslot.cut::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--dark); z-index: 1; }
 .cslot.at { box-shadow: inset 0 0 0 3px var(--red); }
-.cs-join { font-size: 12px; margin: 0 0 6px; }
+.cs-join { font-size: 12px; margin: 0 0 6px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.cs-join .btn.on { background: #1e6fd9; color: #fff; border-color: #1e6fd9; }
+.cslot.picked { box-shadow: inset 0 0 0 3px #1e6fd9; }
+.cslot.picked .ck { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; background: #1e6fd9; color: #fff; font-size: 12px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center; }
+.cs-selmode .cslot.empty { cursor: copy; }
+.cs-selbar { position: absolute; left: 50%; bottom: 70px; transform: translateX(-50%); z-index: 5; background: #1e2a3a; color: #fff; border-radius: 12px; padding: 8px 10px 8px 14px;
+  display: flex; gap: 8px; align-items: center; box-shadow: 0 10px 30px rgba(0,0,0,.3); font-size: 13px; max-width: calc(100vw - 24px); flex-wrap: wrap; }
+.cs-selbar[hidden] { display: none; }
+.cs-selbar .btn { padding: 6px 10px; }
 .cslot.over { box-shadow: inset 0 0 0 3px var(--red); }
 .cslot.bad { box-shadow: inset 0 0 0 3px #999; filter: grayscale(.6); }
 .cs-ghost { position: fixed; z-index: 400; width: 84px; height: 102px; border-radius: 8px; pointer-events: none; background-size: cover; background-position: center;
@@ -53,7 +62,9 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 @media (max-height: 560px) { .cs-pick { height: 88%; } }
 </style>`);
 
-let csDrag = null, csPickAt = null, csQ = '', csGroup = '', csDir = 1;
+let csDrag = null, csPickAt = null, csQ = '', csGroup = '', csDir = 1, csList = [];
+/* "Seleziona per spostare": si scelgono più campioni e si spostano tutti insieme */
+let csSelMode = false, csSel = [], csArm = false;
 /* gruppi di espositori tra cui i campioni si possono spostare: stesso formato accettato (es. tutti i 60×120), tutti i tozzetti */
 const csKey = d => d.accept.tozzetto ? 'toz' : d.accept.sizes ? 'z:' + d.accept.sizes.map(z => sorted2(parseSize(z)).join('x')).sort().join('+') : d.accept.fit ? 'fit:' + sorted2(d.accept.fit).join('x') : 'd:' + d.id;
 const csLabel = d => d.accept.tozzetto ? 'Tozzetti' : d.accept.sizes ? d.accept.sizes.map(fmt).join(' / ') : d.accept.fit ? 'Pannelli fino a ' + fmt(d.accept.fit.join('x')) : d.name;
@@ -75,9 +86,10 @@ function openSampleBoard() {
       <div class="mhead"><h3>🧩 Sistema i campioni</h3>
         <div class="cs-size">Grandezza <button class="btn" onclick="csZoom(-1)" title="Quadratini più piccoli: ne vedi di più">−</button><button class="btn" onclick="csZoom(1)" title="Quadratini più grandi">+</button></div>
         <button class="btn dark" onclick="closeSampleBoard()">Fatto</button></div>
-      <div class="cs-hint">Trascina per spostare o scambiare (telefono: tieni premuto e trascina) · tocca un posto per inserire, cambiare o togliere: dopo ogni campione passa da solo al posto accanto (partendo dall'ultimo a destra va verso sinistra, ⇄ cambia verso) · con − e + vedi più o meno quadratini.</div>
+      <div class="cs-hint">Trascina per spostare o scambiare (telefono: tieni premuto e trascina) · tocca un posto per inserire, cambiare o togliere: dopo ogni campione passa da solo al posto accanto (partendo dall'ultimo a destra va verso sinistra, ⇄ cambia verso) · Invio nella ricerca mette il campione se ne è rimasto uno solo · ☐ Seleziona per spostare: scegli più campioni e spostali insieme · con − e + vedi più o meno quadratini.</div>
       <div class="cs-tabs" id="csTabs"></div>
       <div class="cs-body" id="csBody"></div>
+      <div class="cs-selbar" id="csSelBar" hidden></div>
       <div class="cs-pick" id="csPick" hidden></div></div></div>`);
     m = document.getElementById('csModal');
     bindBoardDrag(document.getElementById('csBody'));
@@ -93,6 +105,7 @@ function csZoom(dir) {
   ui.csT = t; saveUI(); renderSampleBoard();
 }
 function closeSampleBoard() {
+  csSelMode = false; csSel = []; csArm = false;
   document.getElementById('csModal').classList.remove('open');
   document.getElementById('csPick').hidden = true; csPickAt = null;
   roomModels = {}; showSel = null; cam.focus = null;
@@ -101,8 +114,9 @@ function closeSampleBoard() {
 }
 function slotTile(cid, i, d, c, label, cut) {
   const s = SAMPLE[c.slots[i]], p = esc(label || slotName(d, i, c.slots.length)), at = csPickAt && csPickAt.cid === cid && csPickAt.i === i ? ' at' : '', k = (cut ? ' cut' : '') + at;
+  const sel = csSel.indexOf(cid + ':' + i), ck = sel >= 0 ? `<span class="ck">${sel + 1}</span>` : '';
   if (!s) return `<div class="cslot empty${k}" data-c="${cid}" data-i="${i}"><span class="p">${p}</span></div>`;
-  return `<div class="cslot${k}" data-c="${cid}" data-i="${i}" style="${swatchStyle(s)}"><span class="p">${p}</span>
+  return `<div class="cslot${k}${sel >= 0 ? ' picked' : ''}" data-c="${cid}" data-i="${i}" style="${swatchStyle(s)}"><span class="p">${p}</span>${ck}
     <span class="n"><b>${esc(s.s)}</b>${esc(s.c)}${s.toz ? '' : ' · ' + esc(fmt(s.z))}</span></div>`;
 }
 /* girevoli uguali attaccati, ognuno con i suoi campioni: nel pannello diventano un espositore unico
@@ -147,11 +161,12 @@ function renderSampleBoard() {
       const side = (sd, nm) => `<div class="cs-side">Lato ${esc(nm)}</div><div class="cs-grid" style="--cols:${L * row.length}">${row.map((m, u) =>
         Array.from({ length: L }, (_, h) => slotTile(m.c.id, h + sd * L, d, m.c, (d.sideNames ? nm + ' ' : nm) + (u * L + h + 1), u > 0 && h === 0)).join('')).join('')}</div>`;
       return `<div class="cs-sec"><h4>${row.map(m => esc(m.c.name)).join(' + ')}</h4>
-        <div class="cs-join">${row.length} ${esc(d.name)} attaccati, visti come uno solo · <button class="btn" onclick="csToggleJoin('${key}')">Vedi separati</button></div>
+        <div class="cs-join">${row.length} ${esc(d.name)} attaccati, visti come uno solo · <button class="btn" onclick="csToggleJoin('${key}')">Vedi separati</button>${csSelBtn()}</div>
         <div class="s">${row.reduce((t, m) => t + filledOf(m.c), 0)}/${tot} posti · ${esc(acceptLabel(d, row[0].c).slice(0, 3).join(' · '))}</div>
         ${side(0, a)}${side(1, b)}</div>`;
     }
-    const joinBtn = joinable && !joinedOnce.has(joinable) ? (joinedOnce.add(joinable), `<div class="cs-join">Attaccato ad altri ${esc(d.name)} · <button class="btn" onclick="csToggleJoin('${joinable}')">Vedi uniti</button></div>`) : '';
+    const joinBtn = joinable && !joinedOnce.has(joinable) ? (joinedOnce.add(joinable), `<div class="cs-join">Attaccato ad altri ${esc(d.name)} · <button class="btn" onclick="csToggleJoin('${joinable}')">Vedi uniti</button>${csSelBtn()}</div>`)
+      : `<div class="cs-join">${csSelBtn()}</div>`;
     const n = c.slots.length, two = d.mode === 'swing' && d.sides === 2, L = Math.ceil(n / 2), [a, b] = d.sideNames || ['A', 'B'];
     const cols = two ? L : Math.min(n, d.cols && d.cols * 2 <= 12 ? d.cols * 2 : 10);
     const grid = (from, to) => `<div class="cs-grid" style="--cols:${cols}">${Array.from({ length: to - from }, (_, k) => slotTile(c.id, from + k, d, c)).join('')}</div>`;
@@ -162,6 +177,8 @@ function renderSampleBoard() {
       ${two ? `<div class="cs-side">Lato ${esc(a)}</div>${grid(0, L)}<div class="cs-side">Lato ${esc(b)}</div>${grid(L, n)}` : grid(0, n)}</div>`;
   }).join('') : `<div class="empty-note">In questa sala mostra non ci sono ancora espositori con posti per i campioni.</div>`;
   body.scrollTop = top;
+  body.classList.toggle('cs-selmode', csSelMode);
+  renderSelBar();
 }
 
 /* espositori della sala che condividono la stessa composizione: ognuno riceve la sua copia (stessi campioni, poi indipendenti) */
@@ -239,7 +256,13 @@ function bindBoardDrag(body) {
     if (d.on) {
       d.ghost.remove(); d.el.classList.remove('src'); clearOver();
       const t = tileAt(e.clientX, e.clientY);
-      if (t && t !== d.el) moveSample(d.el.dataset.c, +d.el.dataset.i, t.dataset.c, +t.dataset.i);
+      if (t && t !== d.el) {
+        if (csSelMode && csSel.includes(d.el.dataset.c + ':' + d.el.dataset.i)) csMoveGroup(t.dataset.c, +t.dataset.i);   // trascini il gruppo
+        else moveSample(d.el.dataset.c, +d.el.dataset.i, t.dataset.c, +t.dataset.i);
+      }
+    } else if (!d.moved && e.type === 'pointerup' && csSelMode) {   // selezione: tocco = scegli / togli, oppure posto di arrivo
+      if (csArm) csMoveGroup(d.el.dataset.c, +d.el.dataset.i);
+      else csToggleSel(d.el);
     } else if (!d.moved && e.type === 'pointerup') {   // tocco = scegli il campione
       const g = csGridPos(d.el.dataset.c, +d.el.dataset.i);
       if (g) { if (g.col === g.rowLen - 1 && g.rowLen > 1) csDir = -1; else if (g.col === 0) csDir = 1; }   // dall'ultimo a destra si va verso sinistra, dal primo verso destra
@@ -249,6 +272,64 @@ function bindBoardDrag(body) {
   window.addEventListener('pointerup', e => { if (csDrag && e.pointerId === csDrag.id) end(e); });
   window.addEventListener('pointercancel', e => { if (!csDrag || e.pointerId !== csDrag.id) return; if (csDrag.on) { csDrag.ghost.remove(); csDrag.el.classList.remove('src'); clearOver(); csDrag = null; } else end(e); });
   body.addEventListener('contextmenu', e => { if (e.target.closest('.cslot')) e.preventDefault(); });
+}
+
+/* ── seleziona per spostare ── */
+function csSelBtn() {
+  return `<button class="btn${csSelMode ? ' on' : ''}" onclick="csToggleSelMode()" title="Scegli più campioni e spostali tutti insieme">${csSelMode ? '✓ Selezione attiva' : '☐ Seleziona per spostare'}</button>`;
+}
+function csToggleSelMode() {
+  csSelMode = !csSelMode; csSel = []; csArm = false;
+  document.getElementById('csPick').hidden = true; csPickAt = null;
+  renderSampleBoard();
+}
+function csToggleSel(el) {
+  const id = el.dataset.c + ':' + el.dataset.i, k = csSel.indexOf(id);
+  if (k >= 0) csSel.splice(k, 1);
+  else if (SAMPLE[comps[el.dataset.c].slots[+el.dataset.i]]) csSel.push(id);
+  else { toast('Posto vuoto: scegli i campioni da spostare'); return; }
+  renderSampleBoard();
+}
+function renderSelBar() {
+  const bar = document.getElementById('csSelBar'); if (!bar) return;
+  bar.hidden = !csSelMode;
+  if (!csSelMode) return;
+  const n = csSel.length;
+  bar.innerHTML = csArm
+    ? `<span>Tocca il posto dove mettere il <b>primo</b>: gli altri seguono verso destra</span><button class="btn" onclick="csArm=false; renderSelBar()">Indietro</button>`
+    : `<span>${n ? `<b>${n}</b> selezionat${n === 1 ? 'o' : 'i'}` : 'Tocca i campioni da spostare'}</span>
+       ${n ? `<button class="btn dark" onclick="csArm=true; renderSelBar()">Sposta…</button><button class="btn" onclick="csSel=[]; renderSampleBoard()">Deseleziona</button>` : ''}
+       <button class="btn" onclick="csToggleSelMode()">Fine</button>`;
+}
+/* sposta i selezionati (nell'ordine in cui li vedi) nei posti consecutivi a partire da quello toccato;
+   i campioni che erano lì vanno nei posti lasciati liberi */
+function csMoveGroup(cid, i) {
+  const order = [...document.querySelectorAll('#csBody .cslot')].map(e => e.dataset.c + ':' + e.dataset.i);
+  const src = csSel.slice().sort((a, b) => order.indexOf(a) - order.indexOf(b)).map(id => { const [c, j] = id.split(':'); return { cid: c, i: +j }; });
+  const id = o => o.cid + ':' + o.i, keys = src.map(o => comps[o.cid].slots[o.i]);
+  const dest = [{ cid, i }], dir = csDir; csDir = 1;
+  while (dest.length < src.length) { const nx = csNextSlot(dest[dest.length - 1].cid, dest[dest.length - 1].i); if (!nx) break; dest.push({ cid: nx.cid, i: nx.i }); }
+  csDir = dir;
+  if (dest.length < src.length) { toast(`Da qui non ci sono ${src.length} posti di fila: scegli un posto più indietro`); return; }
+  const srcIds = new Set(src.map(id)), destIds = new Set(dest.map(id));
+  const displaced = dest.filter(o => !srcIds.has(id(o))).map(o => comps[o.cid].slots[o.i]).filter(Boolean);
+  const freed = src.filter(o => !destIds.has(id(o)));
+  for (let j = 0; j < keys.length; j++) {
+    const s = SAMPLE[keys[j]], c = comps[dest[j].cid];
+    if (s && !acceptsIn(c, s)) { toast(`${s.s} ${s.c} (${fmt(s.z)}) non entra in ${c.name}`); return; }
+  }
+  for (let j = 0; j < displaced.length; j++) {
+    const s = SAMPLE[displaced[j]], c = comps[freed[j].cid];
+    if (s && !acceptsIn(c, s)) { toast(`Spostamento non possibile: ${s.s} ${s.c} non entra in ${c.name}`); return; }
+  }
+  src.forEach(o => { comps[o.cid].slots[o.i] = null; });
+  dest.forEach((o, j) => { comps[o.cid].slots[o.i] = keys[j]; });
+  freed.forEach((o, j) => { if (j < displaced.length) comps[o.cid].slots[o.i] = displaced[j]; });
+  const now = Date.now(); new Set([...src, ...dest].map(o => o.cid)).forEach(c => { comps[c].upd = now; });
+  saveComps();
+  csSel = dest.map(id); csArm = false;     // restano selezionati: puoi spostarli ancora
+  renderSampleBoard();
+  toast(`${keys.length} campion${keys.length === 1 ? 'e spostato' : 'i spostati'}` + (displaced.length ? ` · ${displaced.length} scambiat${displaced.length === 1 ? 'o' : 'i'}` : ''));
 }
 
 /* ── inserire / cambiare / togliere ── */
@@ -278,9 +359,17 @@ function openSlotPicker(cid, i) {
       <button class="btn" onclick="csDir=-csDir; openSlotPicker('${cid}', ${i})" title="Cambia direzione">⇄</button>
       ${s ? `<button class="btn" onclick="setBoardSlot(null)">Togli</button>` : ''}
       <button class="btn" onclick="document.getElementById('csPick').hidden=true">Chiudi</button>
-      <input id="csSearch" placeholder="Cerca serie, colore, codice… (${esc(acceptLabel(d, c).slice(0, 2).join(' · '))})" oninput="csQ=this.value; renderSlotPicker()"></div>
+      <input id="csSearch" placeholder="Cerca serie, colore, codice… (${esc(acceptLabel(d, c).slice(0, 2).join(' · '))})" oninput="csQ=this.value; renderSlotPicker()" onkeydown="if(event.key==='Enter'){event.preventDefault(); csPickOnly()}" enterkeyhint="done"></div>
     <div class="pl" id="csList"></div>`;
   renderSlotPicker();
+  const inp = document.getElementById('csSearch'); if (inp) try { inp.focus({ preventScroll: true }); } catch (e) {}   // si scrive subito il prossimo codice
+}
+function csPickOnly() {
+  const q = normTxt(csQ || '').trim().toUpperCase();
+  const exact = q && csList.filter(s => (s.k || []).some(k => k.toUpperCase() === q));
+  const one = csList.length === 1 ? csList[0] : exact && exact.length === 1 ? exact[0] : null;
+  if (one) setBoardSlot(one.key);
+  else toast(csList.length ? `${csList.length} campioni trovati: scrivi di più o toccane uno` : 'Nessun campione trovato');
 }
 function renderSlotPicker() {
   if (!csPickAt) return;
@@ -289,6 +378,7 @@ function renderSlotPicker() {
   const q = normTxt(csQ || '').trim().split(/\s+/).filter(Boolean);
   let list = compatibleFor(c).filter(s => { if (!q.length) return true; const h = normTxt([s.b, s.s, s.c, s.z, ...(s.k || [])].join(' ')); return q.every(w => h.includes(w)); });
   list.sort((a, b) => (hasPhoto(b) - hasPhoto(a)) || a.s.localeCompare(b.s) || a.c.localeCompare(b.c));
+  csList = list;
   const more = list.length > 150; list = list.slice(0, 150);
   document.getElementById('csList').innerHTML = list.map(s => `<div class="srow${inRoom.has(s.key) ? ' used' : ''}" onclick="setBoardSlot('${s.key.replace(/'/g, "\\'")}')">
       <span class="sw" style="${swatchStyle(s)}"></span>
