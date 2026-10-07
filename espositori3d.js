@@ -243,16 +243,15 @@ MODELS.book = (d, c, op) => (d.id === 'PMH' || d.id === 'PGM' ? bookStack : book
 MODELS.wall = wallBoard;
 MODELS.drawers = (d, c, op) => (d.id === 'PMV' ? cassettiera60 : drawerCabinet)(d, c, op);
 /* ── Carrellati 60×120 / 60×60 (OYQ) e 100×100 (PEX), come nella foto del catalogo: pannello nero alto dietro,
-   base nera bassa sul lato sinistro che tocca terra, piastrelle in piedi una accanto all'altra (di taglio verso chi guarda,
+   piastrelle in piedi una accanto all'altra (di taglio verso chi guarda,
    la faccia verso sinistra). Ogni piastrella sta nel suo carrellino con una rotellina davanti: staccata da terra 1,5 cm.
    Aperto: il carrellino scorre in avanti (senza girare) e la piastrella si vede intera di lato. */
 function cartHolders(d, c, op) {
   const { L, P: P0, H: H0 } = parseDims(d), n = c.slots.length;
   const sizes = (d.accept.sizes || [d.face.join('x')]).map(parseSize).map(sorted2);
-  const P = Math.max(P0, sizes[0][0] + 2), lift = 1.5, guard = 9, prof = 1.2, back = 3;
+  const P = Math.max(P0, sizes[0][0] + 2), lift = 1.5, guard = 3, prof = 1.2, back = 3;
   const pitch = (L - guard - 4) / n, xOf = i => -L / 2 + guard + 1 + pitch * (i + 0.5), z0 = P / 2 - 1;
   let h = bx3(-L / 2, -H0, -P / 2 + back, L, H0, back);                                 // pannello alto dietro
-  h += bx3(-L / 2, -34, P / 2, guard, 34, P - back);                                   // base bassa a sinistra (a terra)
   h += bx3(-L / 2, -1, P / 2, L, 1, 3);                                                 // traversa a terra davanti
   const pos = [];
   for (let i = 0; i < n; i++) {
