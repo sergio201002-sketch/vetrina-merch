@@ -974,7 +974,7 @@ function renderSwing(d, c, sc, W, H, st) {
     }
     const cx = s.pose === 'in' ? 0 : travel / 2;
     const tilt = s.pose === 'table' ? 34 : 16;          // a tavolo: più dall'alto per vedere il piano
-    return `translate3d(${W / 2}px,${H * 0.82}px,0) rotateX(${-tilt}deg) rotateY(${back ? 140 : -40}deg) translate3d(${-cx}px,${Ht * 0.08}px,0)`;
+    return `translate3d(${W / 2}px,${H * 0.82}px,0) rotateX(${-tilt}deg) rotateY(${back ? -140 : -40}deg) translate3d(${-cx}px,${Ht * 0.08}px,0)`;
   };
   let html = `<div class="sw-root" style="transform:${camT(from)}">`;
   // pavimento con ombra (si muove con la telecamera)
