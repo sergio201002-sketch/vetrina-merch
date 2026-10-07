@@ -207,6 +207,20 @@ def build_samples(products):
     # diventano un campione a parte ("Cotone Dune"), così non si confondono con il liscio
     plain = {(p.get('series'), (p.get('color') or '').strip(), p.get('size')) for p in products
              if p.get('type') == 'fondo' and not p.get('subseries')}
+    # serie fatte solo di grafiche (UNIQUE BOURGOGNE Variée/Minimal/Pointes, VARANA STONE Blocks/Tweed…): ogni grafica
+    # è un prodotto diverso con la sua foto -> campione a parte ("Variée Beige"); le parole comuni a tutte (es.
+    # "Totalbrick Majolica") non si ripetono
+    subs = {}
+    for p in products:
+        if p.get('type') == 'fondo':
+            subs.setdefault(p.get('series'), set()).add((p.get('subseries') or '').strip())
+    graf = {}
+    for se, ss in subs.items():
+        if '' in ss or len(ss) < 2:
+            continue
+        common = set.intersection(*(set(x.split()) for x in ss))
+        graf[se] = {x: ' '.join(w for w in x.split() if w not in common).replace('�', 'É').title() for x in ss}
+    alias = {}
     for p in products:
         if p.get('type') != 'fondo':
             continue
@@ -215,10 +229,15 @@ def build_samples(products):
         color = (p.get('color') or '').strip()
         size = (p.get('size') or '').strip()
         sub = (p.get('subseries') or '').strip()
-        if sub and (p.get('series'), color, p.get('size')) in plain and sub.lower() not in color.lower():
+        old = '|'.join([brand, series, color, size])
+        if p.get('series') in graf and sub:
+            color = (graf[p['series']][sub] + ' ' + color).strip()
+        elif sub and (p.get('series'), color, p.get('size')) in plain and sub.lower() not in color.lower():
             color = (color + ' ' + sub.title()).strip()
         if not series or not size:
             continue
+        if p.get('series') in graf:
+            alias.setdefault(old, set()).add('|'.join([brand, series, color, size]))
         key = '|'.join([brand, series, color, size])
         g = groups.setdefault(key, dict(b=brand, s=series, c=color, z=size, f=[], k=[], t=[]))
         fin = (p.get('finish') or '').strip()
@@ -229,7 +248,11 @@ def build_samples(products):
         th = (p.get('thickness') or '').replace('MM', '').strip()
         if th and th not in g['t']:
             g['t'].append(th)
+    SAMPLE_ALIAS.update({o: sorted(n)[0] for o, n in alias.items()})
     return sorted(groups.values(), key=lambda g: (g['b'], g['s'], g['c'], g['z']))
+
+
+SAMPLE_ALIAS = {}   # vecchia chiave campione (prima della divisione per grafica) -> nuova: le composizioni salvate non perdono il campione
 
 
 def display_images():
@@ -445,6 +468,7 @@ def main():
         f.write('// Generato da build_data.py — non modificare a mano\n')
         f.write('window.ESPOSITORI = ' + json.dumps(DISPLAYS, ensure_ascii=False) + ';\n')
         f.write('window.CAMPIONI = ' + json.dumps(samples, ensure_ascii=False, separators=(',', ':')) + ';\n')
+        f.write('window.SAMPLE_ALIAS = ' + json.dumps(SAMPLE_ALIAS, ensure_ascii=False, separators=(',', ':')) + ';\n')
         f.write('window.FOTO = ' + json.dumps(photos, ensure_ascii=False) + ';\n')
         f.write('window.FOTO_Z = ' + json.dumps(photos_z, ensure_ascii=False) + ';\n')
         f.write('window.FOTO_WH = ' + json.dumps(photo_sizes(), ensure_ascii=False, separators=(',', ':')) + ';\n')

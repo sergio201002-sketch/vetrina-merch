@@ -12,7 +12,13 @@
 /* ── Router: #/  ·  #/cliente/ID  ·  #/ambiente/ID  ·  #/espositori ── */
 function go(h) { if (location.hash === h) route(); else location.hash = h; }
 window.addEventListener('hashchange', route);
+/* campioni rinominati (es. UNIQUE BOURGOGNE diviso per grafica Variée/Minimal/Pointes): le composizioni salvate passano al nome nuovo */
+function fixSampleAlias() {
+  const A = window.SAMPLE_ALIAS || {};
+  Object.values(comps).forEach(c => (c.slots || []).forEach((k, i) => { if (k && !SAMPLE[k] && A[k]) c.slots[i] = A[k]; }));
+}
 function route() {
+  fixSampleAlias();
   document.body.classList.remove('showlist');                       // lista espositori a tutto schermo (telefono) chiusa cambiando pagina
   window.scrollTo(0, 0);
   const [, a, id, sub] = (location.hash || '#/').split('/');
