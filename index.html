@@ -1957,10 +1957,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   route();
 });
 </script>
-<script src="salva.js"></script>
-<script src="clienti.js"></script>
-<script src="ambiente.js"></script>
-<script src="espositori3d.js"></script>
-<script src="campioni.js"></script>
+<script>/* sempre l'ultima versione del programma (niente copie vecchie rimaste nel browser) */
+['salva.js', 'clienti.js', 'ambiente.js', 'espositori3d.js', 'campioni.js'].forEach(f => document.write('<script src="' + f + '?v=' + Date.now() + '"><\/script>'));</script>
 </body>
 </html>
