@@ -16,6 +16,8 @@ window.addEventListener('hashchange', route);
 function fixSampleAlias() {
   const A = window.SAMPLE_ALIAS || {};
   Object.values(comps).forEach(c => (c.slots || []).forEach((k, i) => { if (k && !SAMPLE[k] && A[k]) c.slots[i] = A[k]; }));
+  // espositori che hanno più posti di prima (es. cassettiera 60×120 da 18 a 21 cassetti): le composizioni salvate si allungano
+  Object.values(comps).forEach(c => { const d = DISP[c.disp]; if (d && !d.variants && c.slots && c.slots.length < d.slots) while (c.slots.length < d.slots) c.slots.push(null); });
 }
 function route() {
   fixSampleAlias();

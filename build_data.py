@@ -89,8 +89,8 @@ DISPLAYS = [
        dims='L160 × P51,4 × H191,3 cm', price=935, spec='1 piastrella 160×160 cm'),
   # CASSETTIERE
   dict(id='PMV', code='00000PMV', name='Cassettiera 60×120', family='Cassettiere', mode='drawers',
-       slots=18, face=[120, 60], accept={'sizes': ['60x120']},
-       dims='L131,8 × P70 × H104 cm', price=1250, spec='18 piastrelle 60×120 cm'),
+       slots=21, face=[120, 60], accept={'sizes': ['60x120']},
+       dims='L131,8 × P70 × H104 cm', price=1250, spec='21 piastrelle 60×120 cm'),
   dict(id='PMI', code='00000PMI', name='Cassettiera 120×120', family='Cassettiere', mode='drawers',
        slots=11, face=[120, 120], accept={'sizes': ['120x120']},
        dims='L136 × P190 × H94,5 cm', price=1932, spec='11 pannelli o piastrelle 120×120 cm'),
