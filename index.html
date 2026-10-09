@@ -808,7 +808,11 @@ const hasPhoto = s => !!(s && ((s.pkey && IMG[s.pkey]) || (s.key && IMG[s.key]) 
 /* telefono e tablet: foto medie in WebP (le leggono tutti e pesano poco); PC: foto originali */
 const FOTO_MED = {}; Object.entries(window.FOTO_MED || {}).forEach(([p, m]) => { FOTO_MED[encodeURI(p)] = encodeURI(m); });
 /* foto da usare: telefono le medie (1600 px webp), PC le originali */
-function imgFor(ik) { const u = IMG[ik]; return (LOWMEM && FOTO_MED[u]) || u; }
+function imgFor(ik) {
+  const u = IMG[ik];
+  if (LITE3D && typeof roomHD === 'function' && !roomHD()) return (window.FOTO_ROOM || {})[u] || FOTO_MED[u] || u;   // sala mostra senza HD: foto leggere
+  return (LOWMEM && FOTO_MED[u]) || u;
+}
 async function resizeImage(file, max = 1600) {
   const bmp = await createImageBitmap(file);
   const r = Math.min(1, max / Math.max(bmp.width, bmp.height));
@@ -948,6 +952,8 @@ function tileThickCm(d, c, i) {
 function thickHTML(w, h, T, back) {
   if (!T) return '';
   const e = 'background:linear-gradient(90deg,#ddd8ce,#c8c2b7);';
+  // sala mostra senza HD: solo il retro, colorato (niente grafica, niente bordi)
+  if (LITE3D && typeof roomHD === 'function' && !roomHD()) return `<div class="bx" style="width:${w}px;height:${h}px;background-color:${(String(back).match(/background-color:([^;]+)/) || [])[1] || '#cfc9be'};transform:translate3d(${w}px,0,${-T}px) rotateY(180deg)"></div>`;
   // sala mostra (modello leggero): retro + i due bordi lunghi + quello in alto, così lo spessore di 1 cm si vede sempre
   if (LITE3D) return `<div class="bx" style="width:${T}px;height:${h}px;${e}transform:translate3d(${w}px,0,0) rotateY(90deg)"></div>` +
     `<div class="bx" style="width:${T}px;height:${h}px;${e}transform:translate3d(0,0,0) rotateY(90deg)"></div>` +

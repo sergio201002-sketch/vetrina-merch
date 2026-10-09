@@ -223,6 +223,7 @@ function roomModel(it) {
   const c = comps[it.comp] || { slots: Array(d.variants ? defVariant(d) : d.slots).fill(null) };
   const op = roomMode === 'show' && showSel && showSel.item === it.id ? showSel.slot : -1;
   LITE3D = true;                                   // modello leggero per la stanza
+  ROOM_RES = roomHD() ? (LOWMEM ? 3 : 4) : 1;      // HD: davanti delle piastrelle in ultra HD; senza HD leggero (fluido)
   let m; try { m = (MODELS[d.mode] || MODELS.grid)(d, c, op); } finally { LITE3D = false; }
   if (!m.H) m.H = parseDims(d).H;
   if (d.sided && sideOf(it) === 'SX') m.html = `<div class="bx" style="transform:scaleX(-1);transform-style:preserve-3d">${m.html}</div>`;
@@ -343,6 +344,7 @@ function openRoom(id, mode) {
         <div class="camctl">
           <button data-v="front">Frontale</button><button data-v="persp">Prospettiva ↙</button><button data-v="persp2">Prospettiva ↘</button>
           <button id="rZoom" class="${ui.roomZoom ? 'on' : ''}" onclick="event.stopPropagation(); toggleRoomZoom()" title="Campione aperto: dritto di fronte e da vicino">🔍 Zoom</button>
+          <button class="rHD ${roomHD() ? 'on' : ''}" onclick="event.stopPropagation(); toggleRoomHD()" title="Acceso: piastrelle in alta definizione · Spento: tutto più leggero e fluido">HD</button>
           <button id="rPresent">⛶ Presenta</button><button onclick="event.stopPropagation(); renderRealistic()" title="Immagine realistica con luce e ombre di questa vista">📸 Render</button></div>
         <div class="roomhint">Trascina per girare la vista · rotella per lo zoom · clicca un campione per aprirlo</div>
         <div class="showcard" id="showCard" hidden></div>
@@ -386,6 +388,7 @@ function openRoom(id, mode) {
         <div class="room-scene" id="roomScene"></div>
         <div class="camctl">
           <button data-v="front">Frontale</button><button data-v="persp">Prospettiva ↙</button><button data-v="persp2">Prospettiva ↘</button><button data-v="top">Dall'alto</button>
+          <button class="rHD ${roomHD() ? 'on' : ''}" onclick="event.stopPropagation(); toggleRoomHD()" title="Acceso: piastrelle in alta definizione · Spento: tutto più leggero e fluido">HD</button>
           <button id="rPresent">⛶ Presenta</button><button onclick="event.stopPropagation(); renderRealistic()" title="Immagine realistica con luce e ombre di questa vista">📸 Render</button></div>
         <div class="roomhint">Trascina per girare la vista · rotella per lo zoom · clicca un espositore per selezionarlo</div>
       </div>
@@ -654,6 +657,16 @@ function focusCam(animate) {
   let yaw = fy - (it.rot || 0); yaw = ((yaw + 540) % 360) - 180;
   cam.yaw = yaw; cam.tilt = ft; cam.zoom = 1;
   applyCam(animate);
+}
+/* HD della sala mostra: acceso = tutto al massimo (il retro delle piastrelle resta leggero), spento = leggero e fluido.
+   Di serie acceso sul PC, spento sul telefono; la scelta resta salvata */
+function roomHD() { return ui.roomHD == null ? !LOWMEM : !!ui.roomHD; }
+function toggleRoomHD() {
+  ui.roomHD = !roomHD(); saveUI();
+  document.querySelectorAll('.rHD').forEach(b => b.classList.toggle('on', roomHD()));
+  roomModels = {}; showOpen = null; renderRoom();
+  if (showSel) { const s = showSel; showSel = null; openSample(s.item, s.slot); }
+  toast(roomHD() ? 'HD acceso: piastrelle in alta definizione' : 'HD spento: sala mostra leggera e fluida');
 }
 function toggleRoomZoom() {
   ui.roomZoom = !ui.roomZoom; saveUI();
