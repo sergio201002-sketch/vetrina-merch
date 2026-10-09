@@ -659,10 +659,10 @@ function focusCam(animate) {
   applyCam(animate);
 }
 /* HD della sala mostra: acceso = tutto al massimo (il retro delle piastrelle resta leggero), spento = leggero e fluido.
-   Di serie acceso sul PC, spento sul telefono; la scelta resta salvata */
-function roomHD() { return ui.roomHD == null ? !LOWMEM : !!ui.roomHD; }
+   Di serie acceso; la scelta resta salvata */
+function roomHD() { return ui.hdSala !== false; }   // di serie acceso (anche sul telefono): si spegne solo se lo scegli
 function toggleRoomHD() {
-  ui.roomHD = !roomHD(); saveUI();
+  ui.hdSala = !roomHD(); saveUI();
   document.querySelectorAll('.rHD').forEach(b => b.classList.toggle('on', roomHD()));
   roomModels = {}; showOpen = null; renderRoom();
   if (showSel) { const s = showSel; showSel = null; openSample(s.item, s.slot); }
