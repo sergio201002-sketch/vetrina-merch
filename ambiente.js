@@ -136,9 +136,9 @@ const MODELS = {
   },
   /* Culla modulare: moduli in fila, piastrelle in piedi negli incavi. Aperto: la piastrella esce davanti alla fila */
   culla(d, c, op) {
-    const n = c.slots.length, per = d.perModule || 14, mods = Math.ceil(n / per), ML = 94.5, MD = 57.9, BH = 5, RAIL = 35.6;
-    const len = mods * ML, pitch = (ML - 6) / per, ox = -len / 2, oz = MD / 2, dx = c.side === 'DX';
-    const xOf = i => { const x = Math.floor(i / per) * ML + 4 + (i % per) * pitch; return ox + (dx ? x + pitch : len - x - pitch); };   // SX: Start a destra; DX: a sinistra
+    const n = c.slots.length, mods = cullaMods(d, n), ML = 94.5, MD = 57.9, BH = 5, RAIL = 35.6;
+    const len = mods * ML, pitch = (len - 8) / n, ox = -len / 2, oz = MD / 2, dx = c.side === 'DX';
+    const xOf = i => { const x = 4 + i * pitch; return ox + (dx ? x + pitch : len - x - pitch); };   // SX: Start a destra; DX: a sinistra
     let h = '';
     for (let mm = 0; mm < mods; mm++) {
       const x0 = ox + mm * ML;
@@ -271,6 +271,16 @@ function snapItem(it, skip) {
     [o.x + eo.hx + e.hx + g, o.x - eo.hx - e.hx - g].forEach(cx => { const dd = Math.abs(cx - it.x); if (dd < S && (!best || dd < best.d)) best = { d: dd, x: cx }; });
   });
   if (best) it.x = best.x;
+  if (it.free) {
+    let bz = null;
+    others.forEach(o => {
+      const eo = extOf(o), g = pairGap(it, o), ov = Math.min(it.x + e.hx, o.x + eo.hx) - Math.max(it.x - e.hx, o.x - eo.hx);
+      if (ov < Math.min(e.hx, eo.hx)) return;                                  // non sono uno davanti all'altro
+      const cz = it.z >= o.z ? o.z + eo.hz + e.hz + g : o.z - eo.hz - e.hz - g, dd = Math.abs(cz - it.z);
+      if (dd < S + 6 && (!bz || dd < bz.d)) bz = { d: dd, z: cz, x: Math.abs(o.x - it.x) < S ? o.x : it.x };
+    });
+    if (bz) { it.z = bz.z; it.x = bz.x; }                                       // attaccati schiena a schiena, allineati
+  }
   return '';
 }
 /* dopo uno spostamento: un mobile rimasto "in aria" scende sopra quello sotto o a terra */
@@ -579,6 +589,9 @@ function renderRoomSide() {
       ${d.sided ? `<div class="btns"><button class="btn ${sideOf(sel) === 'SX' ? 'dark' : ''}" onclick="setSide('SX')">SX</button><button class="btn ${sideOf(sel) === 'DX' ? 'dark' : ''}" onclick="setSide('DX')">DX</button></div>` : ''}
       <div class="btns"><button class="btn" onclick="rotItem(-90)">⟲ 90°</button><button class="btn" onclick="rotItem(-15)">⟲ 15°</button>
         <button class="btn" onclick="rotItem(15)">⟳ 15°</button><button class="btn" onclick="rotItem(90)">⟳ 90°</button></div>
+      <div class="row"><b>Rotazione</b> <input type="number" step="5" value="${sel.rot || 0}" style="width:70px" onchange="setRot(this.value)"> °
+        <button class="btn ${!(sel.rot || 0) ? 'dark' : ''}" onclick="setRot(0)">0°</button><button class="btn ${(sel.rot || 0) === 90 ? 'dark' : ''}" onclick="setRot(90)">90°</button>
+        <button class="btn ${(sel.rot || 0) === 180 ? 'dark' : ''}" onclick="setRot(180)" title="Girato: il fronte guarda verso il muro (per metterlo schiena a schiena con un altro)">180°</button><button class="btn ${(sel.rot || 0) === 270 ? 'dark' : ''}" onclick="setRot(270)">270°</button></div>
       ${isUpper(sel) ? '' : `<div class="btns"><button class="btn ${sel.free ? '' : 'dark'}" onclick="setFree(false)" title="Appoggiato al muro di fondo">📌 Attaccato al muro</button>
         <button class="btn ${sel.free ? 'dark' : ''}" onclick="setFree(true)" title="Si può mettere in qualsiasi punto della stanza, anche in mezzo">↔ Staccato dal muro</button></div>`}
       <div class="btns"><button class="btn" onclick="toWall()" title="Lo appoggia al muro di fondo, girato verso la stanza">⇡ Al muro</button>
@@ -771,7 +784,16 @@ function addCatalogItem(dispId) {
   addCompItem(c.id); toast('Espositore aggiunto: aprilo per inserire i campioni');
 }
 const selItem = () => room.items.find(i => i.id === roomSel);
-function rotItem(a) { const it = selItem(); if (!it) return; const r = (((it.rot || 0) + a) % 360 + 360) % 360; [it, ...stackedAbove(it)].forEach(o => o.rot = r); saveRoom(); renderRoom(); }
+function rotItem(a) { const it = selItem(); if (!it) return; setRot((it.rot || 0) + a); }
+/* rotazione a scelta (gradi). Girato verso il muro (fra 135° e 225°) non può stare attaccato: si stacca e va avanti */
+function setRot(deg) {
+  const it = selItem(); if (!it) return; const r = ((Math.round(+deg || 0) % 360) + 360) % 360;
+  [it, ...stackedAbove(it)].forEach(o => o.rot = r);
+  delete roomModels[it.id];
+  if (r > 135 && r < 225 && !it.free && !isUpper(it)) { it.free = true; it.z = Math.min(room.d - extOf(it).hz, it.z + 60); toast('Girato verso il muro: l\'ho staccato dal muro, trascinalo dove vuoi'); }
+  snapItem(it); stackedAbove(it).forEach(o => { o.x = it.x; o.z = it.z; });
+  saveRoom(); renderRoom();
+}
 /* Incolla codici in sala mostra: chiede in quali espositori (uno o più, nell'ordine da sinistra a destra) */
 async function roomPaste() {
   const seen = new Set(), list = room.items.slice().sort((a, b) => a.x - b.x || elevY(a) - elevY(b)).filter(it => {
@@ -792,7 +814,7 @@ async function roomPaste() {
 function cullaOptsHTML(d, c) {
   const per = d.perModule || 1, n = c.slots.length, dx = c.side === 'DX';
   const b = (t, on, fn, tip) => `<button class="btn ${on ? 'dark' : ''}" title="${esc(tip || '')}" onclick="${fn}">${t}</button>`;
-  return `<div class="row"><b>Moduli</b> ${(d.variants || [n]).map(v => b(v / per, v === n, `roomCulla('variant', ${v})`, (d.variantLabels || {})[v])).join('')}</div>
+  return `<div class="row"><b>Moduli</b> ${(d.variants || [n]).map((v, k) => b(k + 1, v === n, `roomCulla('variant', ${v})`, (d.variantLabels || {})[v] + ' · ' + v + ' posti')).join('')}</div>
     <div class="row"><b>Versione</b> ${b('◄ SX', !dx, `roomCulla('side', 'SX')`, 'Campioni girati verso destra')}${b('DX ►', dx, `roomCulla('side', 'DX')`, 'Campioni girati verso sinistra')}</div>
     <div class="row"><b>Formato</b> ${b('Misti', !c.fmt, `roomCulla('fmt', '')`, 'Formati diversi insieme')}${(d.accept.sizes || []).map(z => b(fmt(z), c.fmt === z, `roomCulla('fmt', '${z}')`, 'Solo ' + fmt(z))).join('')}</div>`;
 }

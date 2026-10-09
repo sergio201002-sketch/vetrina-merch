@@ -16,6 +16,14 @@ window.addEventListener('hashchange', route);
 function fixSampleAlias() {
   const A = window.SAMPLE_ALIAS || {};
   Object.values(comps).forEach(c => (c.slots || []).forEach((k, i) => { if (k && !SAMPLE[k] && A[k]) c.slots[i] = A[k]; }));
+  // culla modulare: prima 14 posti per modulo, ora 13/26/40/54/68 (3 moduli = 40): si toglie un posto vuoto in fondo
+  Object.values(comps).forEach(c => {
+    const d = DISP[c.disp]; if (!d || !d.oldVariants || !c.slots) return;
+    const k = d.oldVariants.indexOf(c.slots.length); if (k < 0) return;
+    const v = d.variants[k]; c.variant = v;
+    for (let j = c.slots.length - 1; j >= 0 && c.slots.length > v; j--) if (!c.slots[j]) c.slots.splice(j, 1);
+    while (c.slots.length > v) { const extra = c.slots.pop(); const e = c.slots.indexOf(null); if (e >= 0) c.slots[e] = extra; }
+  });
   // espositori che hanno più posti di prima (es. cassettiera 60×120 da 18 a 21 cassetti): le composizioni salvate si allungano
   Object.values(comps).forEach(c => { const d = DISP[c.disp]; if (d && !d.variants && c.slots && c.slots.length < d.slots) while (c.slots.length < d.slots) c.slots.push(null); });
 }

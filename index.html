@@ -654,6 +654,8 @@ function makeComp(d, name) {
   comps[c.id] = c; return c;
 }
 function touch() { const c = comp(); c.upd = Date.now(); saveComps(); }
+/* culla modulare: quanti moduli per n posti (i posti per modulo non sono tutti uguali: 3 moduli = 40) */
+function cullaMods(d, n) { const k = (d.variants || []).indexOf(n); return k >= 0 ? k + 1 : Math.max(1, Math.round(n / (d.perModule || 14))); }
 
 /* ── INCOLLA CODICI: un elenco di codici (uno per riga, anche righe d'ordine intere "… - EKTM - 1mq")
    e i campioni vanno nei posti in ordine. Ogni riga = un campione (righe uguali = due pezzi) ── */
@@ -1288,9 +1290,9 @@ function renderShelf(d, c, sc, W, H, st) {
 let lastCulla = {};
 let cullaToken = 0;
 function renderCulla(d, c, sc, W, H, st) {
-  const n = c.slots.length, per = d.perModule || 14, mods = Math.ceil(n / per);
+  const n = c.slots.length, mods = cullaMods(d, n);
   const ML = 94.5, MD = 57.9, BH = 5, RAIL = 35.6;          // modulo in cm
-  const len = mods * ML, pitch = (ML - 6) / per;
+  const len = mods * ML, pitch = (len - 8) / n, per = Math.round(n / mods);
   const sizeOf = i => { const s = SAMPLE[c.slots[i]]; return s ? sorted2(parseSize(s.z)) : [60, 60]; };
   const k = Math.min((H * 0.58) / 130, (W * 0.86) / (len * 0.9 + 70));
   const sel = Math.max(0, Math.min(n - 1, selSlot));
@@ -1300,7 +1302,8 @@ function renderCulla(d, c, sc, W, H, st) {
 
   // come nella scheda: SX = piastrelle girate verso destra e modulo Start a destra; DX = lo specchio (Start a sinistra)
   const dx = c.side === 'DX';
-  const pos = i => { const m = Math.floor(i / per), j = i % per, x = m * ML + 4 + j * pitch; return { x: dx ? x + pitch : len - x - pitch, m, j }; };
+  const firstOf = mm => Math.max(0, Math.ceil((mm * ML - 4) / pitch));    // primo posto del modulo mm
+  const pos = i => { const x = 4 + i * pitch, m = Math.min(mods - 1, Math.floor(x / ML)), j = i - firstOf(m); return { x: dx ? x + pitch : len - x - pitch, m, j }; };
   // apertura come un girevole: la piastrella scorre fuori lungo la sua scanalatura (in diagonale, verso di te),
   // poi, fuori dalla culla, si raddrizza parallela a te. Chiudendo fa il contrario.
   const C74 = Math.cos(74 * Math.PI / 180), S74 = Math.sin(74 * Math.PI / 180);
@@ -1350,7 +1353,7 @@ function renderCulla(d, c, sc, W, H, st) {
   const p = pos(sel);
   const mName = mods === 1 ? '' : p.m === 0 ? ' (Start)' : p.m === mods - 1 ? ' (Closing)' : ' (Middle)';
   const info = document.createElement('div'); info.className = 'pageinfo';
-  info.textContent = `Modulo ${p.m + 1}${mName} · posto ${p.j + 1} di ${per}` + (ui.zoom ? ' · zoom' : '');
+  info.textContent = `Modulo ${p.m + 1}${mName} · posto ${p.j + 1} di ${(p.m + 1 < mods ? firstOf(p.m + 1) : n) - firstOf(p.m)}` + (ui.zoom ? ' · zoom' : '');
   st.appendChild(info);
   const go = i => { selSlot = i; renderStage(); renderStrip(); if (ui.tab === 'pick') renderPicker(false); };
   st.append(navBtn('l', '‹', sel === 0, () => go(sel - 1)), navBtn('r', '›', sel >= n - 1, () => go(sel + 1)));
@@ -1360,7 +1363,7 @@ function renderCulla(d, c, sc, W, H, st) {
   bar.appendChild(z); st.appendChild(bar);
   const cb = document.createElement('div'); cb.className = 'cullabar';
   const btn = (txt, on, fn, tip) => `<button class="${on ? 'on' : ''}" title="${esc(tip || '')}" onclick="event.stopPropagation(); ${fn}">${txt}</button>`;
-  cb.innerHTML = `<span class="g"><span class="l">Moduli</span>${(d.variants || [n]).map(v => btn(v / per, v === n, `setVariant(${v})`, (d.variantLabels || {})[v])).join('')}</span>
+  cb.innerHTML = `<span class="g"><span class="l">Moduli</span>${(d.variants || [n]).map((v, k) => btn(k + 1, v === n, `setVariant(${v})`, (d.variantLabels || {})[v] + ' · ' + v + ' posti')).join('')}</span>
     <span class="g"><span class="l">Versione</span>${btn('◄ SX', !dx, `setCullaSide('SX')`, 'Piastrelle girate verso destra · codici PUB/PUD/PUE')}${btn('DX ►', dx, `setCullaSide('DX')`, 'Piastrelle girate verso sinistra · codici PUF/PUG/PUH')}</span>
     <span class="g"><span class="l">Formato</span>${btn('Misti', !c.fmt, `setCullaFmt('')`, 'Formati diversi insieme')}${(d.accept.sizes || []).map(z => btn(fmt(z), c.fmt === z, `setCullaFmt('${z}')`, 'Solo ' + fmt(z))).join('')}</span>`;
   st.appendChild(cb);
@@ -1900,7 +1903,7 @@ function copyCodes() {
   const d = disp(), c = comp(), n = c.slots.length;
   const lines = [`${d.name} — cod. ${d.code}`, `Composizione: ${c.name}`, ''];
   if (d.moduleCodes) {
-    const m = Math.ceil(n / d.perModule), mid = Math.max(0, m - 2);
+    const m = cullaMods(d, n), mid = Math.max(0, m - 2);
     const row = side => { const [s, md, e] = d.moduleCodes[side]; return m === 1 ? `1× ${s}` : `1× ${s} (Start) · ${mid ? mid + '× ' + md + ' (Middle) · ' : ''}1× ${e} (Closing)`; };
     const side = c.side === 'DX' ? 'DX' : 'SX';
     lines.splice(2, 0, `Moduli: ${m} · versione ${side} — ${row(side)}` + (c.fmt ? ` · solo ${fmt(c.fmt)}` : ''));
