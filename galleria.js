@@ -126,10 +126,13 @@ function addMissingColors(g, all) {
   });
   return glSort(g);
 }
-/* ordine delle strisce: ha (qui) → ha (in un altro espositore) → non ha; in ogni gruppo prima i fondi poi i decori */
+/* ordine delle strisce: ha (qui) → ha (in un altro espositore) → non ha. In ogni gruppo prima tutti i fondi, poi una
+   grafica/decoro alla volta come nel listino (es. Pigmento: fondi, Cardboard, Eden, Pop Art, Carioca, Peonia;
+   Unique Intensity: Purestone, Cobblestone, Arcade); dentro: quelli che ha nell'ordine dei posti, gli altri per colore */
 function glSort(g) {
-  const rank = x => (x.missing ? 20 : x.elsewhere ? 10 : 0) + (x.s.dec ? 1 : 0);
-  g.items = g.items.map((x, i) => [x, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(a => a[0]);
+  const block = x => x.missing ? 2 : x.elsewhere ? 1 : 0;
+  g.items = g.items.map((x, i) => [x, i]).sort((a, b) => block(a[0]) - block(b[0]) || (a[0].s.gi || 0) - (b[0].s.gi || 0)
+    || (block(a[0]) ? a[0].s.c.localeCompare(b[0].s.c) : a[1] - b[1])).map(a => a[0]);
   return g;
 }
 const glTitle = t => String(t || '').toLowerCase().replace(/(^|[\s-])\S/g, m => m.toUpperCase());

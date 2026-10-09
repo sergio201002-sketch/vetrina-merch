@@ -227,6 +227,7 @@ def build_samples(products):
     suffix = {se for se in graf if any(x.lower() in (q.get('color') or '').lower()
                                         for q in products if q.get('series') == se for x in subs[se] if x)}
     alias = {}
+    gorder = {}                                                  # ordine delle grafiche di ogni serie, come nel listino
     for p in products:
         if p.get('type') != 'fondo':
             continue
@@ -255,6 +256,9 @@ def build_samples(products):
         g = groups.setdefault(key, dict(b=brand, s=series, c=color, z=size, f=[], k=[], t=[]))
         if sub and '' in subs.get(p.get('series'), set()):       # decoro (Dune, Rilievi, Onde…): la serie ha anche i fondi lisci
             g['dec'] = 1
+        if sub:                                                  # gruppo di grafica/decoro (per ordinare: prima i fondi, poi un gruppo alla volta)
+            g['g'] = re.sub(r'\s+', ' ', re.sub(r'\(.*?\)|\*', '', sub)).strip().replace('�', 'É').title()
+            g['gi'] = gorder.setdefault(p.get('series'), []).index(sub) + 1 if sub in gorder.get(p.get('series'), []) else (gorder.setdefault(p.get('series'), []).append(sub) or len(gorder[p.get('series')]))
         fin = (p.get('finish') or '').strip()
         if fin and fin not in g['f']:
             g['f'].append(fin)
