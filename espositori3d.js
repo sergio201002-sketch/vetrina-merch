@@ -294,7 +294,7 @@ let gcam = { yaw: -30, tilt: 14, zoom: 1 }, gToken = 0;
 const GVIEWS = {
   OYQ: [['A', 'Lato A', 62, 8], ['B', 'Lato B', -62, 8]],
   PEX: [['A', 'Lato A', 62, 8], ['B', 'Lato B', -62, 8]],
-  PMV: [['front', 'Di fronte', -14, 16], ['top', "Dall'alto", 0, 58]],
+  PMV: [['front', 'Di fronte', -14, 16], ['top', "Dall'alto", 0, 88]],
 };
 function setGView(id) {
   const v = (GVIEWS[gcam.mode] || []).find(x => x[0] === id); if (!v) return;
@@ -315,7 +315,7 @@ function renderModel3D(d, c, sc, W, H, st) {
     ? (kz => `translate3d(${W / 2}px,${H * 0.4}px,0) rotateX(${-gcam.tilt}deg) rotateY(${gcam.yaw}deg) scale3d(${kz},${kz},${kz}) translate3d(${-ov.x}px,${-ov.y}px,${-ov.z}px)`)
         ((gcam.zoom * Math.min(W * 0.8 / ov.w, H * 0.8 / (ov.d * Math.sin(ta) + ov.h * Math.cos(ta)))).toFixed(4))
     : f
-    ? (kz => `translate3d(${W / 2}px,${H * 0.5}px,0) rotateX(${gcam.view === 'top' ? -70 : -4}deg) rotateY(${Math.abs(f.yaw) > 45 ? (gcam.yaw < 0 ? -88 : 88) : 0}deg) scale3d(${kz},${kz},${kz}) translate3d(${-f.x}px,${-f.y}px,${-f.z}px)`)(Math.min(H * 0.8 / f.h, W * 0.8 / f.w).toFixed(4))
+    ? (kz => `translate3d(${W / 2}px,${H * 0.5}px,0) rotateX(${gcam.view === 'top' ? -88 : -4}deg) rotateY(${Math.abs(f.yaw) > 45 ? (gcam.yaw < 0 ? -88 : 88) : 0}deg) scale3d(${kz},${kz},${kz}) translate3d(${-f.x}px,${-f.y}px,${-f.z}px)`)(Math.min(H * 0.8 / f.h, W * 0.8 / f.w).toFixed(4))
     : `translate3d(${W / 2}px,${H * 0.86}px,0) rotateX(${-gcam.tilt}deg) rotateY(${gcam.yaw}deg) scale3d(${k.toFixed(4)},${k.toFixed(4)},${k.toFixed(4)})`;
   sc.innerHTML = `<div class="sw-root room-scene" id="m3d" style="transform:${camT()}">
     <div class="bx" style="width:${fw}px;height:${fd}px;background:radial-gradient(ellipse at 50% 50%, rgba(0,0,0,.26), rgba(0,0,0,0) 62%);transform:translate3d(${-fw / 2}px,0.5px,${fd / 2}px) rotateX(-90deg)"></div>${m.html}</div>`;
@@ -338,7 +338,7 @@ function renderModel3D(d, c, sc, W, H, st) {
       const dx = e.clientX - s.x, dy = e.clientY - s.y;
       if (!s.moved && Math.hypot(dx, dy) < 5) return;
       s.moved = true; window._dragMoved = true; gcam.view = null;
-      gcam.yaw = Math.max(-80, Math.min(80, s.yaw + dx * 0.4)); gcam.tilt = Math.max(0, Math.min(60, s.tilt + dy * 0.3));
+      gcam.yaw = Math.max(-80, Math.min(80, s.yaw + dx * 0.4)); gcam.tilt = Math.max(0, Math.min(90, s.tilt + dy * 0.3));
       const r = root(); if (r) { r.style.transition = 'none'; r.style.transform = r.style.transform.replace(/rotateX\([^)]*\) rotateY\([^)]*\)/, `rotateX(${-gcam.tilt}deg) rotateY(${gcam.yaw}deg)`); }
     });
     const end = () => { s = null; setTimeout(() => { window._dragMoved = false; }, 0); };
