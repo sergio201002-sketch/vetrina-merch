@@ -429,6 +429,20 @@ def make_medium():
     return out
 
 
+def photo_colors(minis):
+    """Colore medio di ogni foto (dalle miniature): serve a tingere il retro delle piastrelle come il davanti."""
+    from PIL import Image
+    out = {}
+    for src, mini in minis.items():
+        try:
+            with Image.open(os.path.join(HERE, mini)) as im:
+                r, g, b = im.convert('RGB').resize((1, 1), Image.BOX).getpixel((0, 0))
+            out[src] = '#%02x%02x%02x' % (r, g, b)
+        except Exception:
+            pass
+    return out
+
+
 def make_thumbs():
     """Miniature (max 240 px, webp) delle foto in foto/mini/: le usano i quadratini e gli elenchi,
     così non si caricano centinaia di foto grandi (lento soprattutto sul telefono). Rifà solo quelle cambiate."""
@@ -485,7 +499,9 @@ def main():
         f.write('window.FOTO = ' + json.dumps(photos, ensure_ascii=False) + ';\n')
         f.write('window.FOTO_Z = ' + json.dumps(photos_z, ensure_ascii=False) + ';\n')
         f.write('window.FOTO_WH = ' + json.dumps(photo_sizes(), ensure_ascii=False, separators=(',', ':')) + ';\n')
-        f.write('window.FOTO_MINI = ' + json.dumps(make_thumbs(), ensure_ascii=False, separators=(',', ':')) + ';\n')
+        minis = make_thumbs()
+        f.write('window.FOTO_MINI = ' + json.dumps(minis, ensure_ascii=False, separators=(',', ':')) + ';\n')
+        f.write('window.FOTO_COL = ' + json.dumps(photo_colors(minis), ensure_ascii=False, separators=(',', ':')) + ';\n')
         f.write('window.FOTO_MED = ' + json.dumps(make_medium(), ensure_ascii=False, separators=(',', ':')) + ';\n')
     print(len(DISPLAYS), 'espositori,', len(samples), 'campioni,', len(photos), 'colori con foto,', len(photos_z), 'formati con la loro foto ->', out)
     for ik, path in photos.items():

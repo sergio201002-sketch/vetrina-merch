@@ -957,13 +957,21 @@ function thickHTML(w, h, T, back) {
 }
 /* Spessore + retro di un tozzetto/piastrella del posto i. Il retro è quello vero delle piastrelle (la grafica a rombi
    del sottofondo): rettangolare (verticale o orizzontale) o quadrato (fw×fh in cm, k = px per cm) */
-function backStyle(fw, fh) {
+/* il retro prende un po' il colore del davanti: colore medio della foto, schiarito verso il bianco,
+   moltiplicato sulla grafica (piastrella scura = retro più scuro, chiara = più chiaro) */
+function backTint(s) {
+  const p = s && ((window.FOTO_Z || {})[s.ik + '|' + s.z] || (window.FOTO || {})[s.ik]), c = p && (window.FOTO_COL || {})[p];
+  if (!c) return '#ffffff';
+  const n = parseInt(c.slice(1), 16), mix = v => Math.round(v * 0.55 + 255 * 0.45);
+  return 'rgb(' + [n >> 16 & 255, n >> 8 & 255, n & 255].map(mix).join(',') + ')';
+}
+function backStyle(fw, fh, s) {
   const r = fw / fh, img = Math.abs(r - 1) < 0.15 ? 'retro_quadrato' : r < 1 ? 'retro_verticale' : 'retro_orizzontale';
-  return `background:#ddd8cf url(img/${img}.webp) center/100% 100% no-repeat;`;
+  return `background:${backTint(s)} url(img/${img}.webp) center/100% 100% no-repeat;background-blend-mode:multiply;`;
 }
 function tileBody(d, c, i, fw, fh, tiled, k) {
   const s = c && SAMPLE[c.slots[i]];
-  const back = s ? backStyle(fw, fh) : 'background:#e6e3dc;';
+  const back = s ? backStyle(fw, fh, s) : 'background:#e6e3dc;';
   return thickHTML(fw * k, fh * k, Math.max(0.5, tileThickCm(d, c, i)) * k, back);
 }
 function slotName(d, i, n) {
