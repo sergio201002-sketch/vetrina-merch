@@ -275,8 +275,16 @@ function bindBoardDrag(body) {
 }
 
 /* ── seleziona per spostare ── */
+/* incolla codici in un espositore (o in una fila unita): i posti vuoti nell'ordine in cui li vedi */
+async function csPaste(btn) {
+  const sec = btn.closest('.cs-sec'), tiles = [...sec.querySelectorAll('.cslot')], name = sec.querySelector('h4').textContent;
+  const r = await pasteDialog(`Incolla i codici per ${name}: uno per riga. Vanno nei posti vuoti, da sinistra a destra.`);
+  if (!r || !r.text.trim()) return;
+  const o = fillWithCodes(tiles.map(t => ({ cid: t.dataset.c, i: +t.dataset.i })), r.text, r.all);
+  renderSampleBoard(); pasteReport(o);
+}
 function csSelBtn() {
-  return `<button class="btn${csSelMode ? ' on' : ''}" onclick="csToggleSelMode()" title="Scegli più campioni e spostali tutti insieme">${csSelMode ? '✓ Selezione attiva' : '☐ Seleziona per spostare'}</button>`;
+  return `<button class="btn" onclick="csPaste(this)" title="Incolla un elenco di codici (uno per riga)">📋 Incolla codici</button>` + `<button class="btn${csSelMode ? ' on' : ''}" onclick="csToggleSelMode()" title="Scegli più campioni e spostali tutti insieme">${csSelMode ? '✓ Selezione attiva' : '☐ Seleziona per spostare'}</button>`;
 }
 function csToggleSelMode() {
   csSelMode = !csSelMode; csSel = []; csArm = false;

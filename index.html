@@ -191,10 +191,14 @@ aside.side { background: var(--white); border-left: 1px solid var(--border); dis
 
 /* ── Modal ──────────────────────────────────────────────── */
 .modal { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 100; padding: 16px; }
+#askModal, #pasteModal { z-index: 300; }   /* sopra il pannello "Sistema i campioni" */
 .modal.open { display: flex; }
 .askbox { max-width: 420px; padding: 18px; }
 .askmsg { white-space: pre-line; font-size: 14px; line-height: 1.45; max-height: 50vh; overflow: auto; }
 .askin { width: 100%; margin-top: 12px; padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px; font: inherit; }
+.pastebox { max-width: 560px; width: calc(100vw - 32px); padding: 18px; }
+.pastebox textarea { width: 100%; height: 42vh; margin-top: 10px; padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px; font: 13px/1.4 ui-monospace, Consolas, monospace; resize: vertical; }
+.pastebox label { display: flex; gap: 6px; align-items: center; font-size: 13px; margin-top: 8px; }
 .askbtns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 .mbox { background: var(--white); border-radius: 12px; width: min(880px, 100%); max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; }
 .mhead { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
@@ -436,6 +440,7 @@ body[data-view="room"] #viewRoom, body[data-view="show"] #viewRoom { display: fl
       <span style="font-size:12px;color:var(--mid)" id="fillInfo"></span>
       <div class="sp"></div>
       <button class="tb on" id="lblBtn" onclick="toggleLabels()">Etichette</button>
+      <button class="tb" onclick="pasteCodes()" title="Incolla un elenco di codici: i campioni vanno nei posti in ordine">📋 Incolla codici</button>
       <button class="tb" onclick="autoFill()" title="Riempie gli slot vuoti con campioni che hanno la foto">Riempi con foto</button>
       <button class="tb" onclick="clearComp()">Svuota</button>
       <button class="tb" onclick="copyCodes()">📋 Copia codici ordine</button>
@@ -488,6 +493,15 @@ body[data-view="room"] #viewRoom, body[data-view="show"] #viewRoom { display: fl
     <div class="askmsg" id="askMsg"></div>
     <input class="askin" id="askIn" hidden>
     <div class="askbtns"><button class="btn" id="askNo">Annulla</button><button class="btn dark" id="askYes">OK</button></div>
+  </div>
+</div>
+
+<div class="modal" id="pasteModal">
+  <div class="mbox pastebox">
+    <div class="askmsg" id="pasteMsg"></div>
+    <textarea id="pasteIn" placeholder="Un codice per riga, per esempio:&#10;EKTM&#10;EKTN&#10;oppure le righe intere dell'ordine:&#10;Tele Di Marmo Onyx Onyx Black Full Lappato Rett. 60x120 cm - EKTM - 1mq"></textarea>
+    <label><input type="checkbox" id="pasteAll"> Sostituisci: riparti dal primo posto (anche quelli già pieni)</label>
+    <div class="askbtns"><button class="btn" id="pasteNo">Annulla</button><button class="btn dark" id="pasteYes">Inserisci</button></div>
   </div>
 </div>
 
@@ -635,6 +649,61 @@ function makeComp(d, name) {
   comps[c.id] = c; return c;
 }
 function touch() { const c = comp(); c.upd = Date.now(); saveComps(); }
+
+/* ── INCOLLA CODICI: un elenco di codici (uno per riga, anche righe d'ordine intere "… - EKTM - 1mq")
+   e i campioni vanno nei posti in ordine. Ogni riga = un campione (righe uguali = due pezzi) ── */
+let CODE_IDX = null;
+function codeIndex() {
+  if (!CODE_IDX) { CODE_IDX = {}; SAMPLES.forEach(s => (s.k || []).forEach(k => { (CODE_IDX[k.toUpperCase()] = CODE_IDX[k.toUpperCase()] || []).push(s); })); }
+  return CODE_IDX;
+}
+function parseCodeList(text) {
+  const idx = codeIndex();
+  return String(text || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(line => {
+    const toks = line.toUpperCase().split(/[^A-Z0-9]+/).filter(t => t.length >= 4 && t.length <= 6);
+    const code = toks.reverse().find(t => idx[t]) || null;        // il codice sta di solito in fondo alla riga
+    return { line, code, samples: code ? idx[code] : [] };
+  });
+}
+function pasteDialog(title) {
+  return new Promise(res => {
+    const m = document.getElementById('pasteModal'), ta = document.getElementById('pasteIn'), all = document.getElementById('pasteAll');
+    document.getElementById('pasteMsg').textContent = title; ta.value = ''; all.checked = false;
+    const done = v => { m.classList.remove('open'); res(v); };
+    document.getElementById('pasteYes').onclick = () => done({ text: ta.value, all: all.checked });
+    document.getElementById('pasteNo').onclick = () => done(null);
+    m.classList.add('open'); setTimeout(() => ta.focus(), 50);
+  });
+}
+/* targets: posti in ordine [{cid, i}]; restituisce il resoconto */
+function fillWithCodes(targets, text, all) {
+  const rows = parseCodeList(text), out = { put: 0, missing: [], bad: [], over: [] };
+  let t = 0;
+  const free = () => { while (t < targets.length && !all && comps[targets[t].cid].slots[targets[t].i]) t++; return t < targets.length; };
+  rows.forEach(r => {
+    if (!r.code) { out.missing.push(r.line); return; }
+    if (!free()) { out.over.push(r.code); return; }
+    const c = comps[targets[t].cid], s = r.samples.find(x => acceptsIn(c, x));
+    if (!s) { out.bad.push(r.code + ' (' + fmt(r.samples[0].z) + ')'); return; }
+    c.slots[targets[t].i] = s.key; c.upd = Date.now(); out.put++; t++;
+  });
+  saveComps();
+  return out;
+}
+function pasteReport(o) {
+  const L = [`Inseriti ${o.put} campioni.`];
+  if (o.bad.length) L.push(`\nNon entrano in questo espositore (formato): ${o.bad.join(', ')}`);
+  if (o.over.length) L.push(`\nPosti finiti, restano fuori ${o.over.length}: ${o.over.join(', ')}`);
+  if (o.missing.length) L.push(`\nRighe senza un codice del listino (${o.missing.length}):\n` + o.missing.slice(0, 12).join('\n') + (o.missing.length > 12 ? '\n…' : ''));
+  if (o.bad.length || o.over.length || o.missing.length) say(L.join('\n')); else toast(L[0]);
+}
+async function pasteCodes() {
+  const d = disp(), c = comp();
+  const r = await pasteDialog(`Incolla i codici per ${c.name} (${d.name}): uno per riga. Vanno nei posti vuoti in ordine.`);
+  if (!r || !r.text.trim()) return;
+  const o = fillWithCodes(c.slots.map((_, i) => ({ cid: c.id, i })), r.text, r.all);
+  renderAll(); renderList(); pasteReport(o);
+}
 
 /* ════════════════════════════════════════════════════════════
    IMMAGINI (IndexedDB) — caricate dall'utente
