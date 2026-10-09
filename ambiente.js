@@ -343,7 +343,7 @@ function openRoom(id, mode) {
         <div class="camctl">
           <button data-v="front">Frontale</button><button data-v="persp">Prospettiva ↙</button><button data-v="persp2">Prospettiva ↘</button>
           <button id="rZoom" class="${ui.roomZoom ? 'on' : ''}" onclick="event.stopPropagation(); toggleRoomZoom()" title="Campione aperto: dritto di fronte e da vicino">🔍 Zoom</button>
-          <button id="rPresent">⛶ Presenta</button></div>
+          <button id="rPresent">⛶ Presenta</button><button onclick="event.stopPropagation(); renderRealistic()" title="Immagine realistica con luce e ombre di questa vista">📸 Render</button></div>
         <div class="roomhint">Trascina per girare la vista · rotella per lo zoom · clicca un campione per aprirlo</div>
         <div class="showcard" id="showCard" hidden></div>
       </div>
@@ -386,7 +386,7 @@ function openRoom(id, mode) {
         <div class="room-scene" id="roomScene"></div>
         <div class="camctl">
           <button data-v="front">Frontale</button><button data-v="persp">Prospettiva ↙</button><button data-v="persp2">Prospettiva ↘</button><button data-v="top">Dall'alto</button>
-          <button id="rPresent">⛶ Presenta</button></div>
+          <button id="rPresent">⛶ Presenta</button><button onclick="event.stopPropagation(); renderRealistic()" title="Immagine realistica con luce e ombre di questa vista">📸 Render</button></div>
         <div class="roomhint">Trascina per girare la vista · rotella per lo zoom · clicca un espositore per selezionarlo</div>
       </div>
       <div class="room-plan" id="roomPlan"></div>

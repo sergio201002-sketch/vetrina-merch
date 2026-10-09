@@ -1,0 +1,141 @@
+'use strict';
+/* ════════════════════════════════════════════════════════════
+   RENDER REALISTICO della sala mostra (three.js / WebGL).
+   Prende la stanza 3D così com'è sullo schermo (ogni faccia CSS diventa un piano con la sua foto o il suo colore),
+   con la stessa inquadratura, e la ridisegna con luce vera: sole dall'alto, ombre morbide a terra, cielo diffuso.
+   Il risultato è un'immagine ferma che si può salvare.
+   ════════════════════════════════════════════════════════════ */
+const THREE_URL = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+function loadThree() {
+  if (window.THREE) return Promise.resolve();
+  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = THREE_URL; s.onload = res; s.onerror = () => rej(new Error('three.js non raggiungibile')); document.head.appendChild(s); });
+}
+document.head.insertAdjacentHTML('beforeend', `<style>
+.rnd-modal { position: fixed; inset: 0; z-index: 500; background: rgba(10,10,12,.92); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 14px; }
+.rnd-modal img, .rnd-modal canvas { max-width: 100%; max-height: calc(100vh - 90px); border-radius: 8px; box-shadow: 0 20px 60px rgba(0,0,0,.5); background: #222; }
+.rnd-modal .bar { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.rnd-modal .msg { color: #ddd; font-size: 14px; }
+</style>`);
+
+/* matrice di un elemento rispetto alla stanza (radice = #roomScene) */
+function relMatrix(el, root) {
+  let m = new DOMMatrix();
+  for (let e = el; e && e !== root; e = e.parentElement) {
+    const cs = getComputedStyle(e), t = cs.transform && cs.transform !== 'none' ? new DOMMatrix(cs.transform) : new DOMMatrix();
+    const [ox = 0, oy = 0, oz = 0] = cs.transformOrigin.split(' ').map(v => parseFloat(v) || 0);
+    const local = new DOMMatrix().translate(e.offsetLeft || 0, e.offsetTop || 0).translate(ox, oy, oz).multiply(t).translate(-ox, -oy, -oz);
+    m = local.multiply(m);
+  }
+  return m;
+}
+const firstColor = s => { const m = String(s || '').match(/rgba?\([^)]*\)|#[0-9a-f]{3,8}\b/i); return m ? m[0] : null; };
+function cssColor(str) {
+  const m = String(str).match(/rgba?\(([^)]*)\)/);
+  if (m) { const p = m[1].split(',').map(x => parseFloat(x)); return { c: new THREE.Color(p[0] / 255, p[1] / 255, p[2] / 255), a: p.length > 3 ? p[3] : 1 }; }
+  try { return { c: new THREE.Color(str), a: 1 }; } catch (e) { return null; }
+}
+
+async function renderRealistic() {
+  const root = document.getElementById('roomScene'), box = document.getElementById('room3d');
+  if (!root || !box) { toast('Apri una sala mostra per fare il render'); return; }
+  const modal = document.createElement('div'); modal.className = 'rnd-modal';
+  modal.innerHTML = `<div class="msg">📸 Preparo il render realistico…</div>`;
+  document.body.appendChild(modal);
+  try { await loadThree(); } catch (e) { modal.remove(); say('Non riesco a caricare il motore 3D (serve internet). Riprova.'); return; }
+  const T = window.THREE;
+  const W = box.clientWidth, H = box.clientHeight, csb = getComputedStyle(box);
+  const P = parseFloat(csb.perspective) || 2400;
+  const [pox, poy] = csb.perspectiveOrigin.split(' ').map(v => parseFloat(v) || 0);
+  const view = new DOMMatrix(getComputedStyle(root).transform === 'none' ? undefined : getComputedStyle(root).transform);
+  const FLIP = new DOMMatrix().scale(1, -1, 1);          // CSS (y in giù) → three (y in su)
+  const toWorld = m => new T.Matrix4().fromArray(FLIP.multiply(view).multiply(m).toFloat32Array());
+
+  const scene = new T.Scene();
+  scene.background = new T.Color('#ecebe7');
+  // le foto: prima si caricano tutte (immagini), poi diventano texture (una per foto e ripetizione)
+  const imgs = {}, texCache = {}, pending = [];
+  const loadImg = url => imgs[url] || (imgs[url] = new Promise(r => { const im = new Image(); im.onload = () => r(im); im.onerror = () => r(null); im.src = url; }));
+  const texFor = (im, rx, ry) => {
+    const k = im.src + '|' + rx + '|' + ry;
+    if (!texCache[k]) {
+      const t = new T.Texture(im); t.encoding = T.sRGBEncoding; t.anisotropy = 8; t.needsUpdate = true;
+      if (rx > 1.02 || ry > 1.02) { t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); }
+      texCache[k] = t;
+    }
+    return texCache[k];
+  };
+  const els = root.querySelectorAll('*');
+  let n = 0;
+  for (const el of els) {
+    const w = el.offsetWidth, h = el.offsetHeight;
+    if (w < 0.05 || h < 0.05) continue;
+    const cs = getComputedStyle(el);
+    if (cs.visibility === 'hidden' || cs.display === 'none' || !el.getClientRects().length) continue;
+    const bi = cs.backgroundImage, url = (bi.match(/url\("?([^")]+)"?\)/) || [])[1];
+    let col = cs.backgroundColor, ccol = cssColor(col);
+    if ((!ccol || ccol.a === 0) && bi && bi !== 'none' && !url) { const fc = firstColor(bi); if (fc) ccol = cssColor(fc); }   // sfumature: il primo colore
+    if (!url && (!ccol || ccol.a === 0)) continue;
+    const opacity = parseFloat(cs.opacity) || 1;
+    const mat = new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0, side: T.DoubleSide });
+    if (url) {
+      const sz = cs.backgroundSize.split(',').pop().trim().split(/\s+/);
+      let rx = 1, ry = 1;
+      if (/%$/.test(sz[0]) && /%$/.test(sz[1] || '')) { rx = Math.round(100 / parseFloat(sz[0]) * 100) / 100; ry = Math.round(100 / parseFloat(sz[1]) * 100) / 100; }   // foto ripetuta
+      pending.push(loadImg(url).then(im => { if (im) { mat.map = texFor(im, rx, ry); mat.needsUpdate = true; } }));
+      if (cs.backgroundBlendMode && cs.backgroundBlendMode.includes('multiply') && ccol) mat.color = ccol.c;   // retro tinto
+      mat.roughness = 0.4;
+    } else {
+      mat.color = ccol.c;
+      const l = ccol.c.r + ccol.c.g + ccol.c.b;
+      if (l < 0.5) { mat.roughness = 0.45; mat.metalness = 0.35; }   // metallo nero degli espositori
+      if (el.classList.contains('rfloor')) { mat.roughness = 0.85; mat.color.multiplyScalar(0.72); }   // pavimento un po' più scuro: sotto la luce vera si staccava poco
+      if (el.classList.contains('rwall')) { mat.roughness = 0.95; mat.color.multiplyScalar(0.95); }
+    }
+    if (opacity < 1 || (ccol && ccol.a < 1 && !url)) { mat.transparent = true; mat.opacity = opacity * (url ? 1 : ccol.a); }
+    const g = new T.BufferGeometry();
+    g.setAttribute('position', new T.Float32BufferAttribute([0, 0, 0, w, 0, 0, w, h, 0, 0, h, 0], 3));
+    g.setAttribute('uv', new T.Float32BufferAttribute([0, 1, 1, 1, 1, 0, 0, 0], 2));
+    g.setIndex([0, 2, 1, 0, 3, 2]);
+    g.applyMatrix4(toWorld(relMatrix(el, root)));
+    g.computeVertexNormals();
+    const mesh = new T.Mesh(g, mat);
+    const floor = el.classList.contains('rfloor'), wall = el.classList.contains('rwall');
+    mesh.castShadow = !floor && !wall; mesh.receiveShadow = true;
+    scene.add(mesh); n++;
+  }
+  // luci: cielo diffuso + sole dall'alto davanti a sinistra con ombre morbide
+  const s = Math.hypot(view.m11, view.m12, view.m13) || 1;   // scala della vista (zoom)
+  const rw = (window.room && room.w) || 600, rd = (window.room && room.d) || 400, rh = (window.room && room.h) || 300;
+  const pt = (x, y, z) => { const p = FLIP.multiply(view).transformPoint(new DOMPoint(x, y, z)); return new T.Vector3(p.x, p.y, p.z); };
+  scene.add(new T.HemisphereLight(0xffffff, 0x9d978c, 0.42));
+  const sun = new T.DirectionalLight(0xfff1e0, 0.9);
+  sun.position.copy(pt(-rw * 0.3, -rh * 3, rd * 1.1)); sun.target.position.copy(pt(rw / 2, 0, rd / 2));   // alto a sinistra, verso il muro: le ombre cadono a destra e in avanti (si vedono)
+  sun.castShadow = true; sun.shadow.mapSize.set(LOWMEM ? 2048 : 4096, LOWMEM ? 2048 : 4096); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.6 * s; sun.shadow.radius = 4;
+  const ext = Math.hypot(rw, rd, rh) * s * 0.75, sc = sun.shadow.camera;
+  sc.left = -ext; sc.right = ext; sc.top = ext; sc.bottom = -ext; sc.near = 1; sc.far = sun.position.distanceTo(sun.target.position) + ext * 2;
+  scene.add(sun, sun.target);
+  const fill = new T.DirectionalLight(0xe8eeff, 0.25); fill.position.copy(pt(rw * 0.9, -rh * 1.2, rd * 2)); fill.target.position.copy(pt(rw / 2, 0, rd / 2)); scene.add(fill, fill.target);
+  // telecamera = la stessa prospettiva CSS (punto di fuga in perspective-origin)
+  const fw = 2 * Math.max(pox, W - pox), fh = 2 * Math.max(poy, H - poy);
+  const cam = new T.PerspectiveCamera(2 * Math.atan(fh / 2 / P) * 180 / Math.PI, fw / fh, 5, P * 20);
+  cam.position.set(pox, -poy, P); cam.lookAt(pox, -poy, 0);
+  cam.setViewOffset(fw, fh, fw / 2 - pox, fh / 2 - poy, W, H);
+  modal.querySelector('.msg').textContent = `📸 Carico le foto (${Object.keys(imgs).length})…`;
+  await Promise.all(pending);
+  await new Promise(r => setTimeout(r, 200));
+  const rdr = new T.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+  const scale = Math.min(2, 2400 / Math.max(W, H) * (window.devicePixelRatio > 1 ? 1 : 1));
+  rdr.setPixelRatio(scale); rdr.setSize(W, H);
+  rdr.shadowMap.enabled = true; rdr.shadowMap.type = T.PCFSoftShadowMap;
+  rdr.outputEncoding = T.sRGBEncoding; rdr.toneMapping = T.ACESFilmicToneMapping; rdr.toneMappingExposure = 0.9;
+  rdr.render(scene, cam);
+  const url = rdr.domElement.toDataURL('image/jpeg', 0.92);
+  rdr.dispose(); scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } });
+  modal.innerHTML = `<img src="${url}" alt="Render della sala mostra">
+    <div class="bar"><button class="btn" id="rndSave">⬇ Salva immagine</button><button class="btn dark" id="rndClose">Chiudi</button></div>`;
+  modal.querySelector('#rndClose').onclick = () => modal.remove();
+  modal.querySelector('#rndSave').onclick = () => {
+    const a = document.createElement('a'); a.href = url; a.download = 'sala-mostra-' + ((window.room && room.name) || 'render').replace(/[^\w-]+/g, '_') + '.jpg'; a.click();
+  };
+  console.log('render: facce', n);
+}
