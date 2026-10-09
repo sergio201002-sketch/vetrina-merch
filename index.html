@@ -976,6 +976,7 @@ function backStyle(fw, fh, s) {
 }
 function tileBody(d, c, i, fw, fh, tiled, k) {
   const s = c && SAMPLE[c.slots[i]];
+  if (!s && LITE3D) return '';                             // posto vuoto in sala mostra: niente piastrella
   const back = s ? backStyle(fw, fh, s) : 'background:#e6e3dc;';
   return thickHTML(fw * k, fh * k, Math.max(0.5, tileThickCm(d, c, i)) * k, back);
 }
@@ -1036,6 +1037,17 @@ function renderStage() {
    niente retro dei parallelepipedi (dalla sala non si vede mai) e niente bordi sottili delle piastrelle */
 let LITE3D = false;
 function box3d(x, yTop, z, w, h, d, col) {
+  // sala mostra (modello leggero): i pezzi sottili (montanti, profili, binari) con 2 facce incrociate invece di 4:
+  // da ogni lato sembrano pieni, ma il telefono ha la metà dei pezzi da comporre
+  if (LITE3D && w <= 7 && d <= 7) {                      // montante / profilo verticale: croce verticale
+    return `<div class="bx" style="width:${w}px;height:${h}px;background:${col.front};transform:translate3d(${x}px,${yTop}px,${z - d / 2}px)"></div>` +
+      `<div class="bx" style="width:${d}px;height:${h}px;background:${col.side};transform:translate3d(${x + w / 2}px,${yTop}px,${z}px) rotateY(90deg)"></div>`;
+  }
+  if (LITE3D && h <= 7 && (w <= 7 || d <= 7)) {          // barra orizzontale sottile: sopra + davanti (o di lato)
+    return `<div class="bx" style="width:${w}px;height:${d}px;background:${col.top};transform:translate3d(${x}px,${yTop}px,${z}px) rotateX(-90deg)"></div>` +
+      (w <= 7 ? `<div class="bx" style="width:${d}px;height:${h}px;background:${col.side};transform:translate3d(${x + w / 2}px,${yTop}px,${z}px) rotateY(90deg)"></div>`
+        : `<div class="bx" style="width:${w}px;height:${h}px;background:${col.front};transform:translate3d(${x}px,${yTop}px,${z - d / 2}px)"></div>`);
+  }
   // facce di un parallelepipedo: fronte, retro, top, lato sx, lato dx (origine 0 0)
   return `<div class="bx" style="width:${w}px;height:${h}px;background:${col.front};transform:translate3d(${x}px,${yTop}px,${z}px)"></div>
     ${LITE3D ? '' : `<div class="bx" style="width:${w}px;height:${h}px;background:${col.side};transform:translate3d(${x}px,${yTop}px,${z - d}px)"></div>`}

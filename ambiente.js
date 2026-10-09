@@ -17,7 +17,7 @@ let ROOM_RES = 2;   // in stanza 1 px = 1 cm: foto un po' ingrandite; il campion
 function rface(d, c, i, fw, fh, tiled, back) {
   const s = c && SAMPLE[c.slots[i]];
   const tf = back ? 'transform:rotateY(180deg);' : '';
-  return s ? `<div class="rf" data-slot="${i}" style="${tf}">${photoLayer(s, fw, fh, tiled, ROOM_RES)}</div>` : `<div class="rf empty" data-slot="${i}" style="${tf}"></div>`;
+  return s ? `<div class="rf" data-slot="${i}" style="${tf}">${photoLayer(s, fw, fh, tiled, ROOM_RES)}</div>` : '';   // posto vuoto: niente segnaposto (meno pezzi)
 }
 const rplain = (cls, back) => `<div class="rf ${cls}" style="${back ? 'transform:rotateY(180deg)' : ''}"></div>`;
 /* contenitore di una piastrella; con i (posto) diventa animabile (classe ttile, data-t) */
@@ -37,7 +37,7 @@ const MODELS = {
     const holderT = (i, p) => `translate3d(${-g.w / 2 + (p === 'in' ? 0 : g.travel)}px,0,${swingZ(g, i)}px)`;
     const inner = swingModelHTML(g, holderT, () => 'rotateX(0deg)', () => 'in', 'A', (i, back, tf) => {
       const s = SAMPLE[c.slots[i]];
-      return s ? `<div class="rf" data-slot="${i}" style="transform:${tf}">${photoLayer(s, g.fw, g.fh, true, ROOM_RES)}</div>` : `<div class="rf empty" data-slot="${i}" style="transform:${tf}"></div>`;
+      return s ? `<div class="rf" data-slot="${i}" style="transform:${tf}">${photoLayer(s, g.fw, g.fh, true, ROOM_RES)}</div>` : '';
     });
     const m = { html: `<div class="bx" style="transform:rotateY(-90deg);transform-style:preserve-3d">${inner}</div>`, L: g.D, P: g.W, H: g.Ht };
     if (op >= 0) {
