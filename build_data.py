@@ -220,6 +220,10 @@ def build_samples(products):
             continue
         common = set.intersection(*(set(x.split()) for x in ss))
         graf[se] = {x: ' '.join(w for w in x.split() if w not in common).replace('�', 'É').title() for x in ss}
+    # serie che scrivono già la grafica nel colore (MEDLEY "Blue Classic", TR3ND "Grey Concrete", PORTLAND "Ash Cross Cut"):
+    # il nome resta quello del listino; ai colori senza grafica si aggiunge in fondo ("Black" -> "Black Concrete")
+    suffix = {se for se in graf if any(x.lower() in (q.get('color') or '').lower()
+                                        for q in products if q.get('series') == se for x in subs[se] if x)}
     alias = {}
     for p in products:
         if p.get('type') != 'fondo':
@@ -230,7 +234,12 @@ def build_samples(products):
         size = (p.get('size') or '').strip()
         sub = (p.get('subseries') or '').strip()
         old = '|'.join([brand, series, color, size])
-        if p.get('series') in graf and sub:
+        broken = None
+        if p.get('series') in suffix and sub:
+            broken = '|'.join([brand, series, (graf[p['series']][sub] + ' ' + color).strip(), size])   # nome sbagliato usato per un giorno
+            if sub.lower() not in color.lower():
+                color = (color + ' ' + sub.title()).strip()
+        elif p.get('series') in graf and sub:
             color = (graf[p['series']][sub] + ' ' + color).strip()
         elif sub and (p.get('series'), color, p.get('size')) in plain and sub.lower() not in color.lower():
             color = (color + ' ' + sub.title()).strip()
@@ -238,6 +247,8 @@ def build_samples(products):
             continue
         if p.get('series') in graf:
             alias.setdefault(old, set()).add('|'.join([brand, series, color, size]))
+            if broken and broken != '|'.join([brand, series, color, size]):
+                alias.setdefault(broken, set()).add('|'.join([brand, series, color, size]))
         key = '|'.join([brand, series, color, size])
         g = groups.setdefault(key, dict(b=brand, s=series, c=color, z=size, f=[], k=[], t=[]))
         fin = (p.get('finish') or '').strip()
