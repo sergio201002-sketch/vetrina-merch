@@ -322,6 +322,7 @@ function openRoom(id, mode) {
       <div class="sec"><h4>Sala mostra · ${esc(room.name)}</h4><div style="font-weight:800;font-size:17px;font-family:var(--font-display)">${clName}</div>
         <div style="font-size:12px;color:var(--mid);margin:6px 0 10px">Clicca un espositore (qui sotto o nella stanza) per aprirlo: sfogli i girevoli, apri i cassetti, tiri fuori i tozzetti e guardi i campioni.</div>
         <button class="btn dark" onclick="openSampleBoard()" style="width:100%;margin-bottom:6px">🧩 Sistema i campioni</button>
+        <button class="btn" onclick="roomPaste()" style="width:100%;margin-bottom:6px" title="Incolla un elenco di codici e scegli in quali espositori metterli">📋 Incolla codici</button>
         <button class="btn" onclick="go('#/ambiente/${room.id}')" style="width:100%">✎ Modifica disposizione</button></div>
       <div class="sec"><h4 id="roomItemsTitle">Espositori</h4><div class="addlist layers" id="roomItemList"></div></div>
     </aside>
@@ -771,6 +772,22 @@ function addCatalogItem(dispId) {
 }
 const selItem = () => room.items.find(i => i.id === roomSel);
 function rotItem(a) { const it = selItem(); if (!it) return; const r = (((it.rot || 0) + a) % 360 + 360) % 360; [it, ...stackedAbove(it)].forEach(o => o.rot = r); saveRoom(); renderRoom(); }
+/* Incolla codici in sala mostra: chiede in quali espositori (uno o più, nell'ordine da sinistra a destra) */
+async function roomPaste() {
+  const seen = new Set(), list = room.items.slice().sort((a, b) => a.x - b.x || elevY(a) - elevY(b)).filter(it => {
+    const d = DISP[it.disp], c = comps[it.comp]; if (!d || !d.slots || !c || seen.has(c.id)) return false; seen.add(c.id); return true;
+  });
+  if (!list.length) { toast('In questa stanza non ci sono espositori con posti per i campioni'); return; }
+  const open = showSel && room.items.find(i => i.id === showSel.item);
+  const choices = list.map((it, k) => { const c = comps[it.comp]; return { id: c.id, label: c.name, sub: `${itemLabel(it)} · liberi ${c.slots.filter(x => !x).length}/${c.slots.length}`, on: open ? open.comp === c.id : k === 0 }; });
+  const r = await pasteDialog('Incolla i codici: uno per riga (anche le righe intere dell\'ordine). Vanno nei posti vuoti, in ordine.', choices);
+  if (!r || !r.text.trim()) return;
+  const order = choices.map(c => c.id).filter(id => r.picks.includes(id));
+  const o = fillWithCodes(order.flatMap(cid => comps[cid].slots.map((_, i) => ({ cid, i }))), r.text, r.all);
+  roomModels = {}; renderRoom(); renderRoomSide();
+  if (document.getElementById('csModal') && document.getElementById('csModal').classList.contains('open')) renderSampleBoard();
+  pasteReport(o);
+}
 /* Culla modulare in sala mostra: quanti moduli, versione SX / DX (verso dove guardano i campioni), formato misto o unico */
 function cullaOptsHTML(d, c) {
   const per = d.perModule || 1, n = c.slots.length, dx = c.side === 'DX';
