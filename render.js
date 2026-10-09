@@ -28,6 +28,31 @@ function relMatrix(el, root) {
   }
   return m;
 }
+/* quadrotta di gres chiaro 60×60 con fuga e una leggera venatura (si ripete su tutto il pavimento) */
+function floorTileCanvas() {
+  const c = document.createElement('canvas'); c.width = c.height = 512;
+  const g = c.getContext('2d');
+  g.fillStyle = '#dcdbd7'; g.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 9000; i++) {                       // grana del gres
+    const v = 200 + Math.random() * 40 | 0; g.fillStyle = `rgba(${v},${v},${v - 4},.18)`;
+    g.fillRect(Math.random() * 512, Math.random() * 512, 1 + Math.random() * 2, 1 + Math.random() * 2);
+  }
+  g.strokeStyle = 'rgba(160,156,148,.25)'; g.lineWidth = 1.2;            // venature leggere
+  for (let k = 0; k < 4; k++) { g.beginPath(); let x = Math.random() * 512, y = Math.random() * 512; g.moveTo(x, y); for (let j = 0; j < 8; j++) { x += (Math.random() - .3) * 90; y += (Math.random() - .5) * 60; g.lineTo(x, y); } g.stroke(); }
+  g.fillStyle = '#b9b5ad'; g.fillRect(0, 0, 512, 3); g.fillRect(0, 0, 3, 512);   // fuga
+  return c;
+}
+/* ambiente di luce per i riflessi: stanza bianca con pannelli luminosi a soffitto (come uno showroom) */
+function showroomEnv(T, rdr) {
+  const env = new T.Scene();
+  const roomBox = new T.Mesh(new T.BoxGeometry(20, 8, 20), new T.MeshBasicMaterial({ color: 0x8a8781, side: T.BackSide }));
+  roomBox.position.y = 3; env.add(roomBox);
+  const lamp = new T.MeshBasicMaterial({ color: new T.Color(2.6, 2.6, 2.45) });
+  for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) { const p = new T.Mesh(new T.PlaneGeometry(2.4, 2.4), lamp); p.rotation.x = Math.PI / 2; p.position.set(i * 6, 6.9, j * 6); env.add(p); }
+  const floor = new T.Mesh(new T.PlaneGeometry(20, 20), new T.MeshBasicMaterial({ color: 0xbdbab3 })); floor.rotation.x = -Math.PI / 2; floor.position.y = -0.99; env.add(floor);
+  const pm = new T.PMREMGenerator(rdr), tex = pm.fromScene(env, 0.03).texture; pm.dispose();
+  return tex;
+}
 const firstColor = s => { const m = String(s || '').match(/rgba?\([^)]*\)|#[0-9a-f]{3,8}\b/i); return m ? m[0] : null; };
 function cssColor(str) {
   const m = String(str).match(/rgba?\(([^)]*)\)/);
@@ -65,7 +90,7 @@ async function renderRealistic() {
     return texCache[k];
   };
   const els = root.querySelectorAll('*');
-  let n = 0;
+  let n = 0, floorCanvas = null;
   for (const el of els) {
     const w = el.offsetWidth, h = el.offsetHeight;
     if (w < 0.05 || h < 0.05) continue;
@@ -83,13 +108,17 @@ async function renderRealistic() {
       if (/%$/.test(sz[0]) && /%$/.test(sz[1] || '')) { rx = Math.round(100 / parseFloat(sz[0]) * 100) / 100; ry = Math.round(100 / parseFloat(sz[1]) * 100) / 100; }   // foto ripetuta
       pending.push(loadImg(url).then(im => { if (im) { mat.map = texFor(im, rx, ry); mat.needsUpdate = true; } }));
       if (cs.backgroundBlendMode && cs.backgroundBlendMode.includes('multiply') && ccol) mat.color = ccol.c;   // retro tinto
-      mat.roughness = 0.4;
+      mat.roughness = 0.35; mat.envMapIntensity = 0.3;            // piastrelle: un po' lucide, riflettono le luci
     } else {
       mat.color = ccol.c;
       const l = ccol.c.r + ccol.c.g + ccol.c.b;
-      if (l < 0.5) { mat.roughness = 0.45; mat.metalness = 0.35; }   // metallo nero degli espositori
-      if (el.classList.contains('rfloor')) { mat.roughness = 0.85; mat.color.multiplyScalar(0.72); }   // pavimento un po' più scuro: sotto la luce vera si staccava poco
-      if (el.classList.contains('rwall')) { mat.roughness = 0.95; mat.color.multiplyScalar(0.95); }
+      if (l < 0.5) { mat.color = new T.Color(0x0c0c0d); mat.roughness = 0.5; mat.metalness = 0.1; mat.envMapIntensity = 0.18; }   // metallo nero verniciato degli espositori
+      if (el.classList.contains('rfloor')) {                   // gres lucido a quadrotte 60×60
+        const t = new T.CanvasTexture(floorCanvas || (floorCanvas = floorTileCanvas()));
+        t.encoding = T.sRGBEncoding; t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(w / 60, h / 60); t.anisotropy = 16;
+        mat.map = t; mat.color = new T.Color(0xd8d6d1); mat.roughness = 0.2; mat.metalness = 0; mat.envMapIntensity = 0.45;
+      }
+      if (el.classList.contains('rwall')) { mat.color = new T.Color(0xe9e7e3); mat.roughness = 0.95; mat.envMapIntensity = 0.25; }
     }
     if (opacity < 1 || (ccol && ccol.a < 1 && !url)) { mat.transparent = true; mat.opacity = opacity * (url ? 1 : ccol.a); }
     const g = new T.BufferGeometry();
@@ -107,14 +136,17 @@ async function renderRealistic() {
   const s = Math.hypot(view.m11, view.m12, view.m13) || 1;   // scala della vista (zoom)
   const rw = (window.room && room.w) || 600, rd = (window.room && room.d) || 400, rh = (window.room && room.h) || 300;
   const pt = (x, y, z) => { const p = FLIP.multiply(view).transformPoint(new DOMPoint(x, y, z)); return new T.Vector3(p.x, p.y, p.z); };
-  scene.add(new T.HemisphereLight(0xffffff, 0x9d978c, 0.42));
-  const sun = new T.DirectionalLight(0xfff1e0, 0.9);
-  sun.position.copy(pt(-rw * 0.3, -rh * 3, rd * 1.1)); sun.target.position.copy(pt(rw / 2, 0, rd / 2));   // alto a sinistra, verso il muro: le ombre cadono a destra e in avanti (si vedono)
-  sun.castShadow = true; sun.shadow.mapSize.set(LOWMEM ? 2048 : 4096, LOWMEM ? 2048 : 4096); sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.6 * s; sun.shadow.radius = 4;
-  const ext = Math.hypot(rw, rd, rh) * s * 0.75, sc = sun.shadow.camera;
-  sc.left = -ext; sc.right = ext; sc.top = ext; sc.bottom = -ext; sc.near = 1; sc.far = sun.position.distanceTo(sun.target.position) + ext * 2;
-  scene.add(sun, sun.target);
-  const fill = new T.DirectionalLight(0xe8eeff, 0.25); fill.position.copy(pt(rw * 0.9, -rh * 1.2, rd * 2)); fill.target.position.copy(pt(rw / 2, 0, rd / 2)); scene.add(fill, fill.target);
+  scene.add(new T.HemisphereLight(0xffffff, 0x8f8a80, 0.16));
+  // faretti a soffitto in fila davanti agli espositori: luce dall'alto, ombre morbide sotto e dietro
+  const nx = Math.max(2, Math.round(rw / 220)), sm = LOWMEM ? 1024 : 2048;
+  for (let i = 0; i < nx; i++) {
+    const x = rw * (i + 0.5) / nx, sp = new T.SpotLight(0xfff3e4, 0.8 * 3 / (nx + 1), 0, Math.PI / 3.2, 0.85, 1);
+    sp.position.copy(pt(x, -rh + 4, rd * 0.55)); sp.target.position.copy(pt(x, 0, rd * 0.25));
+    sp.castShadow = true; sp.shadow.mapSize.set(sm, sm); sp.shadow.bias = -0.0006; sp.shadow.normalBias = 0.4 * s;
+    sp.shadow.camera.near = 5 * s; sp.shadow.camera.far = (rh + rd) * 3 * s; sp.shadow.radius = 6;
+    scene.add(sp, sp.target);
+  }
+  const key = new T.DirectionalLight(0xffffff, 0.35); key.position.copy(pt(rw * 0.3, -rh * 2, rd * 2.5)); key.target.position.copy(pt(rw / 2, 0, rd / 2)); scene.add(key, key.target);
   // telecamera = la stessa prospettiva CSS (punto di fuga in perspective-origin)
   const fw = 2 * Math.max(pox, W - pox), fh = 2 * Math.max(poy, H - poy);
   const cam = new T.PerspectiveCamera(2 * Math.atan(fh / 2 / P) * 180 / Math.PI, fw / fh, 5, P * 20);
@@ -124,10 +156,12 @@ async function renderRealistic() {
   await Promise.all(pending);
   await new Promise(r => setTimeout(r, 200));
   const rdr = new T.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
-  const scale = Math.min(2, 2400 / Math.max(W, H) * (window.devicePixelRatio > 1 ? 1 : 1));
+  const scale = Math.min(LOWMEM ? 2.5 : 4, (LOWMEM ? 1600 : 2400) / Math.max(W, H));   // immagine grande e nitida
   rdr.setPixelRatio(scale); rdr.setSize(W, H);
   rdr.shadowMap.enabled = true; rdr.shadowMap.type = T.PCFSoftShadowMap;
-  rdr.outputEncoding = T.sRGBEncoding; rdr.toneMapping = T.ACESFilmicToneMapping; rdr.toneMappingExposure = 0.9;
+  rdr.outputEncoding = T.sRGBEncoding; rdr.toneMapping = T.ACESFilmicToneMapping; rdr.toneMappingExposure = 0.85;
+  rdr.physicallyCorrectLights = false;
+  scene.environment = showroomEnv(T, rdr);
   rdr.render(scene, cam);
   const url = rdr.domElement.toDataURL('image/jpeg', 0.92);
   rdr.dispose(); scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } });
