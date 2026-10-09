@@ -807,9 +807,8 @@ const tozFrom = s => s && s.toz && s.from && s.from.length === 1 ? ' da ' + fmt(
 const hasPhoto = s => !!(s && ((s.pkey && IMG[s.pkey]) || (s.key && IMG[s.key]) || IMG[s.ik]));
 /* telefono e tablet: foto medie in WebP (le leggono tutti e pesano poco); PC: foto originali */
 const FOTO_MED = {}; Object.entries(window.FOTO_MED || {}).forEach(([p, m]) => { FOTO_MED[encodeURI(p)] = encodeURI(m); });
-/* foto da usare: nella vista generale della sala mostra (LITE3D) la versione leggera da 480 px (le piastrelle sono piccole
-   e tante: meno memoria = niente scatti); il campione aperto si ridisegna con la foto grande. Telefono: medie, PC: originali */
-function imgFor(ik) { const u = IMG[ik]; return (LITE3D && (window.FOTO_ROOM || {})[u]) || (LOWMEM && FOTO_MED[u]) || u; }
+/* foto da usare: telefono le medie (1600 px webp), PC le originali */
+function imgFor(ik) { const u = IMG[ik]; return (LOWMEM && FOTO_MED[u]) || u; }
 async function resizeImage(file, max = 1600) {
   const bmp = await createImageBitmap(file);
   const r = Math.min(1, max / Math.max(bmp.width, bmp.height));
@@ -900,7 +899,7 @@ function faceBg(s, faceW, faceH, tiled, px = 1) {
 /* Foto di una faccia 3D. Il browser rasterizza gli elementi 3D alla loro misura in pixel e poi li ingrandisce
    con lo zoom (= foto sfocate, soprattutto i 120×120): la foto è disegnata r volte più grande e rimpicciolita. */
 const LOWMEM = (() => { try { return matchMedia("(pointer: coarse)").matches || innerWidth < 820; } catch (e) { return false; } })();   // telefono/tablet: meno memoria
-let FACE_RES = LOWMEM ? 2 : 3;   // telefono: meno memoria grafica (niente scatti); il campione aperto si ridisegna nitido
+let FACE_RES = LOWMEM ? 2.5 : 3;
 function photoLayer(s, faceW, faceH, tiled, r = FACE_RES) {
   const [tw, th] = tileDims(s, faceW, faceH, tiled);
   if (photoTurn(photoKey(s), th > tw)) {

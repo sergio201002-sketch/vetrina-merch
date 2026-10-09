@@ -13,7 +13,7 @@ function parseDims(d) {
 }
 const T = (x, y, z, tf) => `transform:translate3d(${x}px,${y}px,${z}px)${tf ? ' ' + tf : ''}`;
 /* faccia di una piastrella (senza scritte); data-slot = posto, per aprirla in sala mostra */
-let ROOM_RES = LOWMEM ? 1.25 : 2;   // in stanza 1 px = 1 cm: foto un po' ingrandite; il campione aperto si ridisegna nitido (sharpFace)
+let ROOM_RES = 2;   // in stanza 1 px = 1 cm: foto un po' ingrandite; il campione aperto si ridisegna nitido (sharpFace)
 function rface(d, c, i, fw, fh, tiled, back) {
   const s = c && SAMPLE[c.slots[i]];
   const tf = back ? 'transform:rotateY(180deg);' : '';
