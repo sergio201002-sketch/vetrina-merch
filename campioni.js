@@ -87,7 +87,7 @@ function openSampleBoard() {
         <div class="cs-size">Grandezza <button class="btn" onclick="csZoom(-1)" title="Quadratini più piccoli: ne vedi di più">−</button><button class="btn" onclick="csZoom(1)" title="Quadratini più grandi">+</button></div>
         <button class="btn" onclick="roomPaste()" title="Incolla un elenco di codici in uno o più espositori">📥 Incolla codici</button>
         <button class="btn dark" onclick="closeSampleBoard()">Fatto</button></div>
-      <div class="cs-hint">Trascina per spostare o scambiare (telefono: tieni premuto e trascina) · tocca un posto per inserire, cambiare o togliere: dopo ogni campione passa da solo al posto accanto (partendo dall'ultimo a destra va verso sinistra, ⇄ cambia verso) · Invio nella ricerca mette il campione se ne è rimasto uno solo · ☐ Seleziona per spostare: scegli più campioni e spostali insieme · con − e + vedi più o meno quadratini.</div>
+      <div class="cs-hint">Trascina per spostare o scambiare (telefono: tieni premuto e trascina) · tocca un posto per inserire, cambiare o togliere: dopo ogni campione passa da solo al posto accanto (partendo dall'ultimo a destra va verso sinistra, ⇄ cambia verso) · Invio nella ricerca mette il campione se ne è rimasto uno solo · ☐ Seleziona: scegli più campioni e spostali insieme o toglili · con − e + vedi più o meno quadratini.</div>
       <div class="cs-tabs" id="csTabs"></div>
       <div class="cs-body" id="csBody"></div>
       <div class="cs-selbar" id="csSelBar" hidden></div>
@@ -285,7 +285,7 @@ async function csPaste(btn) {
   renderSampleBoard(); pasteReport(o);
 }
 function csSelBtn() {
-  return `<button class="btn" onclick="csPaste(this)" title="Incolla un elenco di codici (uno per riga)">📥 Incolla codici</button>` + `<button class="btn${csSelMode ? ' on' : ''}" onclick="csToggleSelMode()" title="Scegli più campioni e spostali tutti insieme">${csSelMode ? '✓ Selezione attiva' : '☐ Seleziona per spostare'}</button>`;
+  return `<button class="btn" onclick="csPaste(this)" title="Incolla un elenco di codici (uno per riga)">📥 Incolla codici</button>` + `<button class="btn${csSelMode ? ' on' : ''}" onclick="csToggleSelMode()" title="Scegli più campioni: poi li sposti tutti insieme o li togli">${csSelMode ? '✓ Selezione attiva' : '☐ Seleziona (sposta o togli)'}</button>`;
 }
 function csToggleSelMode() {
   csSelMode = !csSelMode; csSel = []; csArm = false;
@@ -299,6 +299,16 @@ function csToggleSel(el) {
   else { toast('Posto vuoto: scegli i campioni da spostare'); return; }
   renderSampleBoard();
 }
+/* toglie dagli espositori i campioni selezionati (i posti restano vuoti) */
+async function csRemoveSel() {
+  const n = csSel.length; if (!n) return;
+  if (!await ask(`Togliere ${n} campion${n === 1 ? 'e' : 'i'} dagli espositori?
+I posti restano vuoti.`, { ok: 'Togli' })) return;
+  const now = Date.now();
+  csSel.forEach(id => { const [c, j] = id.split(':'); if (comps[c]) { comps[c].slots[+j] = null; comps[c].upd = now; } });
+  saveComps(); csSel = []; csArm = false; renderSampleBoard();
+  toast(`Tolt${n === 1 ? 'o 1 campione' : 'i ' + n + ' campioni'}`);
+}
 function renderSelBar() {
   const bar = document.getElementById('csSelBar'); if (!bar) return;
   bar.hidden = !csSelMode;
@@ -307,7 +317,7 @@ function renderSelBar() {
   bar.innerHTML = csArm
     ? `<span>Tocca il posto dove mettere il <b>primo</b>: gli altri seguono verso destra</span><button class="btn" onclick="csArm=false; renderSelBar()">Indietro</button>`
     : `<span>${n ? `<b>${n}</b> selezionat${n === 1 ? 'o' : 'i'}` : 'Tocca i campioni da spostare'}</span>
-       ${n ? `<button class="btn dark" onclick="csArm=true; renderSelBar()">Sposta…</button><button class="btn" onclick="csSel=[]; renderSampleBoard()">Deseleziona</button>` : ''}
+       ${n ? `<button class="btn dark" onclick="csArm=true; renderSelBar()">Sposta…</button><button class="btn" onclick="csRemoveSel()">🗑 Togli</button><button class="btn" onclick="csSel=[]; renderSampleBoard()">Deseleziona</button>` : ''}
        <button class="btn" onclick="csToggleSelMode()">Fine</button>`;
 }
 /* sposta i selezionati (nell'ordine in cui li vedi) nei posti consecutivi a partire da quello toccato;
