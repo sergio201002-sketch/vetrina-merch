@@ -709,12 +709,14 @@ function sharpFace(id, slot) {
   restoreFace();
   const it = room.items.find(i => i.id === id), d = DISP[it.disp], c = comps[it.comp], s = c && SAMPLE[c.slots[slot]], root = itemEl(id);
   if (!s || !root) return;
-  const hi = LOWMEM ? 11 : 14, tiled = !['rack', 'culla'].includes(d.mode);
+  const tiled = !['rack', 'culla'].includes(d.mode);
   root.querySelectorAll(`.rf[data-slot="${slot}"]`).forEach(el => {
     const w = el.offsetWidth, h = el.offsetHeight; if (!w || !h) return;
+    // risoluzione più alta possibile per il campione aperto (anche a tutto schermo con lo Zoom), senza superare 4096 px
+    const hi = Math.max(8, Math.min(20, Math.floor(4096 / Math.max(w, h))));
     showHi = showHi || [];
     showHi.push([el, el.innerHTML]);
-    el.innerHTML = photoLayer(s, w, h, tiled, hi);
+    FULLRES = true; try { el.innerHTML = photoLayer(s, w, h, tiled, hi); } finally { FULLRES = false; }
   });
 }
 function restoreFace() { if (showHi) showHi.forEach(([el, html]) => { el.innerHTML = html; }); showHi = null; }

@@ -808,8 +808,12 @@ const hasPhoto = s => !!(s && ((s.pkey && IMG[s.pkey]) || (s.key && IMG[s.key]) 
 /* telefono e tablet: foto medie in WebP (le leggono tutti e pesano poco); PC: foto originali */
 const FOTO_MED = {}; Object.entries(window.FOTO_MED || {}).forEach(([p, m]) => { FOTO_MED[encodeURI(p)] = encodeURI(m); });
 /* foto da usare: telefono le medie (1600 px webp), PC le originali */
+/* il telefono sa leggere le foto originali (AVIF)? Se sì il campione aperto usa l'originale (massima nitidezza) */
+let AVIF_OK = false, FULLRES = false;
+(() => { const im = new Image(); im.onload = () => { AVIF_OK = im.width > 0; }; im.src = 'data:image/avif;base64,AAAAIGZ0eXBhdmlmAAAAAGF2aWZtaWYxbWlhZk1BMUIAAADybWV0YQAAAAAAAAAoaGRscgAAAAAAAAAAcGljdAAAAAAAAAAAAAAAAGxpYmF2aWYAAAAADnBpdG0AAAAAAAEAAAAeaWxvYwAAAABEAAABAAEAAAABAAABGgAAAB0AAAAoaWluZgAAAAAAAQAAABppbmZlAgAAAAABAABhdjAxQ29sb3IAAAAAamlwcnAAAABLaXBjbwAAABRpc3BlAAAAAAAAAAIAAAACAAAAEHBpeGkAAAAAAwgICAAAAAxhdjFDgQ0MAAAAABNjb2xybmNseAACAAIAAYAAAAAXaXBtYQAAAAAAAAABAAEEAQKDBAAAACVtZGF0EgAKCBgANogQEAwgMg8f8D///8WfhwB8+ErK42A='; })();
 function imgFor(ik) {
   const u = IMG[ik];
+  if (FULLRES && u && (AVIF_OK || !/\.avif$/i.test(u))) return u;                  // campione aperto: foto originale
   if (LITE3D && typeof roomHD === 'function' && !roomHD()) return (window.FOTO_ROOM || {})[u] || FOTO_MED[u] || u;   // sala mostra senza HD: foto leggere
   return (LOWMEM && FOTO_MED[u]) || u;
 }
