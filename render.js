@@ -83,11 +83,15 @@ async function renderRealistic() {
   // le foto: prima si caricano tutte (immagini), poi diventano texture (una per foto e ripetizione)
   const imgs = {}, texCache = {}, pending = [];
   const loadImg = url => imgs[url] || (imgs[url] = new Promise(r => { const im = new Image(); im.onload = () => r(im); im.onerror = () => r(null); im.src = url; }));
-  const texFor = (im, rx, ry) => {
-    const k = im.src + '|' + rx + '|' + ry;
+  // rx, ry = ripetizioni (più piastrelle sulla faccia); cover = la foto si ritaglia come nella sala mostra, senza deformarla
+  const texFor = (im, rx, ry, cover, pw, ph) => {
+    let sx = 1, sy = 1;
+    if (cover && im.width && im.height) { const pa = pw / ph, ia = im.width / im.height; if (ia > pa) sx = Math.round(pa / ia * 1000) / 1000; else sy = Math.round(ia / pa * 1000) / 1000; }
+    const k = im.src + '|' + rx + '|' + ry + '|' + sx + '|' + sy;
     if (!texCache[k]) {
-      const t = new T.Texture(im); t.encoding = T.sRGBEncoding; t.anisotropy = 8; t.needsUpdate = true;
+      const t = new T.Texture(im); t.encoding = T.sRGBEncoding; t.anisotropy = 16; t.needsUpdate = true;
       if (rx > 1.02 || ry > 1.02) { t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); }
+      else if (sx < 1 || sy < 1) { t.repeat.set(sx, sy); t.offset.set((1 - sx) / 2, (1 - sy) / 2); }
       texCache[k] = t;
     }
     return texCache[k];
@@ -113,7 +117,8 @@ async function renderRealistic() {
       const sz = cs.backgroundSize.split(',').pop().trim().split(/\s+/);
       let rx = 1, ry = 1;
       if (/%$/.test(sz[0]) && /%$/.test(sz[1] || '')) { rx = Math.round(100 / parseFloat(sz[0]) * 100) / 100; ry = Math.round(100 / parseFloat(sz[1]) * 100) / 100; }   // foto ripetuta
-      pending.push(loadImg(url).then(im => { if (im) { mat.map = texFor(im, rx, ry); mat.needsUpdate = true; } }));
+      const cover = sz[0] === 'cover';
+      pending.push(loadImg(url).then(im => { if (im) { mat.map = texFor(im, rx, ry, cover, w, h); mat.needsUpdate = true; } }));
       if (/retro_/.test(url) && ccol) { const c2 = ccol.c.clone(); c2.lerp(new T.Color(1, 1, 1), 0.45); mat.color = c2; }   // retro tinto col colore del davanti
       mat.roughness = 0.35; mat.envMapIntensity = 0.3;            // piastrelle: un po' lucide, riflettono le luci
     } else {
