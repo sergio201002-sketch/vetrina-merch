@@ -40,6 +40,20 @@ body[data-view="gallery"] .hbtn[data-nav="home"] { background: var(--red); borde
 .gl-info p { margin: 8px 0 0; font-size: 13.5px; line-height: 1.5; color: #444; }
 .gl-info p b { color: #222; }
 .gl-empty { padding: 40px; text-align: center; color: var(--mid); }
+.gl-strip.miss .glph { filter: grayscale(.35) brightness(.62); }
+.gl-strip.miss::after { content: ''; position: absolute; inset: 0; background: linear-gradient(rgba(110,10,10,.18), rgba(70,0,0,.42)); pointer-events: none; }
+.gl-strip .tag { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 2; white-space: nowrap; font: 700 10px var(--font-body); letter-spacing: .04em;
+  padding: 4px 8px; border-radius: 999px; background: rgba(150,15,20,.92); color: #fff; }
+.gl-strip .tag.el { background: rgba(255,255,255,.9); color: #333; }
+.gl-strip.miss .nm { background: linear-gradient(rgba(255,255,255,.7), rgba(255,255,255,0)); }
+.gl-tools { display: flex; gap: 8px; align-items: center; margin: -4px 0 10px; flex-wrap: wrap; }
+.gl-tools .btn.on { background: #8e1016; border-color: #8e1016; color: #fff; }
+.gl-tools .lg { font-size: 12px; color: var(--mid); display: flex; gap: 12px; flex-wrap: wrap; }
+.gl-tools .lg i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 4px; }
+.gl-tab.all img { display: none; }
+.gl-tab.all { padding-left: 14px; }
+.gl-full .gl-side .warn { background: #8e1016; color: #fff; font: 700 12px var(--font-body); padding: 7px 10px; border-radius: 8px; }
+.gl-full .gl-side .elsew { background: #2a2a2e; color: #ddd; font: 600 12px var(--font-body); padding: 7px 10px; border-radius: 8px; }
 @media (max-width: 760px) {
   .gl-wrap { padding: 12px 12px 40px; }
   .gl-serie { flex-direction: column-reverse; gap: 12px; padding: 18px 0; }
@@ -83,16 +97,34 @@ function galleryDisplays(cid) {
   }));
   return out;
 }
-/* campioni di una composizione raggruppati per serie (nell'ordine dei posti), senza doppioni */
-function gallerySeries(c) {
+/* campioni di una o più composizioni raggruppati per serie (nell'ordine dei posti), senza doppioni */
+function gallerySeries(list) {
   const groups = new Map();
-  c.slots.forEach((k, i) => {
+  list.forEach(c => c.slots.forEach((k, i) => {
     const s = k && SAMPLE[k]; if (!s) return;
     const g = groups.get(s.b + '|' + s.s) || { b: s.b, s: s.s, items: [], keys: new Set() };
-    if (!g.keys.has(s.key)) { g.keys.add(s.key); g.items.push({ s, slot: i }); }
+    if (!g.keys.has(s.key)) { g.keys.add(s.key); g.items.push({ s, slot: i, c }); }
     groups.set(s.b + '|' + s.s, g);
-  });
+  }));
   return [...groups.values()];
+}
+/* con "Colori che non ha": per ogni serie anche gli altri colori del listino (nel formato più usato),
+   segnati come "non in sala mostra" oppure, se il cliente li ha in un altro espositore, "in un altro espositore" */
+function addMissingColors(g, all) {
+  const here = new Set(g.items.map(x => x.s.c)), inRoom = new Map();
+  all.forEach(c => c.slots.forEach(k => { const s = k && SAMPLE[k]; if (s && s.b === g.b && s.s === g.s && !inRoom.has(s.c)) inRoom.set(s.c, c); }));
+  const zc = {}; g.items.forEach(x => { zc[x.s.z] = (zc[x.s.z] || 0) + 1; });
+  const zPref = Object.keys(zc).sort((a, b) => zc[b] - zc[a])[0];
+  const byColor = new Map();
+  SAMPLES.filter(x => x.b === g.b && x.s === g.s && !x.toz && !here.has(x.c)).forEach(x => {
+    const cur = byColor.get(x.c), score = (x.z === zPref ? 2 : 0) + (hasPhoto(x) ? 1 : 0);
+    if (!cur || score > cur.score) byColor.set(x.c, { s: x, score });
+  });
+  [...byColor.values()].sort((a, b) => a.s.c.localeCompare(b.s.c)).forEach(({ s }) => {
+    const other = inRoom.get(s.c);
+    g.items.push(other ? { s, elsewhere: other } : { s, missing: true });
+  });
+  return g;
 }
 const glTitle = t => String(t || '').toLowerCase().replace(/(^|[\s-])\S/g, m => m.toUpperCase());
 function glPhoto(s, big) {
@@ -104,32 +136,42 @@ const glLandscape = s => { const u = IMG[photoKey(s)], wh = u && (window.FOTO_WH
 
 function renderGallery(cid, sub) {
   const v = document.getElementById('viewGallery'), cl = clients[cid];
-  const list = galleryDisplays(cid);
-  const cur = list.find(x => x.c.id === sub) || list[0];
+  const list = galleryDisplays(cid), allC = list.map(x => x.c);
+  const isAll = sub === 'tutti';
+  const cur = isAll ? null : list.find(x => x.c.id === sub) || list[0];
+  const view = isAll ? allC : cur ? [cur.c] : [];
+  const groups = gallerySeries(view).map(g => ui.glMissing ? addMissingColors(g, allC) : g);
+  const nTot = new Set(allC.flatMap(c => c.slots.filter(k => k && SAMPLE[k]))).size;
   v.innerHTML = `<div class="gl-wrap">
     <div class="gl-head">
       <button class="btn" onclick="go('#/cliente/${cid}')">← ${esc(cl.name)}</button>
       <h2><small>Sala mostra · campioni</small>${esc(cl.name)}</h2>
       <button class="btn red" onclick="go('#/salamostra/${cid}')">▶ Entra nella sala mostra</button>
     </div>
-    ${list.length ? `<div class="gl-tabs">${list.map(x => `<button class="gl-tab ${x === cur ? 'on' : ''}" onclick="go('#/campioni/${cid}/${x.c.id}')">
+    ${list.length ? `<div class="gl-tabs"><button class="gl-tab all ${isAll ? 'on' : ''}" onclick="go('#/campioni/${cid}/tutti')"><span>Tutta la sala mostra<span class="k">${nTot} campioni · ${list.length} espositori</span></span></button>${list.map(x => `<button class="gl-tab ${x === cur ? 'on' : ''}" onclick="go('#/campioni/${cid}/${x.c.id}')">
         <img src="${x.d.img}" alt=""><span>${esc(x.c.name)}<span class="k">${esc(x.d.name)} · ${filledOf(x.c)} campioni${showRooms(cid).length > 1 ? ' · ' + esc(x.room) : ''}</span></span></button>`).join('')}</div>` : ''}
-    <div id="glBody">${cur ? gallerySeries(cur.c).map((g, gi) => galleryBlock(g, gi)).join('') : `<div class="gl-empty">La sala mostra di ${esc(cl.name)} non ha ancora campioni negli espositori.</div>`}</div>
+    ${list.length ? `<div class="gl-tools"><button class="btn ${ui.glMissing ? 'on' : ''}" onclick="ui.glMissing = !ui.glMissing; saveUI(); renderGallery('${cid}', '${isAll ? 'tutti' : cur ? cur.c.id : ''}')"
+        title="Mostra anche gli altri colori di ogni serie">${ui.glMissing ? '✓ ' : ''}◐ Colori che non ha</button>
+      ${ui.glMissing ? `<span class="lg"><span><i style="background:#ddd"></i>in sala mostra</span><span><i style="background:#7a1015"></i>non in sala mostra</span>${isAll ? '' : '<span><i style="background:#fff;border:1px solid #ccc"></i>in un altro espositore</span>'}</span>` : ''}</div>` : ''}
+    <div id="glBody">${groups.length ? groups.map((g, gi) => galleryBlock(g, gi, isAll)).join('') : `<div class="gl-empty">La sala mostra di ${esc(cl.name)} non ha ancora campioni negli espositori.</div>`}</div>
   </div>`;
-  glState = cur ? { cid, comp: cur.c, list: gallerySeries(cur.c).flatMap(g => g.items) } : null;
+  glState = view.length ? { cid, list: groups.flatMap(g => g.items) } : null;
 }
-function galleryBlock(g, gi) {
-  const sizes = [...new Set(g.items.map(x => x.s.toz ? 'tozzetto' : fmt(x.s.z)))], fins = [...new Set(g.items.flatMap(x => x.s.f || []))];
-  const strips = g.items.map(({ s }) => {
+function galleryBlock(g, gi, isAll) {
+  const own = g.items.filter(x => !x.missing && !x.elsewhere);
+  const sizes = [...new Set(own.map(x => x.s.toz ? 'tozzetto' : fmt(x.s.z)))], fins = [...new Set(own.flatMap(x => x.s.f || []))];
+  const nMiss = g.items.filter(x => x.missing).length;
+  const strips = g.items.map(({ s, missing, elsewhere }, k) => {
     const p = glPhoto(s), turn = p && glLandscape(s) && !s.toz && sorted2(parseSize(s.z))[0] < sorted2(parseSize(s.z))[1];
-    return `<button class="gl-strip" onclick="openGalleryFull('${s.key.replace(/'/g, "\\'")}')" title="${esc(s.s + ' ' + s.c)}">
+    return `<button class="gl-strip${missing ? ' miss' : ''}" onclick="openGalleryFull(${gi * 1000 + k})" title="${esc(s.s + ' ' + s.c)}">
       ${p ? `<div class="glph${turn ? ' turn' : ''}" style="background-image:url('${p}')"></div>` : `<div class="nof">foto non disponibile</div>`}
-      <div class="nm">${esc(glTitle(s.c))}<small>${esc(s.toz ? 'tozzetto' : fmt(s.z))}</small></div></button>`;
+      <div class="nm">${esc(glTitle(s.c))}<small>${esc(s.toz ? 'tozzetto' : fmt(s.z))}</small></div>
+      ${missing ? '<span class="tag">non in sala mostra</span>' : elsewhere ? `<span class="tag el">in: ${esc(elsewhere.name)}</span>` : ''}</button>`;
   }).join('');
   return `<section class="gl-serie">
     <div class="gl-strips">${strips}</div>
     <div class="gl-info"><div class="b">${esc(g.b)}</div><div class="t">Serie:</div><h3>${esc(glTitle(g.s))}</h3>
-      <p><b>${g.items.length}</b> ${g.items.length === 1 ? 'colore' : 'colori'} in questo espositore</p>
+      <p><b>${own.length}</b> ${own.length === 1 ? 'colore' : 'colori'} ${isAll ? 'in sala mostra' : 'in questo espositore'}${nMiss ? ` · <b style="color:#8e1016">${nMiss}</b> che non ha` : ''}</p>
       <p><b>Formati:</b> ${esc(sizes.join(' · '))}</p>
       ${fins.length ? `<p><b>Finiture:</b> ${esc(fins.slice(0, 4).join(' · '))}${fins.length > 4 ? '…' : ''}</p>` : ''}</div>
   </section>`;
@@ -137,9 +179,11 @@ function galleryBlock(g, gi) {
 
 /* ── schermo intero ── */
 let glIdx = 0, glTurn = 0, glAuto = true;
-function openGalleryFull(key) {
+function openGalleryFull(code) {
   if (!glState) return;
-  glIdx = Math.max(0, glState.list.findIndex(x => x.s.key === key)); glTurn = 0; glAuto = true;
+  const groups = []; let n = 0;
+  document.querySelectorAll('#glBody .gl-serie').forEach(sec => { groups.push(n); n += sec.querySelectorAll('.gl-strip').length; });
+  glIdx = Math.max(0, Math.min(glState.list.length - 1, groups[Math.floor(code / 1000)] + code % 1000)); glTurn = 0; glAuto = true;
   let m = document.getElementById('glFull');
   if (!m) {
     document.body.insertAdjacentHTML('beforeend', `<div class="gl-full" id="glFull"><div class="gl-stage" id="glStage">
@@ -157,7 +201,7 @@ function openGalleryFull(key) {
 }
 function glStep(dir) { const n = glState.list.length; glIdx = Math.max(0, Math.min(n - 1, glIdx + dir)); glTurn = 0; glAuto = true; glShow(); }
 function glShow() {
-  const { s, slot } = glState.list[glIdx], c = glState.comp, d = DISP[c.disp], img = document.getElementById('glImg');
+  const { s, slot, c, missing, elsewhere } = glState.list[glIdx], d = c && DISP[c.disp], img = document.getElementById('glImg');
   const p = glPhoto(s, true);
   img.style.opacity = 0;
   const fit = () => {                                   // foto girata di 90°: le misure massime si scambiano
@@ -178,7 +222,7 @@ function glShow() {
       ${(s.f || []).length ? `<dt>Finiture</dt><dd>${esc(s.f.join(', '))}</dd>` : ''}
       ${(s.t || []).length ? `<dt>Spessore</dt><dd>${esc(s.t.join(' / '))} mm</dd>` : ''}
       ${(s.k || []).length ? `<dt>Codici</dt><dd>${esc(s.k.join(' · '))}</dd>` : ''}
-      <dt>Espositore</dt><dd>${esc(c.name)} · ${esc(d.name)}</dd>
-      <dt>Posto</dt><dd>${esc(slotName(d, slot, c.slots.length))}</dd></dl>`;
+      ${c ? `<dt>Espositore</dt><dd>${esc(c.name)} · ${esc(d.name)}</dd><dt>Posto</dt><dd>${esc(slotName(d, slot, c.slots.length))}</dd>` : ''}</dl>
+    ${missing ? '<div class="warn">Non presente in sala mostra</div>' : elsewhere ? `<div class="elsew">In sala mostra in un altro espositore: ${esc(elsewhere.name)}</div>` : ''}`;
 }
 function closeGalleryFull() { const m = document.getElementById('glFull'); if (m) m.remove(); }
