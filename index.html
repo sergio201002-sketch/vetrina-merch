@@ -514,7 +514,10 @@ body[data-view="room"] #viewRoom, body[data-view="show"] #viewRoom { display: fl
 <input type="file" id="bulkFile" accept="image/*" multiple hidden onchange="bulkUpload(this.files); this.value=''">
 <div class="toast" id="toast"></div>
 
-<script>/* sempre i dati aggiornati (foto nuove, listino) senza cache */ document.write('<script src="data.js?v=' + Date.now() + '"><\/script>');</script>
+<script>/* versione del sito (versione.txt cambia a ogni pubblicazione): i file si riscaricano solo quando cambiano,
+   altrimenti il browser usa quelli già scaricati (partenza veloce) */
+window.APPV = (() => { try { const x = new XMLHttpRequest(); x.open('GET', 'versione.txt?' + Date.now(), false); x.send(); if (x.status === 200 && x.responseText.trim()) return x.responseText.trim(); } catch (e) {} return String(Date.now()); })();
+document.write('<script src="data.js?v=' + APPV + '"><\/script>');</script>
 <script>
 'use strict';
 /* ════════════════════════════════════════════════════════════
@@ -895,7 +898,7 @@ function faceBg(s, faceW, faceH, tiled, px = 1) {
 /* Foto di una faccia 3D. Il browser rasterizza gli elementi 3D alla loro misura in pixel e poi li ingrandisce
    con lo zoom (= foto sfocate, soprattutto i 120×120): la foto è disegnata r volte più grande e rimpicciolita. */
 const LOWMEM = (() => { try { return matchMedia("(pointer: coarse)").matches || innerWidth < 820; } catch (e) { return false; } })();   // telefono/tablet: meno memoria
-let FACE_RES = LOWMEM ? 2.5 : 3;
+let FACE_RES = LOWMEM ? 2 : 3;   // telefono: meno memoria grafica (niente scatti); il campione aperto si ridisegna nitido
 function photoLayer(s, faceW, faceH, tiled, r = FACE_RES) {
   const [tw, th] = tileDims(s, faceW, faceH, tiled);
   if (photoTurn(photoKey(s), th > tw)) {
@@ -961,13 +964,14 @@ function thickHTML(w, h, T, back) {
    moltiplicato sulla grafica (piastrella scura = retro più scuro, chiara = più chiaro) */
 function backTint(s) {
   const p = s && ((window.FOTO_Z || {})[s.ik + '|' + s.z] || (window.FOTO || {})[s.ik]), c = p && (window.FOTO_COL || {})[p];
-  if (!c) return '#ffffff';
-  const n = parseInt(c.slice(1), 16), mix = v => Math.round(v * 0.55 + 255 * 0.45);
-  return 'rgb(' + [n >> 16 & 255, n >> 8 & 255, n & 255].map(mix).join(',') + ')';
+  if (!c) return null;
+  const n = parseInt(c.slice(1), 16);
+  return [n >> 16 & 255, n >> 8 & 255, n & 255].join(',');
 }
+/* velo del colore del davanti sopra la grafica (leggero per la scheda grafica: niente fusione dei colori) */
 function backStyle(fw, fh, s) {
-  const r = fw / fh, img = Math.abs(r - 1) < 0.15 ? 'retro_quadrato' : r < 1 ? 'retro_verticale' : 'retro_orizzontale';
-  return `background:${backTint(s)} url(img/${img}.webp) center/100% 100% no-repeat;background-blend-mode:multiply;`;
+  const r = fw / fh, img = Math.abs(r - 1) < 0.15 ? 'retro_quadrato' : r < 1 ? 'retro_verticale' : 'retro_orizzontale', t = backTint(s);
+  return `background:${t ? `linear-gradient(rgba(${t},.42),rgba(${t},.42)),` : ''}url(img/${img}.webp) center/100% 100% no-repeat;background-color:${t ? `rgb(${t})` : '#ddd8cf'};`;
 }
 function tileBody(d, c, i, fw, fh, tiled, k) {
   const s = c && SAMPLE[c.slots[i]];
@@ -2081,6 +2085,6 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 </script>
 <script>/* sempre l'ultima versione del programma (niente copie vecchie rimaste nel browser) */
-['salva.js', 'clienti.js', 'ambiente.js', 'espositori3d.js', 'campioni.js', 'render.js'].forEach(f => document.write('<script src="' + f + '?v=' + Date.now() + '"><\/script>'));</script>
+['salva.js', 'clienti.js', 'ambiente.js', 'espositori3d.js', 'campioni.js', 'render.js'].forEach(f => document.write('<script src="' + f + '?v=' + APPV + '"><\/script>'));</script>
 </body>
 </html>

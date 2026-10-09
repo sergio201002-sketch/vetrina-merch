@@ -111,7 +111,7 @@ async function renderRealistic() {
       let rx = 1, ry = 1;
       if (/%$/.test(sz[0]) && /%$/.test(sz[1] || '')) { rx = Math.round(100 / parseFloat(sz[0]) * 100) / 100; ry = Math.round(100 / parseFloat(sz[1]) * 100) / 100; }   // foto ripetuta
       pending.push(loadImg(url).then(im => { if (im) { mat.map = texFor(im, rx, ry); mat.needsUpdate = true; } }));
-      if (cs.backgroundBlendMode && cs.backgroundBlendMode.includes('multiply') && ccol) mat.color = ccol.c;   // retro tinto
+      if (/retro_/.test(url) && ccol) { const c2 = ccol.c.clone(); c2.lerp(new T.Color(1, 1, 1), 0.45); mat.color = c2; }   // retro tinto col colore del davanti
       mat.roughness = 0.35; mat.envMapIntensity = 0.3;            // piastrelle: un po' lucide, riflettono le luci
     } else {
       mat.color = ccol.c;
