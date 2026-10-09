@@ -141,7 +141,7 @@ const TRAY = { front: 'linear-gradient(180deg,#a9a9ab,#8e8e90)', top: '#b9b9bb',
 function cassettiera60(d, c, op, o) {
   const { L, P, H } = parseDims(d), [fw, fh] = d.face, n = c.slots.length, flat = o && o.flat;
   // il cassetto esce del tutto (la lastra intera fuori dal mobile), così alzandosi non tocca il cassetto di sopra
-  const t = 4.5, top = 4.5, plinth = 4, Wi = L - 2 * t, zf = P / 2 - 1.5, pitch = (H - plinth - top - 2) / n, pull = fh + 6;
+  const t = 4.5, top = 4.5, plinth = 4, Wi = L - 2 * t, zf = P / 2 - 1.5, pitch = (H - plinth - top - 2) / n, pull = flat ? fh - 4 : fh + 6;   // dall'alto: il cassetto esce come nella realtà e la lastra resta dentro, distesa
   const yb = i => -plinth - 1 - (n - 1 - i) * pitch;                         // piano del vassoio i (0 = in alto)
   let h = bx3(-L / 2, -H, -P / 2 + 2, L, H, 2);                              // schienale
   h += bx3(-L / 2, -H, P / 2, t, H, P) + bx3(L / 2 - t, -H, P / 2, t, H, P); // fianchi
@@ -164,7 +164,10 @@ function cassettiera60(d, c, op, o) {
     // così si vede tutta la 60×120 di fronte. Vista "dall'alto": resta distesa nel cassetto
     const y = yb(op), T = Math.max(1, tileThickCm(d, c, op)), yf = y - 0.6 - T, a = 10, ra = a * Math.PI / 180;
     m.after = [[`.drawer3d[data-dr="${op}"]`, `translate3d(0,0,${pull}px)`]];
-    if (flat) m.focus = { x: 0, y: yf, z: zf - 1 - fh / 2 + pull, w: fw, h: fh, yaw: 0, tilt: 80 };
+    if (flat) {
+      m.focus = { x: 0, y: yf, z: zf - 1 - fh / 2 + pull, w: fw, h: fh, yaw: 0, tilt: 80 };
+      m.overview = { x: 0, y: (yf - H) / 2, z: (zf + pull - P / 2) / 2, w: L + 10, d: P + pull, h: H };   // inquadratura dall'alto: mobile + cassetto aperto
+    }
     else {
       m.after.push([`.ttile[data-t="${op}"]`, tr(-fw / 2, yf - fh, zf - 1, `rotateX(${a}deg)`), 560],
                    [`.cedge[data-e="${op}"]`, `translate3d(${-fw / 2}px,${yf}px,${zf - 0.95}px) scale3d(0,0,0)`, 560]);
@@ -307,7 +310,11 @@ function renderModel3D(d, c, sc, W, H, st) {
   const k = gcam.zoom * Math.min((H * 0.62) / Math.max(30, m.H), (W * 0.56) / Math.max(40, m.fitW || m.L));
   const fw = (m.L || 100) + 80, fd = (m.P || 60) + 80, f = views && ui.zoom && m.focus;   // zoom: dritto davanti alla piastrella aperta (di lato per i carrellati)
   // anche la profondità in scala (con scale() i mobili sembravano schiacciati); con lo Zoom la telecamera va sul campione aperto
-  const camT = () => f
+  const ov = !f && gcam.view === 'top' && m.overview, ta = gcam.tilt * Math.PI / 180;
+  const camT = () => ov
+    ? (kz => `translate3d(${W / 2}px,${H * 0.4}px,0) rotateX(${-gcam.tilt}deg) rotateY(${gcam.yaw}deg) scale3d(${kz},${kz},${kz}) translate3d(${-ov.x}px,${-ov.y}px,${-ov.z}px)`)
+        ((gcam.zoom * Math.min(W * 0.8 / ov.w, H * 0.8 / (ov.d * Math.sin(ta) + ov.h * Math.cos(ta)))).toFixed(4))
+    : f
     ? (kz => `translate3d(${W / 2}px,${H * 0.5}px,0) rotateX(${gcam.view === 'top' ? -70 : -4}deg) rotateY(${Math.abs(f.yaw) > 45 ? (gcam.yaw < 0 ? -88 : 88) : 0}deg) scale3d(${kz},${kz},${kz}) translate3d(${-f.x}px,${-f.y}px,${-f.z}px)`)(Math.min(H * 0.8 / f.h, W * 0.8 / f.w).toFixed(4))
     : `translate3d(${W / 2}px,${H * 0.86}px,0) rotateX(${-gcam.tilt}deg) rotateY(${gcam.yaw}deg) scale3d(${k.toFixed(4)},${k.toFixed(4)},${k.toFixed(4)})`;
   sc.innerHTML = `<div class="sw-root room-scene" id="m3d" style="transform:${camT()}">
