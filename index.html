@@ -1040,20 +1040,12 @@ function renderStage() {
 /* Girevoli: pila di portapannelli verticali. Quello scelto scorre fuori a destra (lato A)
    e poi si ribalta in orizzontale come un tavolo mostrando il lato B. */
 /* Sala mostra: modelli "leggeri" (ogni faccia 3D costa a ogni fotogramma quando giri la vista):
-   niente retro dei parallelepipedi (dalla sala non si vede mai) e niente bordi sottili delle piastrelle */
+   le scatoline sono sempre chiuse (davanti, dietro, sopra, due lati: da nessun angolo si vede l'interno) */
 let LITE3D = false;
 function box3d(x, yTop, z, w, h, d, col) {
-  // sala mostra (modello leggero): i pezzi sottili (montanti, profili, binari) con 2 facce incrociate invece di 4:
-  // da ogni lato sembrano pieni, ma il telefono ha la metà dei pezzi da comporre
-  // le facce stanno sui bordi veri del pezzo (davanti e lato destro): essendo sottile, da ogni parte si vede un rettangolo pieno
-  if (LITE3D && w <= 7 && d <= 7) {                      // montante / profilo verticale: davanti + lato
-    return `<div class="bx" style="width:${w}px;height:${h}px;background:${col.front};transform:translate3d(${x}px,${yTop}px,${z}px)"></div>` +
-      `<div class="bx" style="width:${d}px;height:${h}px;background:${col.side};transform:translate3d(${x + w}px,${yTop}px,${z}px) rotateY(90deg)"></div>` +
-      `<div class="bx" style="width:${w}px;height:${d}px;background:${col.top};transform:translate3d(${x}px,${yTop}px,${z}px) rotateX(-90deg)"></div>`;   // tappo sopra
-  }
   // facce di un parallelepipedo: fronte, retro, top, lato sx, lato dx (origine 0 0)
   return `<div class="bx" style="width:${w}px;height:${h}px;background:${col.front};transform:translate3d(${x}px,${yTop}px,${z}px)"></div>
-    ${LITE3D ? '' : `<div class="bx" style="width:${w}px;height:${h}px;background:${col.side};transform:translate3d(${x}px,${yTop}px,${z - d}px)"></div>`}
+    <div class="bx" style="width:${w}px;height:${h}px;background:${col.side};transform:translate3d(${x}px,${yTop}px,${z - d}px)"></div>
     <div class="bx" style="width:${w}px;height:${d}px;background:${col.top};transform:translate3d(${x}px,${yTop}px,${z}px) rotateX(-90deg)"></div>
     <div class="bx" style="width:${d}px;height:${h}px;background:${col.side};transform:translate3d(${x}px,${yTop}px,${z}px) rotateY(90deg)"></div>
     <div class="bx" style="width:${d}px;height:${h}px;background:${col.side};transform:translate3d(${x + w}px,${yTop}px,${z}px) rotateY(90deg)"></div>`;
