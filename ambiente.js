@@ -574,6 +574,7 @@ function renderRoomSide() {
       ${d.mirror && DISP[d.mirror] ? `<div class="row"><b>Versione</b> ${[d, DISP[d.mirror]].sort((a, b) => (a.side || '').localeCompare(b.side || '') * -1).map(v =>
           `<button class="btn ${v.id === d.id ? 'dark' : ''}" onclick="switchVersion('${v.id}')">${esc(v.side || v.name)}</button>`).join('')}
           <span style="color:var(--mid)">· resta nello stesso posto</span></div>` : ''}
+      ${d.mode === 'culla' && c ? cullaOptsHTML(d, c) : ''}
       ${d.sided ? `<div class="btns"><button class="btn ${sideOf(sel) === 'SX' ? 'dark' : ''}" onclick="setSide('SX')">SX</button><button class="btn ${sideOf(sel) === 'DX' ? 'dark' : ''}" onclick="setSide('DX')">DX</button></div>` : ''}
       <div class="btns"><button class="btn" onclick="rotItem(-90)">⟲ 90°</button><button class="btn" onclick="rotItem(-15)">⟲ 15°</button>
         <button class="btn" onclick="rotItem(15)">⟳ 15°</button><button class="btn" onclick="rotItem(90)">⟳ 90°</button></div>
@@ -770,6 +771,26 @@ function addCatalogItem(dispId) {
 }
 const selItem = () => room.items.find(i => i.id === roomSel);
 function rotItem(a) { const it = selItem(); if (!it) return; const r = (((it.rot || 0) + a) % 360 + 360) % 360; [it, ...stackedAbove(it)].forEach(o => o.rot = r); saveRoom(); renderRoom(); }
+/* Culla modulare in sala mostra: quanti moduli, versione SX / DX (verso dove guardano i campioni), formato misto o unico */
+function cullaOptsHTML(d, c) {
+  const per = d.perModule || 1, n = c.slots.length, dx = c.side === 'DX';
+  const b = (t, on, fn, tip) => `<button class="btn ${on ? 'dark' : ''}" title="${esc(tip || '')}" onclick="${fn}">${t}</button>`;
+  return `<div class="row"><b>Moduli</b> ${(d.variants || [n]).map(v => b(v / per, v === n, `roomCulla('variant', ${v})`, (d.variantLabels || {})[v])).join('')}</div>
+    <div class="row"><b>Versione</b> ${b('◄ SX', !dx, `roomCulla('side', 'SX')`, 'Campioni girati verso destra')}${b('DX ►', dx, `roomCulla('side', 'DX')`, 'Campioni girati verso sinistra')}</div>
+    <div class="row"><b>Formato</b> ${b('Misti', !c.fmt, `roomCulla('fmt', '')`, 'Formati diversi insieme')}${(d.accept.sizes || []).map(z => b(fmt(z), c.fmt === z, `roomCulla('fmt', '${z}')`, 'Solo ' + fmt(z))).join('')}</div>`;
+}
+async function roomCulla(what, v) {
+  const it = selItem(); if (!it) return; const c = comps[it.comp]; if (!c) return;
+  if (what === 'variant') {
+    const lost = c.slots.slice(v).filter(Boolean).length;
+    if (lost && !await ask(`Con meno moduli ${lost} campioni restano fuori. Continuare?`)) return;
+    c.variant = v; c.slots = c.slots.slice(0, v); while (c.slots.length < v) c.slots.push(null);
+  } else if (what === 'side') c.side = v;
+  else c.fmt = v || '';
+  c.upd = Date.now(); saveComps();
+  delete roomModels[it.id]; snapItem(it); saveRoom(); renderRoom();
+  if (what === 'fmt' && v) { const other = c.slots.filter(k => k && SAMPLE[k] && !sameFmt(SAMPLE[k].z, v)).length; if (other) toast(`Solo ${fmt(v)} · ${other} campioni di altri formati sono ancora dentro`); }
+}
 /* attaccato al muro (normale) o staccato: libero in tutta la stanza; se lo stacchi va 60 cm più avanti per vederlo subito */
 function setFree(on) {
   const it = selItem(); if (!it) return; const kids = stackedAbove(it);
