@@ -33,6 +33,7 @@ function route() {
   window.scrollTo(0, 0);
   const [, a, id, sub] = (location.hash || '#/').split('/');
   if (a === 'cliente' && clients[id]) { document.body.dataset.view = 'client'; renderClient(id); return; }
+  if (a === 'campioni' && clients[id]) { closeGalleryFull(); document.body.dataset.view = 'gallery'; renderGallery(id, sub); return; }
   if (a === 'ambiente' && scenes[id]) { document.body.dataset.view = 'room'; openRoom(id); return; }
   if (a === 'salamostra' && clients[id]) {
     const rooms = showRooms(id), last = (ui.showRoom || {})[id];
@@ -325,6 +326,7 @@ function showroomHTML(cid) {
     <div class="stats" style="margin:10px 0 16px"><div><b>${rooms.length}</b>${rooms.length === 1 ? 'stanza' : 'stanze'}</div><div><b>${nEsp}</b>espositori</div><div><b>${tot}</b>campioni esposti</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
       <button class="btn red" style="font-size:14px;padding:10px 16px" onclick="go('#/salamostra/${cid}')">▶ Entra nella sala mostra</button>
+      <button class="btn dark" style="font-size:14px;padding:10px 16px" onclick="go('#/campioni/${cid}')">🖼 Galleria campioni</button>
       <button class="btn" onclick="addShowRoom('${cid}')">＋ Aggiungi una stanza</button>
       <button class="btn" onclick="pasteShowroom('${cid}')" title="Incolla un elenco di codici e scegli in quali espositori della sala mostra metterli">📥 Incolla codici</button></div>
     <div class="roomlist">${rooms.map(r => `<div class="roomrow">
