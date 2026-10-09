@@ -1905,6 +1905,17 @@ async function importBackup(file) {
     const data = JSON.parse(await file.text());
     if (data.app !== 'vetrina-merch') throw new Error('File non valido');
     if (!await ask(`Ripristinare il backup del ${String(data.date).slice(0, 10)}?\nClienti, composizioni, ambientazioni e foto del backup verranno aggiunti/sovrascritti.`)) return;
+    // un cliente che qui c'è già con lo stesso nome (ma un altro codice): il backup si aggiunge a lui, senza doppioni
+    const norm = s => String(s || '').trim().toLowerCase();
+    Object.values(data.clients || {}).forEach(bc => {
+      if (clients[bc.id]) return;
+      const same = Object.values(clients).find(x => norm(x.name) === norm(bc.name)); if (!same) return;
+      Object.values(data.comps || {}).forEach(c => { if (c.client === bc.id) c.client = same.id; });
+      Object.values(data.scenes || {}).forEach(s => { if (s.client === bc.id) { s.client = same.id; if (same.showroom && scenes[same.showroom]) s.order = Object.values(scenes).filter(x => x.client === same.id).length; } });
+      Object.keys(data.current || {}).forEach(k => { if (k.startsWith(bc.id + '|')) { data.current[same.id + k.slice(bc.id.length)] = data.current[k]; delete data.current[k]; } });
+      delete data.clients[bc.id];
+      if (!same.showroom && bc.showroom) { same.showroom = bc.showroom; same.upd = Date.now(); }
+    });
     Object.assign(comps, data.comps || {}); Object.assign(current, data.current || {}); saveComps();
     Object.assign(clients, data.clients || {}); saveClients();
     Object.assign(scenes, data.scenes || {}); saveScenes();
