@@ -253,6 +253,8 @@ def build_samples(products):
                 alias.setdefault(broken, set()).add('|'.join([brand, series, color, size]))
         key = '|'.join([brand, series, color, size])
         g = groups.setdefault(key, dict(b=brand, s=series, c=color, z=size, f=[], k=[], t=[]))
+        if sub and '' in subs.get(p.get('series'), set()):       # decoro (Dune, Rilievi, Onde…): la serie ha anche i fondi lisci
+            g['dec'] = 1
         fin = (p.get('finish') or '').strip()
         if fin and fin not in g['f']:
             g['f'].append(fin)
@@ -505,6 +507,7 @@ def main():
         f.write('window.FOTO_COL = ' + json.dumps(photo_colors(minis), ensure_ascii=False, separators=(',', ':')) + ';\n')
         f.write('window.FOTO_MED = ' + json.dumps(make_medium(), ensure_ascii=False, separators=(',', ':')) + ';\n')
         f.write('window.FOTO_ROOM = ' + json.dumps(make_medium('sala', 480, 80), ensure_ascii=False, separators=(',', ':')) + ';\n')
+        f.write('window.FOTO_GAL = ' + json.dumps(make_medium('galleria', 800, 82), ensure_ascii=False, separators=(',', ':')) + ';\n')
     print(len(DISPLAYS), 'espositori,', len(samples), 'campioni,', len(photos), 'colori con foto,', len(photos_z), 'formati con la loro foto ->', out)
     for ik, path in photos.items():
         print('  ', path, '->', ik.replace('|', ' · '))

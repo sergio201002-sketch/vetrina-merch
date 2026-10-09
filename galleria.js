@@ -41,11 +41,11 @@ body[data-view="gallery"] .hbtn[data-nav="home"] { background: var(--red); borde
 .gl-info p b { color: #222; }
 .gl-empty { padding: 40px; text-align: center; color: var(--mid); }
 /* colori che non ha: foto normale, con una luce rossa intorno */
-.gl-strip.miss { box-shadow: 0 0 0 3px rgba(214,30,40,.95), 0 0 22px 6px rgba(230,40,50,.55), 0 10px 26px rgba(40,30,20,.10); }
-.gl-strip.miss:hover { box-shadow: 0 0 0 3px rgba(214,30,40,1), 0 0 30px 9px rgba(230,40,50,.65), 0 16px 34px rgba(40,30,20,.16); }
+.gl-strip.miss { box-shadow: 0 0 0 2px rgba(214,40,50,.45), 0 0 20px 5px rgba(230,60,70,.26), 0 10px 26px rgba(40,30,20,.08); }
+.gl-strip.miss:hover { box-shadow: 0 0 0 2px rgba(214,40,50,.6), 0 0 26px 8px rgba(230,60,70,.34), 0 16px 34px rgba(40,30,20,.14); }
 .gl-strip .tag { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 2; white-space: nowrap; font: 700 10px var(--font-body); letter-spacing: .04em;
-  padding: 4px 8px; border-radius: 999px; background: rgba(150,15,20,.92); color: #fff; }
-.gl-strip .tag.el { background: rgba(255,255,255,.9); color: #333; }
+  padding: 4px 8px; border-radius: 999px; background: rgba(170,30,38,.78); color: #fff; max-width: calc(100% - 12px); overflow: hidden; text-overflow: ellipsis; }
+.gl-strip .tag.el { background: rgba(255,255,255,.88); color: #333; }
 .gl-tools { display: flex; gap: 8px; align-items: center; margin: -4px 0 10px; flex-wrap: wrap; }
 .gl-tools .btn.on { background: #8e1016; border-color: #8e1016; color: #fff; }
 .gl-tools .lg { font-size: 12px; color: var(--mid); display: flex; gap: 12px; flex-wrap: wrap; }
@@ -124,13 +124,27 @@ function addMissingColors(g, all) {
     const other = inRoom.get(s.c);
     g.items.push(other ? { s, elsewhere: other } : { s, missing: true });
   });
+  return glSort(g);
+}
+/* ordine delle strisce: ha (qui) → ha (in un altro espositore) → non ha; in ogni gruppo prima i fondi poi i decori */
+function glSort(g) {
+  const rank = x => (x.missing ? 20 : x.elsewhere ? 10 : 0) + (x.s.dec ? 1 : 0);
+  g.items = g.items.map((x, i) => [x, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(a => a[0]);
   return g;
 }
 const glTitle = t => String(t || '').toLowerCase().replace(/(^|[\s-])\S/g, m => m.toUpperCase());
 function glPhoto(s, big) {
   const u = IMG[photoKey(s)]; if (!u) return null;
   if (big) return (window.AVIF_OK || !/\.avif$/i.test(u)) ? u : (FOTO_MED[u] || u);
-  return FOTO_MED[u] || u;
+  return (window.FOTO_GAL || {})[u] || FOTO_MED[u] || u;    // strisce: foto da 800 px (con tante foto grandi l'iPhone ne lasciava vuote)
+}
+let glObs = null;
+function glLazy() {
+  if (glObs) glObs.disconnect();
+  const load = el => { el.style.backgroundImage = `url('${el.dataset.bg}')`; el.removeAttribute('data-bg'); };
+  if (!('IntersectionObserver' in window)) { document.querySelectorAll('#glBody .glph[data-bg]').forEach(load); return; }
+  glObs = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { load(e.target); glObs.unobserve(e.target); } }), { rootMargin: '400px 600px' });
+  document.querySelectorAll('#glBody .glph[data-bg]').forEach(el => glObs.observe(el));
 }
 const glLandscape = s => { const u = IMG[photoKey(s)], wh = u && (window.FOTO_WH || {})[u]; return wh ? wh[0] > wh[1] * 1.05 : false; };
 
@@ -140,7 +154,7 @@ function renderGallery(cid, sub) {
   const isAll = sub === 'tutti';
   const cur = isAll ? null : list.find(x => x.c.id === sub) || list[0];
   const view = isAll ? allC : cur ? [cur.c] : [];
-  const groups = gallerySeries(view).map(g => ui.glMissing ? addMissingColors(g, allC) : g);
+  const groups = gallerySeries(view).map(g => ui.glMissing ? addMissingColors(g, allC) : glSort(g));
   const nTot = new Set(allC.flatMap(c => c.slots.filter(k => k && SAMPLE[k]))).size;
   v.innerHTML = `<div class="gl-wrap">
     <div class="gl-head">
@@ -152,10 +166,11 @@ function renderGallery(cid, sub) {
         <img src="${x.d.img}" alt=""><span>${esc(x.c.name)}<span class="k">${esc(x.d.name)} · ${filledOf(x.c)} campioni${showRooms(cid).length > 1 ? ' · ' + esc(x.room) : ''}</span></span></button>`).join('')}</div>` : ''}
     ${list.length ? `<div class="gl-tools"><button class="btn ${ui.glMissing ? 'on' : ''}" onclick="ui.glMissing = !ui.glMissing; saveUI(); renderGallery('${cid}', '${isAll ? 'tutti' : cur ? cur.c.id : ''}')"
         title="Mostra anche gli altri colori di ogni serie">${ui.glMissing ? '✓ ' : ''}◐ Colori che non ha</button>
-      ${ui.glMissing ? `<span class="lg"><span><i style="background:#ddd"></i>in sala mostra</span><span><i style="background:#fff;box-shadow:0 0 0 2px #d61e28,0 0 6px 2px rgba(230,40,50,.6)"></i>non in sala mostra</span>${isAll ? '' : '<span><i style="background:#fff;border:1px solid #ccc"></i>in un altro espositore</span>'}</span>` : ''}</div>` : ''}
+      ${ui.glMissing ? `<span class="lg"><span><i style="background:#ddd"></i>in sala mostra</span><span><i style="background:#fff;box-shadow:0 0 0 2px rgba(214,40,50,.5),0 0 6px 2px rgba(230,60,70,.3)"></i>non in sala mostra</span>${isAll ? '' : '<span><i style="background:#fff;border:1px solid #ccc"></i>in un altro espositore</span>'}</span>` : ''}</div>` : ''}
     <div id="glBody">${groups.length ? groups.map((g, gi) => galleryBlock(g, gi, isAll)).join('') : `<div class="gl-empty">La sala mostra di ${esc(cl.name)} non ha ancora campioni negli espositori.</div>`}</div>
   </div>`;
   glState = view.length ? { cid, list: groups.flatMap(g => g.items) } : null;
+  glLazy();
 }
 function galleryBlock(g, gi, isAll) {
   const own = g.items.filter(x => !x.missing && !x.elsewhere);
@@ -164,7 +179,7 @@ function galleryBlock(g, gi, isAll) {
   const strips = g.items.map(({ s, missing, elsewhere }, k) => {
     const p = glPhoto(s), turn = p && glLandscape(s) && !s.toz && sorted2(parseSize(s.z))[0] < sorted2(parseSize(s.z))[1];
     return `<button class="gl-strip${missing ? ' miss' : ''}" onclick="openGalleryFull(${gi * 1000 + k})" title="${esc(s.s + ' ' + s.c)}">
-      ${p ? `<div class="glph${turn ? ' turn' : ''}" style="background-image:url('${p}')"></div>` : `<div class="nof">foto non disponibile</div>`}
+      ${p ? `<div class="glph${turn ? ' turn' : ''}" data-bg="${esc(p)}"></div>` : `<div class="nof">foto non disponibile</div>`}
       <div class="nm">${esc(glTitle(s.c))}<small>${esc(s.toz ? 'tozzetto' : fmt(s.z))}</small></div>
       ${missing ? '<span class="tag">non in sala mostra</span>' : elsewhere ? `<span class="tag el">in: ${esc(elsewhere.name)}</span>` : ''}</button>`;
   }).join('');
