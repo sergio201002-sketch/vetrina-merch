@@ -257,9 +257,11 @@ function snapItem(it, skip) {
     if (base) { it.x = base.x; it.z = base.z; it.y = top; return 'sopra'; }
     it.y = 0;
   }
-  // sempre a filo muro: teche/mobili del sistema e mensole attaccati, gli altri espositori a 1 cm
+  // a filo muro: teche/mobili del sistema e mensole attaccati, gli altri espositori a 1 cm.
+  // "Staccato dal muro" (it.free): resta dove lo metti nella stanza, dentro i muri
   const wg = wallGap(it);
-  it.z = e.hz + wg;
+  if (it.free) it.z = Math.max(e.hz, Math.min(room.d - e.hz, it.z));
+  else it.z = e.hz + wg;
   if (room.wallL && it.x - e.hx < S) it.x = e.hx + wg;
   if (room.wallR && room.w - (it.x + e.hx) < S) it.x = room.w - e.hx - wg;
   let best = null;
@@ -412,7 +414,7 @@ function openRoom(id, mode) {
     room.swingFront = true; roomModels = {}; saveRoom();
   }
   // regola del muro anche per gli espositori già presenti (gli impilati seguono quello sotto)
-  room.items.forEach(it => { if (!isUpper(it)) { const e = extOf(it); it.z = e.hz + wallGap(it); } });
+  room.items.forEach(it => { if (!isUpper(it) && !it.free) { const e = extOf(it); it.z = e.hz + wallGap(it); } });
   room.items.filter(isUpper).forEach(it => { const b = room.items.find(o => o !== it && isSystem(o) && Math.abs(o.x - it.x) < 1 && elevY(o) < elevY(it)); if (b) it.z = b.z; });
   renderRoom();
 }
@@ -575,10 +577,13 @@ function renderRoomSide() {
       ${d.sided ? `<div class="btns"><button class="btn ${sideOf(sel) === 'SX' ? 'dark' : ''}" onclick="setSide('SX')">SX</button><button class="btn ${sideOf(sel) === 'DX' ? 'dark' : ''}" onclick="setSide('DX')">DX</button></div>` : ''}
       <div class="btns"><button class="btn" onclick="rotItem(-90)">⟲ 90°</button><button class="btn" onclick="rotItem(-15)">⟲ 15°</button>
         <button class="btn" onclick="rotItem(15)">⟳ 15°</button><button class="btn" onclick="rotItem(90)">⟳ 90°</button></div>
+      ${isUpper(sel) ? '' : `<div class="btns"><button class="btn ${sel.free ? '' : 'dark'}" onclick="setFree(false)" title="Appoggiato al muro di fondo">📌 Attaccato al muro</button>
+        <button class="btn ${sel.free ? 'dark' : ''}" onclick="setFree(true)" title="Si può mettere in qualsiasi punto della stanza, anche in mezzo">↔ Staccato dal muro</button></div>`}
       <div class="btns"><button class="btn" onclick="toWall()" title="Lo appoggia al muro di fondo, girato verso la stanza">⇡ Al muro</button>
         <button class="btn" onclick="dupItem()">⧉ Duplica</button><button class="btn" onclick="removeItem()">🗑 Togli</button></div>
       ${d.slots ? `<div class="btns"><button class="btn dark" onclick="editItem()" style="flex:1">✎ Apri e modifica i campioni</button></div>` : ''}
-      <div class="row" style="margin-top:4px">X <input type="number" step="5" value="${sel.x}" onchange="setItemPos('x', this.value)"> cm <span style="color:var(--mid)">· sempre a filo muro</span></div>`;
+      <div class="row" style="margin-top:4px">X <input type="number" step="5" value="${sel.x}" onchange="setItemPos('x', this.value)"> cm
+        ${sel.free ? `· dal muro <input type="number" step="5" value="${Math.round(sel.z - m.P / 2)}" onchange="setItemPos('z', +this.value + ${m.P / 2})"> cm` : '<span style="color:var(--mid)">· a filo muro</span>'}</div>`;
   }
   // elenco "livelli": tutto quello che c'è nella stanza; clic = seleziona
   const items = room.items.slice().sort((a, b) => a.x - b.x || elevY(a) - elevY(b));
@@ -765,8 +770,18 @@ function addCatalogItem(dispId) {
 }
 const selItem = () => room.items.find(i => i.id === roomSel);
 function rotItem(a) { const it = selItem(); if (!it) return; const r = (((it.rot || 0) + a) % 360 + 360) % 360; [it, ...stackedAbove(it)].forEach(o => o.rot = r); saveRoom(); renderRoom(); }
+/* attaccato al muro (normale) o staccato: libero in tutta la stanza; se lo stacchi va 60 cm più avanti per vederlo subito */
+function setFree(on) {
+  const it = selItem(); if (!it) return; const kids = stackedAbove(it);
+  if (on && !it.free) it.z = Math.min(room.d - extOf(it).hz, it.z + 60);
+  it.free = !!on; if (!on) delete it.free;
+  snapItem(it); kids.forEach(o => { o.z = it.z; o.x = it.x; if (on) o.free = true; else delete o.free; });
+  saveRoom(); renderRoom();
+  toast(on ? 'Staccato dal muro: trascinalo nella pianta dove vuoi' : 'Attaccato al muro');
+}
 function toWall() {
   const it = selItem(); if (!it) return; const kids = stackedAbove(it);
+  delete it.free; kids.forEach(o => delete o.free);
   it.rot = 0; it.z = roomModels[it.id].P / 2 + wallGap(it);
   kids.forEach(o => { o.rot = 0; o.z = it.z; o.x = it.x; });
   saveRoom(); renderRoom();
