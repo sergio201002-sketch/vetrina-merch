@@ -32,14 +32,14 @@ function relMatrix(el, root) {
 function floorTileCanvas() {
   const c = document.createElement('canvas'); c.width = c.height = 512;
   const g = c.getContext('2d');
-  g.fillStyle = '#dcdbd7'; g.fillRect(0, 0, 512, 512);
+  g.fillStyle = '#e8e7e4'; g.fillRect(0, 0, 512, 512);
   for (let i = 0; i < 9000; i++) {                       // grana del gres
     const v = 200 + Math.random() * 40 | 0; g.fillStyle = `rgba(${v},${v},${v - 4},.18)`;
     g.fillRect(Math.random() * 512, Math.random() * 512, 1 + Math.random() * 2, 1 + Math.random() * 2);
   }
   g.strokeStyle = 'rgba(160,156,148,.25)'; g.lineWidth = 1.2;            // venature leggere
   for (let k = 0; k < 4; k++) { g.beginPath(); let x = Math.random() * 512, y = Math.random() * 512; g.moveTo(x, y); for (let j = 0; j < 8; j++) { x += (Math.random() - .3) * 90; y += (Math.random() - .5) * 60; g.lineTo(x, y); } g.stroke(); }
-  g.fillStyle = '#b9b5ad'; g.fillRect(0, 0, 512, 3); g.fillRect(0, 0, 3, 512);   // fuga
+  g.fillStyle = '#c4c1ba'; g.fillRect(0, 0, 512, 2); g.fillRect(0, 0, 2, 512);   // fuga sottile
   return c;
 }
 /* ambiente di luce per i riflessi: stanza bianca con pannelli luminosi a soffitto (come uno showroom) */
@@ -56,8 +56,8 @@ function showroomEnv(T, rdr) {
 const firstColor = s => { const m = String(s || '').match(/rgba?\([^)]*\)|#[0-9a-f]{3,8}\b/i); return m ? m[0] : null; };
 function cssColor(str) {
   const m = String(str).match(/rgba?\(([^)]*)\)/);
-  if (m) { const p = m[1].split(',').map(x => parseFloat(x)); return { c: new THREE.Color(p[0] / 255, p[1] / 255, p[2] / 255), a: p.length > 3 ? p[3] : 1 }; }
-  try { return { c: new THREE.Color(str), a: 1 }; } catch (e) { return null; }
+  if (m) { const p = m[1].split(',').map(x => parseFloat(x)); return { c: new THREE.Color(p[0] / 255, p[1] / 255, p[2] / 255).convertSRGBToLinear(), a: p.length > 3 ? p[3] : 1 }; }
+  try { return { c: new THREE.Color(str).convertSRGBToLinear(), a: 1 }; } catch (e) { return null; }
 }
 
 async function renderRealistic() {
@@ -75,8 +75,11 @@ async function renderRealistic() {
   const FLIP = new DOMMatrix().scale(1, -1, 1);          // CSS (y in giù) → three (y in su)
   const toWorld = m => new T.Matrix4().fromArray(FLIP.multiply(view).multiply(m).toFloat32Array());
 
+  const s = Math.hypot(view.m11, view.m12, view.m13) || 1;   // scala della vista (zoom)
+  const rw = (window.room && room.w) || 600, rd = (window.room && room.d) || 400, rh = (window.room && room.h) || 300;
+  const pt = (x, y, z) => { const p = FLIP.multiply(view).transformPoint(new DOMPoint(x, y, z)); return new T.Vector3(p.x, p.y, p.z); };
   const scene = new T.Scene();
-  scene.background = new T.Color('#ecebe7');
+  scene.background = new T.Color('#f2f1ee');
   // le foto: prima si caricano tutte (immagini), poi diventano texture (una per foto e ripetizione)
   const imgs = {}, texCache = {}, pending = [];
   const loadImg = url => imgs[url] || (imgs[url] = new Promise(r => { const im = new Image(); im.onload = () => r(im); im.onerror = () => r(null); im.src = url; }));
@@ -94,6 +97,7 @@ async function renderRealistic() {
   for (const el of els) {
     const w = el.offsetWidth, h = el.offsetHeight;
     if (w < 0.05 || h < 0.05) continue;
+    if (el.classList.contains('empty') || el.classList.contains('rfloor') || el.classList.contains('rwall')) continue;
     const cs = getComputedStyle(el);
     if (cs.visibility === 'hidden' || cs.display === 'none' || !el.getClientRects().length) continue;
     const bi = cs.backgroundImage, url = (bi.match(/url\("?([^")]+)"?\)/) || [])[1];
@@ -132,15 +136,29 @@ async function renderRealistic() {
     mesh.castShadow = !floor && !wall; mesh.receiveShadow = true;
     scene.add(mesh); n++;
   }
-  // luci: cielo diffuso + sole dall'alto davanti a sinistra con ombre morbide
-  const s = Math.hypot(view.m11, view.m12, view.m13) || 1;   // scala della vista (zoom)
-  const rw = (window.room && room.w) || 600, rd = (window.room && room.d) || 400, rh = (window.room && room.h) || 300;
-  const pt = (x, y, z) => { const p = FLIP.multiply(view).transformPoint(new DOMPoint(x, y, z)); return new T.Vector3(p.x, p.y, p.z); };
-  scene.add(new T.HemisphereLight(0xffffff, 0x8f8a80, 0.16));
+  // ── la stanza: grande, così intorno non resta il vuoto ──
+  const quad = (pts, mat, uvs, shadow) => {
+    const g = new T.BufferGeometry(), v = [];
+    pts.forEach(q => { const w2 = pt(q[0], q[1], q[2]); v.push(w2.x, w2.y, w2.z); });
+    g.setAttribute('position', new T.Float32BufferAttribute(v, 3));
+    g.setAttribute('uv', new T.Float32BufferAttribute(uvs || [0, 0, 1, 0, 1, 1, 0, 1], 2));
+    g.setIndex([0, 1, 2, 0, 2, 3]); g.computeVertexNormals();
+    const m = new T.Mesh(g, mat); m.receiveShadow = true; m.castShadow = !!shadow; scene.add(m); return m;
+  };
+  const X0 = -rw * 1.5, X1 = rw * 2.5, Z1 = rd * 3, CH = rh * 4;   // muro alto: la telecamera sta in alto e vede sempre muro, mai il vuoto
+  const ft = new T.CanvasTexture(floorTileCanvas()); ft.encoding = T.sRGBEncoding; ft.wrapS = ft.wrapT = T.RepeatWrapping; ft.anisotropy = 16;
+  quad([[X0, 0, 0], [X1, 0, 0], [X1, 0, Z1], [X0, 0, Z1]], new T.MeshStandardMaterial({ map: ft, color: 0xffffff, roughness: 0.12, metalness: 0, envMapIntensity: 0.75, side: T.DoubleSide }),
+    [X0 / 60, 0, X1 / 60, 0, X1 / 60, Z1 / 60, X0 / 60, Z1 / 60]);
+  const wallM = new T.MeshStandardMaterial({ color: new T.Color(0xf4f3f1).convertSRGBToLinear(), roughness: 0.95, envMapIntensity: 0.3, side: T.DoubleSide });
+  quad([[X0, 0, 0], [X1, 0, 0], [X1, -CH, 0], [X0, -CH, 0]], wallM);
+  if (room.wallL) quad([[0, 0, 0], [0, 0, Z1], [0, -CH, Z1], [0, -CH, 0]], wallM);
+  if (room.wallR) quad([[rw, 0, 0], [rw, 0, Z1], [rw, -CH, Z1], [rw, -CH, 0]], wallM);
+  // luci
+  scene.add(new T.HemisphereLight(0xffffff, 0xa9a59d, 0.35));
   // faretti a soffitto in fila davanti agli espositori: luce dall'alto, ombre morbide sotto e dietro
   const nx = Math.max(2, Math.round(rw / 220)), sm = LOWMEM ? 1024 : 2048;
   for (let i = 0; i < nx; i++) {
-    const x = rw * (i + 0.5) / nx, sp = new T.SpotLight(0xfff3e4, 0.8 * 3 / (nx + 1), 0, Math.PI / 3.2, 0.85, 1);
+    const x = rw * (i + 0.5) / nx, sp = new T.SpotLight(0xfff6ec, 1.1 * 3 / (nx + 1), 0, Math.PI / 2.6, 0.9, 1);
     sp.position.copy(pt(x, -rh + 4, rd * 0.55)); sp.target.position.copy(pt(x, 0, rd * 0.25));
     sp.castShadow = true; sp.shadow.mapSize.set(sm, sm); sp.shadow.bias = -0.0006; sp.shadow.normalBias = 0.4 * s;
     sp.shadow.camera.near = 5 * s; sp.shadow.camera.far = (rh + rd) * 3 * s; sp.shadow.radius = 6;
@@ -159,7 +177,7 @@ async function renderRealistic() {
   const scale = Math.min(LOWMEM ? 2.5 : 4, (LOWMEM ? 1600 : 2400) / Math.max(W, H));   // immagine grande e nitida
   rdr.setPixelRatio(scale); rdr.setSize(W, H);
   rdr.shadowMap.enabled = true; rdr.shadowMap.type = T.PCFSoftShadowMap;
-  rdr.outputEncoding = T.sRGBEncoding; rdr.toneMapping = T.ACESFilmicToneMapping; rdr.toneMappingExposure = 0.85;
+  rdr.outputEncoding = T.sRGBEncoding; rdr.toneMapping = T.ACESFilmicToneMapping; rdr.toneMappingExposure = 1.0;
   rdr.physicallyCorrectLights = false;
   scene.environment = showroomEnv(T, rdr);
   rdr.render(scene, cam);
