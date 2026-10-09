@@ -23,7 +23,7 @@ body[data-view="gallery"] .hbtn[data-nav="home"] { background: var(--red); borde
 .gl-tab.on .k { color: #bbb; }
 .gl-tab.on img { background: #2a2a2a; }
 .gl-serie { display: flex; gap: 28px; align-items: stretch; padding: 26px 0; border-top: 1px solid #ebe8e2; }
-.gl-strips { flex: 1; display: flex; gap: 14px; overflow-x: auto; padding-bottom: 6px; scroll-snap-type: x proximity; }
+.gl-strips { flex: 1; display: flex; gap: 18px; overflow-x: auto; padding: 14px 12px 16px; scroll-snap-type: x proximity; }
 .gl-strip { --sw: clamp(96px, 11vw, 150px); --sh: clamp(320px, 52vh, 520px); position: relative; flex: none; width: var(--sw); height: var(--sh); border-radius: 999px 999px 999px 999px / 26px 26px 999px 999px;
   overflow: hidden; cursor: pointer; background: #e9e6df; box-shadow: 0 10px 26px rgba(40,30,20,.10); scroll-snap-align: start; transition: transform .25s, box-shadow .25s; border: 0; padding: 0; }
 .gl-strip:hover { transform: translateY(-4px); box-shadow: 0 16px 34px rgba(40,30,20,.16); }
@@ -40,12 +40,12 @@ body[data-view="gallery"] .hbtn[data-nav="home"] { background: var(--red); borde
 .gl-info p { margin: 8px 0 0; font-size: 13.5px; line-height: 1.5; color: #444; }
 .gl-info p b { color: #222; }
 .gl-empty { padding: 40px; text-align: center; color: var(--mid); }
-.gl-strip.miss .glph { filter: grayscale(.35) brightness(.62); }
-.gl-strip.miss::after { content: ''; position: absolute; inset: 0; background: linear-gradient(rgba(110,10,10,.18), rgba(70,0,0,.42)); pointer-events: none; }
+/* colori che non ha: foto normale, con una luce rossa intorno */
+.gl-strip.miss { box-shadow: 0 0 0 3px rgba(214,30,40,.95), 0 0 22px 6px rgba(230,40,50,.55), 0 10px 26px rgba(40,30,20,.10); }
+.gl-strip.miss:hover { box-shadow: 0 0 0 3px rgba(214,30,40,1), 0 0 30px 9px rgba(230,40,50,.65), 0 16px 34px rgba(40,30,20,.16); }
 .gl-strip .tag { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 2; white-space: nowrap; font: 700 10px var(--font-body); letter-spacing: .04em;
   padding: 4px 8px; border-radius: 999px; background: rgba(150,15,20,.92); color: #fff; }
 .gl-strip .tag.el { background: rgba(255,255,255,.9); color: #333; }
-.gl-strip.miss .nm { background: linear-gradient(rgba(255,255,255,.7), rgba(255,255,255,0)); }
 .gl-tools { display: flex; gap: 8px; align-items: center; margin: -4px 0 10px; flex-wrap: wrap; }
 .gl-tools .btn.on { background: #8e1016; border-color: #8e1016; color: #fff; }
 .gl-tools .lg { font-size: 12px; color: var(--mid); display: flex; gap: 12px; flex-wrap: wrap; }
@@ -152,7 +152,7 @@ function renderGallery(cid, sub) {
         <img src="${x.d.img}" alt=""><span>${esc(x.c.name)}<span class="k">${esc(x.d.name)} · ${filledOf(x.c)} campioni${showRooms(cid).length > 1 ? ' · ' + esc(x.room) : ''}</span></span></button>`).join('')}</div>` : ''}
     ${list.length ? `<div class="gl-tools"><button class="btn ${ui.glMissing ? 'on' : ''}" onclick="ui.glMissing = !ui.glMissing; saveUI(); renderGallery('${cid}', '${isAll ? 'tutti' : cur ? cur.c.id : ''}')"
         title="Mostra anche gli altri colori di ogni serie">${ui.glMissing ? '✓ ' : ''}◐ Colori che non ha</button>
-      ${ui.glMissing ? `<span class="lg"><span><i style="background:#ddd"></i>in sala mostra</span><span><i style="background:#7a1015"></i>non in sala mostra</span>${isAll ? '' : '<span><i style="background:#fff;border:1px solid #ccc"></i>in un altro espositore</span>'}</span>` : ''}</div>` : ''}
+      ${ui.glMissing ? `<span class="lg"><span><i style="background:#ddd"></i>in sala mostra</span><span><i style="background:#fff;box-shadow:0 0 0 2px #d61e28,0 0 6px 2px rgba(230,40,50,.6)"></i>non in sala mostra</span>${isAll ? '' : '<span><i style="background:#fff;border:1px solid #ccc"></i>in un altro espositore</span>'}</span>` : ''}</div>` : ''}
     <div id="glBody">${groups.length ? groups.map((g, gi) => galleryBlock(g, gi, isAll)).join('') : `<div class="gl-empty">La sala mostra di ${esc(cl.name)} non ha ancora campioni negli espositori.</div>`}</div>
   </div>`;
   glState = view.length ? { cid, list: groups.flatMap(g => g.items) } : null;
