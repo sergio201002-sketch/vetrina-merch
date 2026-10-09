@@ -191,7 +191,8 @@ function espHTML(cid, cc) {
   const free = Object.values(comps).filter(c => !c.client && c.slots.some(Boolean) && DISP[c.disp]);
   return `
     <div class="vhead"><h2 style="font-size:17px">Espositori del cliente</h2>
-      <button class="btn red" onclick="addingDisp=!addingDisp; renderClient('${cid}')">${addingDisp ? 'Chiudi' : '＋ Aggiungi espositore'}</button></div>
+      <span style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" onclick="pasteIntoComps(visibleComps('${cid}'), null, () => renderClient('${cid}'))" title="Incolla un elenco di codici e scegli in quali espositori metterli">📥 Incolla codici</button>
+      <button class="btn red" onclick="addingDisp=!addingDisp; renderClient('${cid}')">${addingDisp ? 'Chiudi' : '＋ Aggiungi espositore'}</button></span></div>
     ${addingDisp ? `<div class="card" style="margin-bottom:12px">${dispPickerHTML(`addCompTo('${cid}', '%ID%')`)}</div>` : ''}
     ${cc.length ? `<div style="display:flex;flex-direction:column;gap:8px">${cc.map(c => compCardHTML(c, cid)).join('')}</div>`
       : `<div class="card empty-note">Nessun espositore per questo cliente.<br>Premi <b>＋ Aggiungi espositore</b> e scegli quello che ha (o che gli proponi), poi inserisci i campioni.</div>`}
@@ -324,13 +325,20 @@ function showroomHTML(cid) {
     <div class="stats" style="margin:10px 0 16px"><div><b>${rooms.length}</b>${rooms.length === 1 ? 'stanza' : 'stanze'}</div><div><b>${nEsp}</b>espositori</div><div><b>${tot}</b>campioni esposti</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
       <button class="btn red" style="font-size:14px;padding:10px 16px" onclick="go('#/salamostra/${cid}')">▶ Entra nella sala mostra</button>
-      <button class="btn" onclick="addShowRoom('${cid}')">＋ Aggiungi una stanza</button></div>
+      <button class="btn" onclick="addShowRoom('${cid}')">＋ Aggiungi una stanza</button>
+      <button class="btn" onclick="pasteShowroom('${cid}')" title="Incolla un elenco di codici e scegli in quali espositori della sala mostra metterli">📥 Incolla codici</button></div>
     <div class="roomlist">${rooms.map(r => `<div class="roomrow">
       <div class="info"><b>${esc(r.name)}</b><div class="meta">${r.items.length} espositori · ${fill(r)} campioni · ${r.w}×${r.d} cm</div></div>
       <button class="btn dark" onclick="go('#/salamostra/${cid}/${r.id}')">▶ Entra</button>
       <button class="btn" onclick="go('#/ambiente/${r.id}')">✎ Modifica</button>
       ${rooms.length > 1 ? `<button class="btn" title="Elimina questa stanza" onclick="delShowRoom('${r.id}')">🗑</button>` : ''}</div>`).join('')}</div>
   </div>`;
+}
+/* incolla codici negli espositori della sala mostra (tutte le stanze, da sinistra a destra) */
+function pasteShowroom(cid) {
+  const seen = new Set(), list = [];
+  showRooms(cid).forEach(r => r.items.slice().sort((a, b) => a.x - b.x).forEach(it => { const c = comps[it.comp]; if (c && !seen.has(c.id)) { seen.add(c.id); list.push(c); } }));
+  pasteIntoComps(list, null, () => renderClient(cid));
 }
 /* nuova stanza della sala mostra (si apre subito per mettere gli espositori) */
 function addShowRoom(cid) {

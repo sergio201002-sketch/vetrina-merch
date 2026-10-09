@@ -332,7 +332,7 @@ function openRoom(id, mode) {
       <div class="sec"><h4>Sala mostra · ${esc(room.name)}</h4><div style="font-weight:800;font-size:17px;font-family:var(--font-display)">${clName}</div>
         <div style="font-size:12px;color:var(--mid);margin:6px 0 10px">Clicca un espositore (qui sotto o nella stanza) per aprirlo: sfogli i girevoli, apri i cassetti, tiri fuori i tozzetti e guardi i campioni.</div>
         <button class="btn dark" onclick="openSampleBoard()" style="width:100%;margin-bottom:6px">🧩 Sistema i campioni</button>
-        <button class="btn" onclick="roomPaste()" style="width:100%;margin-bottom:6px" title="Incolla un elenco di codici e scegli in quali espositori metterli">📋 Incolla codici</button>
+        <button class="btn" onclick="roomPaste()" style="width:100%;margin-bottom:6px" title="Incolla un elenco di codici e scegli in quali espositori metterli">📥 Incolla codici</button>
         <button class="btn" onclick="go('#/ambiente/${room.id}')" style="width:100%">✎ Modifica disposizione</button></div>
       <div class="sec"><h4 id="roomItemsTitle">Espositori</h4><div class="addlist layers" id="roomItemList"></div></div>
     </aside>

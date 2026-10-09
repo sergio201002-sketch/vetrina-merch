@@ -85,7 +85,7 @@ function openSampleBoard() {
     document.body.insertAdjacentHTML('beforeend', `<div class="modal cs-modal" id="csModal"><div class="mbox">
       <div class="mhead"><h3>🧩 Sistema i campioni</h3>
         <div class="cs-size">Grandezza <button class="btn" onclick="csZoom(-1)" title="Quadratini più piccoli: ne vedi di più">−</button><button class="btn" onclick="csZoom(1)" title="Quadratini più grandi">+</button></div>
-        <button class="btn" onclick="roomPaste()" title="Incolla un elenco di codici in uno o più espositori">📋 Incolla codici</button>
+        <button class="btn" onclick="roomPaste()" title="Incolla un elenco di codici in uno o più espositori">📥 Incolla codici</button>
         <button class="btn dark" onclick="closeSampleBoard()">Fatto</button></div>
       <div class="cs-hint">Trascina per spostare o scambiare (telefono: tieni premuto e trascina) · tocca un posto per inserire, cambiare o togliere: dopo ogni campione passa da solo al posto accanto (partendo dall'ultimo a destra va verso sinistra, ⇄ cambia verso) · Invio nella ricerca mette il campione se ne è rimasto uno solo · ☐ Seleziona per spostare: scegli più campioni e spostali insieme · con − e + vedi più o meno quadratini.</div>
       <div class="cs-tabs" id="csTabs"></div>
@@ -285,7 +285,7 @@ async function csPaste(btn) {
   renderSampleBoard(); pasteReport(o);
 }
 function csSelBtn() {
-  return `<button class="btn" onclick="csPaste(this)" title="Incolla un elenco di codici (uno per riga)">📋 Incolla codici</button>` + `<button class="btn${csSelMode ? ' on' : ''}" onclick="csToggleSelMode()" title="Scegli più campioni e spostali tutti insieme">${csSelMode ? '✓ Selezione attiva' : '☐ Seleziona per spostare'}</button>`;
+  return `<button class="btn" onclick="csPaste(this)" title="Incolla un elenco di codici (uno per riga)">📥 Incolla codici</button>` + `<button class="btn${csSelMode ? ' on' : ''}" onclick="csToggleSelMode()" title="Scegli più campioni e spostali tutti insieme">${csSelMode ? '✓ Selezione attiva' : '☐ Seleziona per spostare'}</button>`;
 }
 function csToggleSelMode() {
   csSelMode = !csSelMode; csSel = []; csArm = false;
