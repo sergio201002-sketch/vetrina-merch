@@ -932,10 +932,12 @@ const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&
 function faceOf(d, c) { return (d.variantFaces && d.variantFaces[c.slots.length]) || d.face; }
 const tozFmt = (d, c) => faceOf(d, c).join('x').replace(/\./g, ',');
 /* Spessore di piastrelle e tozzetti: 1 cm, 2 cm per le serie da 20 mm (o negli espositori solo 20 mm) */
+/* spessore: lastre (lato lungo da 240 cm in su) 6,5 mm; piastrelle da 20 mm 2 cm; tutte le altre 1 cm */
 function tileThickCm(d, c, i) {
   const s = c && SAMPLE[c.slots[i]]; if (!s) return 0;
   if (d.accept && d.accept.thick && d.accept.thick.every(x => x === '20')) return 2;
-  return s.t.length && s.t.every(x => x === '20') ? 2 : 1;
+  if (s.t.length && s.t.every(x => x === '20')) return 2;
+  return !s.toz && Math.max(...parseSize(s.z)) >= 240 ? 0.65 : 1;
 }
 /* Bordi e retro dietro una faccia w×h (px), profondità T (px): da mettere nello stesso contenitore della faccia.
    back = stile CSS del retro (di serie grigio ceramica) */
@@ -953,12 +955,16 @@ function thickHTML(w, h, T, back) {
     `<div class="bx" style="width:${w}px;height:${T}px;${e}transform:translate3d(0,${h}px,0) rotateX(-90deg)"></div>` +
     `<div class="bx" style="width:${w}px;height:${h}px;${back || 'background:#cfc9be'};transform:translate3d(${w}px,0,${-T}px) rotateY(180deg)"></div>`;
 }
-/* Spessore + retro di un tozzetto/piastrella del posto i: il retro mostra anche lui il campione,
-   così si riconosce da qualsiasi lato lo si guardi (fw×fh in cm, k = px per cm) */
+/* Spessore + retro di un tozzetto/piastrella del posto i. Il retro è quello vero delle piastrelle (la grafica a rombi
+   del sottofondo): rettangolare (verticale o orizzontale) o quadrato (fw×fh in cm, k = px per cm) */
+function backStyle(fw, fh) {
+  const r = fw / fh, img = Math.abs(r - 1) < 0.15 ? 'retro_quadrato' : r < 1 ? 'retro_verticale' : 'retro_orizzontale';
+  return `background:#ddd8cf url(img/${img}.webp) center/100% 100% no-repeat;`;
+}
 function tileBody(d, c, i, fw, fh, tiled, k) {
   const s = c && SAMPLE[c.slots[i]];
-  const back = s ? faceBg(s, fw, fh, tiled) + 'filter:brightness(.9);' : 'background:#e6e3dc;';
-  return thickHTML(fw * k, fh * k, Math.max(1, tileThickCm(d, c, i)) * k, back);
+  const back = s ? backStyle(fw, fh) : 'background:#e6e3dc;';
+  return thickHTML(fw * k, fh * k, Math.max(0.5, tileThickCm(d, c, i)) * k, back);
 }
 function slotName(d, i, n) {
   if ((d.mode === 'book' || d.mode === 'swing') && d.sides === 2) { const L = n / 2, [a, b] = d.sideNames || ['A', 'B']; return (i < L ? a : b) + (d.sideNames ? ' ' : '') + ((i % L) + 1); }
