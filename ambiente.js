@@ -21,7 +21,7 @@ function rface(d, c, i, fw, fh, tiled, back) {
 }
 const rplain = (cls, back) => `<div class="rf ${cls}" style="${back ? 'transform:rotateY(180deg)' : ''}"></div>`;
 /* contenitore di una piastrella; con i (posto) diventa animabile (classe ttile, data-t) */
-const tileDiv = (w, h, tf, inner, i) => `<div class="bx${i != null ? ' ttile' : ''}"${i != null ? ` data-t="${i}" data-slot="${i}"` : ''} style="width:${w}px;height:${h}px;${tf};transform-style:preserve-3d">${inner}</div>`;
+const tileDiv = (w, h, tf, inner, i) => (LITE3D && !inner) ? '' : `<div class="bx${i != null ? ' ttile' : ''}"${i != null ? ` data-t="${i}" data-slot="${i}"` : ''} style="width:${w}px;height:${h}px;${tf};transform-style:preserve-3d">${inner}</div>`;
 const B = (x, y, z, w, h, dd) => box3d(x, y, z, w, h, dd, METAL);
 const sizeOfSlot = (c, i, def) => { const s = c && SAMPLE[c.slots[i]]; return s && !s.toz ? sorted2(parseSize(s.z)) : def; };
 const tr = (x, y, z, r) => `translate3d(${x}px,${y}px,${z}px)${r ? ' ' + r : ''}`;
