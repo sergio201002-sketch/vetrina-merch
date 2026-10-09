@@ -461,7 +461,9 @@ function applyCam(animate) {
    lo guardi nessuno si mette in mezzo); chiudendo il campione ricompaiono */
 function hideBlockers() {
   const open = cam.focus && showSel ? showSel.item : null;
-  document.querySelectorAll('#roomScene .ritem').forEach(e => { e.style.visibility = open && e.dataset.id !== open ? 'hidden' : ''; });
+  // si nascondono gli altri espositori, ma non quelli attaccati nella stessa fila (girevoli uniti): si vedono come un unico espositore
+  const it = open && room.items.find(i => i.id === open), keep = new Set(it ? swingRow(it).map(o => o.id) : []);
+  document.querySelectorAll('#roomScene .ritem').forEach(e => { e.style.visibility = open && e.dataset.id !== open && !keep.has(e.dataset.id) ? 'hidden' : ''; });
 }
 let orbitMoved = false;
 function bindOrbit(el) {
