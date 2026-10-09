@@ -92,6 +92,7 @@ async function renderRealistic() {
     }
     return texCache[k];
   };
+  const roomBig = {}; Object.entries(window.FOTO_ROOM || {}).forEach(([orig, small]) => { roomBig[small] = (LOWMEM && FOTO_MED[orig]) || orig; });
   const els = root.querySelectorAll('*');
   let n = 0, floorCanvas = null;
   for (const el of els) {
@@ -100,7 +101,9 @@ async function renderRealistic() {
     if (el.classList.contains('empty') || el.classList.contains('rfloor') || el.classList.contains('rwall')) continue;
     const cs = getComputedStyle(el);
     if (cs.visibility === 'hidden' || cs.display === 'none' || !el.getClientRects().length) continue;
-    const bi = cs.backgroundImage, url = (bi.match(/url\("?([^")]+)"?\)/) || [])[1];
+    const bi = cs.backgroundImage;
+    let url = (bi.match(/url\("?([^")]+)"?\)/) || [])[1];
+    if (url && /\/foto\/sala\//.test(url)) { const rel = url.slice(url.indexOf('foto/sala/')), big = roomBig[rel]; if (big) url = new URL(big, location.href).href; }   // nel render: foto grandi
     let col = cs.backgroundColor, ccol = cssColor(col);
     if ((!ccol || ccol.a === 0) && bi && bi !== 'none' && !url) { const fc = firstColor(bi); if (fc) ccol = cssColor(fc); }   // sfumature: il primo colore
     if (!url && (!ccol || ccol.a === 0)) continue;

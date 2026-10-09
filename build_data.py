@@ -402,11 +402,12 @@ def borrow_photos(samples, photos):
     return out
 
 
-def make_medium():
+def make_medium(sub='medie', size=1600, quality=84):
     """Foto medie (max 1600 px, webp) in foto/medie/: le usa il telefono. Le foto originali sono AVIF fino a
-    1920 px: alcuni iPhone non leggono l'AVIF e con tante foto grandi il browser del telefono ne lascia alcune vuote."""
+    1920 px: alcuni iPhone non leggono l'AVIF e con tante foto grandi il browser del telefono ne lascia alcune vuote.
+    Con sub='sala' (480 px): le foto leggere per la vista generale della sala mostra."""
     from PIL import Image
-    folder, med, out = os.path.join(HERE, 'foto'), os.path.join(HERE, 'foto', 'medie'), {}
+    folder, med, out = os.path.join(HERE, 'foto'), os.path.join(HERE, 'foto', sub), {}
     os.makedirs(med, exist_ok=True)
     for fn in sorted(os.listdir(folder)):
         src = os.path.join(folder, fn)
@@ -418,13 +419,13 @@ def make_medium():
             try:
                 with Image.open(src) as im:
                     im = im.convert('RGB')
-                    im.thumbnail((1600, 1600))
-                    im.save(dst, "WEBP", quality=84)
+                    im.thumbnail((size, size))
+                    im.save(dst, "WEBP", quality=quality)
             except Exception:
                 continue
-        out['foto/' + fn] = 'foto/medie/' + name
+        out['foto/' + fn] = 'foto/' + sub + '/' + name
     for fn in os.listdir(med):
-        if 'foto/medie/' + fn not in out.values():
+        if 'foto/' + sub + '/' + fn not in out.values():
             os.remove(os.path.join(med, fn))
     return out
 
@@ -503,6 +504,7 @@ def main():
         f.write('window.FOTO_MINI = ' + json.dumps(minis, ensure_ascii=False, separators=(',', ':')) + ';\n')
         f.write('window.FOTO_COL = ' + json.dumps(photo_colors(minis), ensure_ascii=False, separators=(',', ':')) + ';\n')
         f.write('window.FOTO_MED = ' + json.dumps(make_medium(), ensure_ascii=False, separators=(',', ':')) + ';\n')
+        f.write('window.FOTO_ROOM = ' + json.dumps(make_medium('sala', 480, 80), ensure_ascii=False, separators=(',', ':')) + ';\n')
     print(len(DISPLAYS), 'espositori,', len(samples), 'campioni,', len(photos), 'colori con foto,', len(photos_z), 'formati con la loro foto ->', out)
     for ik, path in photos.items():
         print('  ', path, '->', ik.replace('|', ' · '))
