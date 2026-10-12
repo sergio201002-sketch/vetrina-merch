@@ -278,7 +278,7 @@ function cartHolders(d, c, op) {
   if (op >= 0 && pos[op]) {
     const { w, th } = pos[op], pull = w + 4;
     m.after = [[`.drawer3d[data-dr="${op}"]`, `translate3d(0,0,${pull}px)`]];
-    m.focus = { x: xOf(op), y: -lift - th / 2, z: z0 - w / 2 + pull, w, h: th, yaw: -72, tilt: 6 };
+    m.focus = { x: xOf(op), y: -lift - th / 2, z: z0 - w / 2 + pull, w, h: th, yaw: 72, tilt: 6 };   // dal lato delle facce (non dal retro)
   }
   return m;
 }
