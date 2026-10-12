@@ -33,6 +33,7 @@ function route() {
   window.scrollTo(0, 0);
   const [, a, id, sub] = (location.hash || '#/').split('/');
   if (a === 'cliente' && clients[id]) { document.body.dataset.view = 'client'; renderClient(id); return; }
+  if (a === 'galleria') { closeGalleryFull(); document.body.dataset.view = 'gallery'; renderGalleryHome(); return; }
   if (a === 'campioni' && clients[id]) { closeGalleryFull(); document.body.dataset.view = 'gallery'; renderGallery(id, sub); return; }
   if (a === 'ambiente' && scenes[id]) { document.body.dataset.view = 'room'; openRoom(id); return; }
   if (a === 'salamostra' && clients[id]) {

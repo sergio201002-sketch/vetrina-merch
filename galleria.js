@@ -9,7 +9,19 @@
 document.head.insertAdjacentHTML('beforeend', `<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
 <style>
 body[data-view="gallery"] #viewGallery { display: block; }
-body[data-view="gallery"] .hbtn[data-nav="home"] { background: var(--red); border-color: var(--red); }
+body[data-view="gallery"] .hbtn[data-nav="gallery"] { background: var(--red); border-color: var(--red); }
+/* pagina iniziale della galleria: un riquadro per cliente con le strisce dei suoi campioni */
+.gh-search { flex: 1; max-width: 320px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; font: inherit; background: #fff; }
+.gh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; margin-top: 8px; }
+.gh-card { background: #fff; border: 1px solid #ebe8e2; border-radius: 18px; overflow: hidden; cursor: pointer; text-align: left; padding: 0; font: inherit; color: inherit;
+  box-shadow: 0 6px 18px rgba(40,30,20,.06); transition: transform .2s, box-shadow .2s; }
+.gh-card:hover { transform: translateY(-3px); box-shadow: 0 14px 30px rgba(40,30,20,.12); }
+.gh-strips { display: flex; gap: 6px; height: 150px; padding: 12px 12px 0; background: #f6f4f0; }
+.gh-strips span { flex: 1; border-radius: 8px 8px 999px 999px; background: #e6e2da center/cover; margin-bottom: 10px; }
+.gh-card .in { padding: 12px 14px 14px; }
+.gh-card .nm { font: 500 22px/1.15 'Playfair Display', Georgia, serif; }
+.gh-card .mt { font-size: 12.5px; color: var(--mid); margin-top: 4px; }
+.gh-card.off { opacity: .55; cursor: default; }
 #viewGallery { background: #fbfaf8; min-height: calc(100vh - 56px); }
 .gl-wrap { max-width: 1280px; margin: 0 auto; padding: 18px 20px 60px; }
 .gl-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
@@ -151,6 +163,30 @@ function glLazy() {
 }
 const glLandscape = s => { const u = IMG[photoKey(s)], wh = u && (window.FOTO_WH || {})[u]; return wh ? wh[0] > wh[1] * 1.05 : false; };
 
+/* ── pagina iniziale: i clienti con la loro sala mostra ── */
+let ghQ = '';
+function renderGalleryHome() {
+  const v = document.getElementById('viewGallery');
+  const rows = Object.values(clients).map(cl => {
+    const list = galleryDisplays(cl.id), keys = [...new Set(list.flatMap(x => x.c.slots.filter(k => k && SAMPLE[k])))];
+    return { cl, list, keys };
+  }).filter(r => r.keys.length || showRooms(r.cl.id).length).sort((a, b) => b.keys.length - a.keys.length || a.cl.name.localeCompare(b.cl.name));
+  const q = normTxt(ghQ).trim();
+  const shown = rows.filter(r => !q || normTxt(r.cl.name + ' ' + (r.cl.city || '')).includes(q));
+  v.innerHTML = `<div class="gl-wrap">
+    <div class="gl-head"><h2><small>Galleria campioni</small>Sale mostra dei clienti</h2>
+      <input class="gh-search" id="ghSearch" placeholder="Cerca cliente o città…" value="${esc(ghQ)}"></div>
+    ${shown.length ? `<div class="gh-grid">${shown.map(({ cl, list, keys }) => {
+      const pics = keys.map(k => SAMPLE[k]).filter(s => IMG[photoKey(s)]).slice(0, 6);
+      return `<button class="gh-card${keys.length ? '' : ' off'}" ${keys.length ? `onclick="go('#/campioni/${cl.id}/tutti')"` : ''}>
+        <div class="gh-strips">${(pics.length ? pics : [null, null, null]).map(s => `<span style="${s ? `background-image:url('${esc((FOTO_MINI || {})[IMG[photoKey(s)]] || IMG[photoKey(s)])}')` : ''}"></span>`).join('')}</div>
+        <div class="in"><div class="nm">${esc(cl.name)}</div>
+          <div class="mt">${cl.city ? esc(cl.city) + ' · ' : ''}${keys.length ? `${keys.length} campioni · ${list.length} espositori` : 'sala mostra ancora senza campioni'}</div></div></button>`;
+    }).join('')}</div>` : `<div class="gl-empty">${rows.length ? 'Nessun cliente trovato.' : 'Nessun cliente ha ancora una sala mostra con i campioni: crea la sala mostra dalla scheda del cliente.'}</div>`}
+  </div>`;
+  const inp = document.getElementById('ghSearch');
+  inp.addEventListener('input', e => { ghQ = e.target.value; const pos = e.target.selectionStart; renderGalleryHome(); const n = document.getElementById('ghSearch'); n.focus(); n.setSelectionRange(pos, pos); });
+}
 function renderGallery(cid, sub) {
   const v = document.getElementById('viewGallery'), cl = clients[cid];
   const list = galleryDisplays(cid), allC = list.map(x => x.c);
@@ -161,8 +197,9 @@ function renderGallery(cid, sub) {
   const nTot = new Set(allC.flatMap(c => c.slots.filter(k => k && SAMPLE[k]))).size;
   v.innerHTML = `<div class="gl-wrap">
     <div class="gl-head">
-      <button class="btn" onclick="go('#/cliente/${cid}')">← ${esc(cl.name)}</button>
+      <button class="btn" onclick="go('#/galleria')">← Galleria</button>
       <h2><small>Sala mostra · campioni</small>${esc(cl.name)}</h2>
+      <button class="btn" onclick="go('#/cliente/${cid}')">Scheda cliente</button>
       <button class="btn red" onclick="go('#/salamostra/${cid}')">▶ Entra nella sala mostra</button>
     </div>
     ${list.length ? `<div class="gl-tabs"><button class="gl-tab all ${isAll ? 'on' : ''}" onclick="go('#/campioni/${cid}/tutti')"><span>Tutta la sala mostra<span class="k">${nTot} campioni · ${list.length} espositori</span></span></button>${list.map(x => `<button class="gl-tab ${x === cur ? 'on' : ''}" onclick="go('#/campioni/${cid}/${x.c.id}')">
