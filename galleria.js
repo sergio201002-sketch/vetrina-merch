@@ -272,7 +272,9 @@ function glShow() {
     img.style.maxWidth = (side ? H : W) + 'px'; img.style.maxHeight = (side ? W : H) + 'px'; img.style.transform = `rotate(${glTurn}deg)`;
   };
   img.onload = () => {
-    if (glTurn === 0 && glAuto) { const [a, b] = s.toz ? [1, 1] : sorted2(parseSize(s.z)), tilePortrait = b > a * 1.05, photoLand = img.naturalWidth > img.naturalHeight * 1.05; if (tilePortrait && photoLand) glTurn = 90; }   // come la piastrella: in verticale
+    // schermo largo (PC): la foto resta com'è, grande; schermo alto (telefono in verticale): la piastrella verticale si gira in verticale
+    const st = document.getElementById('glStage'), tall = st.clientHeight > st.clientWidth;
+    if (glTurn === 0 && glAuto && tall) { const [a, b] = s.toz ? [1, 1] : sorted2(parseSize(s.z)), tilePortrait = b > a * 1.05, photoLand = img.naturalWidth > img.naturalHeight * 1.05; if (tilePortrait && photoLand) glTurn = 90; }
     glAuto = false; fit(); img.style.opacity = 1;
   };
   img.src = p || ''; fit(); if (!p) img.alt = 'Foto non disponibile';
