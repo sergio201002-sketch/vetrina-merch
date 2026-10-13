@@ -102,7 +102,7 @@ const RoomGL = {
       // davanti delle piastrelle: la foto com'è (niente luci che la scuriscono o la sbiadiscono)
       const mat = face ? new T.MeshBasicMaterial({ color: 0xffffff, side: T.DoubleSide, toneMapped: false })
         : new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, metalness: 0, side: T.DoubleSide, envMapIntensity: 0.3 });
-      let photo = null;
+      let photo = null, metal = false;
       if (floor) {
         if (!this.floorTex) { this.floorTex = new T.CanvasTexture(floorTileCanvas()); this.floorTex.encoding = T.sRGBEncoding; this.floorTex.wrapS = this.floorTex.wrapT = T.RepeatWrapping; this.floorTex.anisotropy = 8; }
         const ft = this.floorTex.clone(); ft.needsUpdate = true; ft.repeat.set(w / 60, h / 60); mat.map = ft; mat.roughness = 0.35; mat.color = new T.Color(0xdedcd8);
@@ -117,13 +117,18 @@ const RoomGL = {
         if (!face) { mat.roughness = 0.45; mat.envMapIntensity = 0.22; }
       } else {
         mat.color = ccol.c; const l = ccol.c.r + ccol.c.g + ccol.c.b;
-        if (l < 0.5) { mat.color = new T.Color(0x050506); mat.roughness = 0.55; mat.metalness = 0.05; mat.envMapIntensity = 0.08; }   // metallo nero degli espositori
+        if (l < 0.5) {   // metallo nero degli espositori: verniciato a polvere, opaco, con la grana "a buccia d'arancia"
+          const pm = powderMaps(T); metal = true;
+          mat.color = new T.Color(0x232327).convertSRGBToLinear(); mat.roughness = 0.88; mat.metalness = 0; mat.envMapIntensity = 0.12;
+          mat.normalMap = pm.normal; mat.normalScale = new T.Vector2(0.45, 0.45); mat.roughnessMap = pm.rough;
+        }
         if (ccol.a < 1) { mat.transparent = true; mat.opacity = ccol.a; }
       }
       const g = new T.PlaneGeometry(1, 1); g.translate(0.5, -0.5, 0); g.scale(w, h, 1);   // piano w×h con origine in alto a sinistra (y verso il basso dopo il ribaltamento)
       g.scale(1, -1, 1);
       // la foto sta sullo stesso piano del pannello sotto: la stacco appena verso chi guarda, così non si mescolano a puntini
       if (photo) g.translate(0, 0, 0.08);
+      if (metal) { const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * w / 18, uv.getY(i) * h / 18); }   // grana sempre della stessa misura (18 cm per ripetizione)
       const mesh = new T.Mesh(g, mat); mesh.matrixAutoUpdate = false;
       const D = this.isDyn(el) ? el : findDyn(el);
       const staticM = D === el ? new DOMMatrix() : relTo(el, D);   // senza antenato mobile: fino alla stanza
@@ -210,3 +215,32 @@ const RoomGL = {
   unsharp() { this.sharpMeshes.forEach(m => { if (m.userData.prevMap) { m.material.map = m.userData.prevMap; m.material.needsUpdate = true; } }); this.sharpMeshes = []; this.poke(); },
 };
 window.RoomGL = RoomGL;
+
+/* texture del metallo verniciato a polvere (nero opaco): rilievo fine e irregolare + ruvidità che varia appena. Ripetibile senza giunte. */
+let _powder = null;
+function powderMaps(T) {
+  if (_powder) return _powder;
+  const N = 256, h = new Float32Array(N * N);
+  const octave = (P, amp) => {   // rumore a reticolo periodico (si ripete senza giunte)
+    const g = Array.from({ length: P * P }, () => Math.random());
+    const at = (x, y) => g[((y + P) % P) * P + ((x + P) % P)], sm = t => t * t * (3 - 2 * t);
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const fx = x / N * P, fy = y / N * P, x0 = Math.floor(fx), y0 = Math.floor(fy), tx = sm(fx - x0), ty = sm(fy - y0);
+      const a = at(x0, y0) + (at(x0 + 1, y0) - at(x0, y0)) * tx, b = at(x0, y0 + 1) + (at(x0 + 1, y0 + 1) - at(x0, y0 + 1)) * tx;
+      h[y * N + x] += (a + (b - a) * ty) * amp;
+    }
+  };
+  octave(24, 1); octave(48, 0.6); octave(128, 0.35);
+  for (let i = 0; i < h.length; i++) h[i] += Math.random() * 0.12;   // grana finissima della polvere
+  const cn = document.createElement('canvas'), cr = document.createElement('canvas'); cn.width = cn.height = cr.width = cr.height = N;
+  const xn = cn.getContext('2d'), xr = cr.getContext('2d'), dn = xn.createImageData(N, N), dr = xr.createImageData(N, N);
+  const H = (x, y) => h[((y + N) % N) * N + ((x + N) % N)];
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const dx = (H(x + 1, y) - H(x - 1, y)) * 1.6, dy = (H(x, y + 1) - H(x, y - 1)) * 1.6, l = Math.hypot(dx, dy, 1), i = (y * N + x) * 4;
+    dn.data[i] = (-dx / l * 0.5 + 0.5) * 255; dn.data[i + 1] = (-dy / l * 0.5 + 0.5) * 255; dn.data[i + 2] = (1 / l * 0.5 + 0.5) * 255; dn.data[i + 3] = 255;
+    const r = 235 + (H(x, y) - 1.1) * 30; dr.data[i] = dr.data[i + 1] = dr.data[i + 2] = Math.max(150, Math.min(255, r)); dr.data[i + 3] = 255;
+  }
+  xn.putImageData(dn, 0, 0); xr.putImageData(dr, 0, 0);
+  const mk = c => { const t = new T.CanvasTexture(c); t.wrapS = t.wrapT = T.RepeatWrapping; t.anisotropy = 8; return t; };
+  return (_powder = { normal: mk(cn), rough: mk(cr) });
+}
