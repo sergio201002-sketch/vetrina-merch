@@ -29,7 +29,7 @@ body[data-view="gallery2"] #viewGallery2 { display: block; }
 .g2-bar { height: 7px; border-radius: 99px; background: #eee9e1; overflow: hidden; }
 .g2-bar i { display: block; height: 100%; background: linear-gradient(90deg, #2f7d4f, #58a473); border-radius: 99px; }
 .g2-occ .p { font-size: 12px; color: #555; text-align: right; white-space: nowrap; }
-.g2-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0 0 6px; position: sticky; top: 56px; z-index: 6; background: rgba(251,250,248,.94); backdrop-filter: blur(6px); padding: 8px 0; }
+.g2-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0 0 6px; padding: 8px 0; }
 .g2-filters select, .g2-filters input { padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; font: inherit; font-size: 13px; background: #fff; }
 .g2-filters input { flex: 1; min-width: 160px; max-width: 280px; }
 .g2-chip { border: 1px solid var(--border); background: #fff; border-radius: 999px; padding: 7px 12px; font: 600 12.5px var(--font-body); cursor: pointer; }
@@ -60,7 +60,6 @@ body[data-view="gallery2"] #viewGallery2 { display: block; }
   .g2-stats b { font-size: 20px; }
   .g2-stats span { font-size: 11px; }
   .g2-occ button { grid-template-columns: 1fr 70px 54px; }
-  .g2-filters { top: 56px; }
 }
 /* stampa della proposta */
 @media print { body.g2-printing > *:not(#g2Print) { display: none !important; } #g2Print { display: block !important; } }
