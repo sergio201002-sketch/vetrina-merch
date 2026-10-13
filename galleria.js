@@ -154,7 +154,7 @@ function glSort(g) {
 const glTitle = t => String(t || '').toLowerCase().replace(/(^|[\s-])\S/g, m => m.toUpperCase());
 function glPhoto(s, big) {
   const u = IMG[photoKey(s)]; if (!u) return null;
-  if (big) return (window.AVIF_OK || !/\.avif$/i.test(u)) ? u : (FOTO_MED[u] || u);
+  if (big) return ((typeof AVIF_OK !== 'undefined' && AVIF_OK) || !/\.avif$/i.test(u)) ? u : (FOTO_MED[u] || u);
   return (window.FOTO_GAL || {})[u] || FOTO_MED[u] || u;    // strisce: foto da 800 px (con tante foto grandi l'iPhone ne lasciava vuote)
 }
 let glObs = null;

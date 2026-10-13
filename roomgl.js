@@ -26,7 +26,7 @@ const RoomGL = {
   },
   // foto della vista generale: 800 px sul PC, 480 px sul telefono (memoria grafica); il campione aperto passa alla grande
   smallUrl(url) { const o = this.origOf(url); const hd = typeof roomHD !== 'function' || roomHD(); return o ? ((hd ? window.FOTO_GAL : window.FOTO_ROOM) || {})[o] || FOTO_MED[o] || o : url; },   // HD: 800 px anche sul telefono; senza HD: 480 px
-  bigUrl(url) { const o = this.origOf(url); if (!o) return url; return (window.AVIF_OK || !/\.avif$/i.test(o)) ? o : (FOTO_MED[o] || o); },
+  bigUrl(url) { const o = this.origOf(url); if (!o) return url; return ((typeof AVIF_OK !== 'undefined' && AVIF_OK) || !/\.avif$/i.test(o)) ? o : (FOTO_MED[o] || o); },
 
   async attach() {
     const box = document.getElementById('room3d'), root = document.getElementById('roomScene');
