@@ -128,6 +128,7 @@ const g2Key = (b, s) => b + '|' + s;
 
 /* ── elenco clienti (come la Galleria) ── */
 function renderGallery2Home() {
+  document.getElementById('viewGallery2').classList.remove('g2d-on');
   renderGalleryHome();
   const v = document.getElementById('viewGallery'), v2 = document.getElementById('viewGallery2');
   v2.innerHTML = v.innerHTML.replace(/go\('#\/campioni\/([^/']+)\/tutti'\)/g, "go('#/g2/$1')").replace('Galleria campioni', 'Galleria+');
@@ -146,6 +147,8 @@ function g2Complete(all, b, s) {
 }
 
 function renderGallery2(cid, sub) {
+  const v0 = document.getElementById('viewGallery2'); v0.classList.remove('g2d-on');
+  if (sub === 'dettagli') { renderG2Details(cid); return; }
   if (g2.cid !== cid) Object.assign(g2, { cid, brand: '', size: '', onlyInc: false, q: '', showMiss: new Set(), allMiss: false });
   g2.scope = sub || 'tutti';
   const v = document.getElementById('viewGallery2'), cl = clients[cid], pres = !!ui.g2Pres;
@@ -337,49 +340,8 @@ function g2Print(cid) {
   Promise.all([...el.querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; }))).then(() => setTimeout(() => window.print(), 100));
 }
 
-/* ════ Dettagli: tutte le serie del cliente con completezza; aprendo una serie, i colori divisi per tipo ════ */
+/* ════ Dettagli: colori di una serie divisi per tipo (usati dalla pagina Dettagli) ════ */
 let g2DetCtx = null;
-g2.openSer = new Set();
-function g2DetailsHTML(cid, allC, allSeries, nKeys, nDisp, byBrand) {
-  g2DetCtx = { cid, allC, allSeries };
-  const tot = allSeries.reduce((a, g) => a + g.comp.tot, 0), has = allSeries.reduce((a, g) => a + g.comp.has, 0);
-  const inc = allSeries.filter(g => g.comp.has < g.comp.tot).length;
-  return `<details class="g2-det g2-only" ${ui.g2Det ? 'open' : ''} ontoggle="ui.g2Det = this.open; saveUI()">
-    <summary><span class="t">Dettagli</span><span class="s">${allSeries.length} serie · ${nKeys} campioni · ${has} di ${tot} colori (${tot ? Math.round(has / tot * 100) : 0}%) · ${inc} serie incomplete</span>
-      <svg class="ic chev"><use href="#i-cdown"/></svg></summary>
-    <div class="g2-detin">
-      <div class="g2-dtop">
-        <div class="g2-stats"><div><b>${allSeries.length}</b><span>serie</span></div><div><b>${nKeys}</b><span>campioni</span></div>
-          <div><b>${nDisp}</b><span>espositori</span></div><div><b>${Object.keys(byBrand).length}</b><span>marche</span></div>
-          <div class="g2-brands">${Object.entries(byBrand).sort((a, b) => b[1] - a[1]).map(([b, n]) => `<b>${esc(b)}</b> ${n} serie`).join(' · ')}</div></div>
-        <div>
-          <div class="g2-sl-head"><h4>Tutte le serie</h4>
-            <select onchange="g2.detSort = this.value; g2DetRender()">
-              ${[['miss', 'Più incomplete'], ['brand', 'Per marca'], ['name', 'Per nome'], ['pct', 'Più complete']].map(([v, l]) => `<option value="${v}" ${(g2.detSort || 'miss') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
-          <div id="g2DetList">${g2DetListHTML()}</div>
-          <div class="g2-legend"><span><i style="background:#2f7d4f"></i>ce l'ha</span><span><i style="background:#fff;border:1.5px solid rgba(214,40,50,.6)"></i>manca: tocca per metterlo nella proposta</span><span><i style="background:#b0101a"></i>nella proposta</span><span>formati: <b style="color:#1d1d20">in nero</b> quelli che ha</span></div>
-        </div>
-      </div>
-    </div>
-  </details>`;
-}
-function g2DetRender() { const el = document.getElementById('g2DetList'); if (el) el.innerHTML = g2DetListHTML(); }
-function g2DetListHTML() {
-  const { allSeries } = g2DetCtx, srt = g2.detSort || 'miss';
-  const list = allSeries.slice().sort(srt === 'brand' ? (a, b) => a.b.localeCompare(b.b) || a.s.localeCompare(b.s)
-    : srt === 'name' ? (a, b) => a.s.localeCompare(b.s)
-    : srt === 'pct' ? (a, b) => b.comp.has / b.comp.tot - a.comp.has / a.comp.tot
-    : (a, b) => (b.comp.tot - b.comp.has) - (a.comp.tot - a.comp.has) || a.s.localeCompare(b.s));
-  return list.map(g => {
-    const k = g2Key(g.b, g.s), open = g2.openSer.has(k), miss = g.comp.tot - g.comp.has, pct = Math.round(g.comp.has / g.comp.tot * 100);
-    return `<div class="g2-sr${open ? ' open' : ''}">
-      <button data-k="${esc(k)}" onclick="g2DetToggle(this.dataset.k)"><svg class="ic"><use href="#i-cright"/></svg>
-        <span class="n">${esc(glTitle(g.s))}<small>${esc(g.b)}</small></span><span class="g2-bar"><i style="width:${pct}%"></i></span>
-        <span class="p">${g.comp.has} di ${g.comp.tot} colori</span><span class="m ${miss ? 'no' : 'ok'}">${miss ? `mancano ${miss}` : 'completa'}</span></button>
-      ${open ? `<div class="g2-sbody">${g2SeriesBody(g.b, g.s)}</div>` : ''}</div>`;
-  }).join('');
-}
-function g2DetToggle(k) { if (g2.openSer.has(k)) g2.openSer.delete(k); else g2.openSer.add(k); g2DetRender(); }
 /* i colori di una serie, divisi per tipo: fondi (o famiglie di fondi, es. Neutra / Sassi), poi le grafiche nell'ordine del listino */
 function g2SeriesGroups(b, s) {
   const byC = new Map();
@@ -442,4 +404,156 @@ function g2DetProp(el) {
   g2DetRender();
   const b = document.querySelector('.g2-prop'); if (b) b.innerHTML = `<svg class="ic"><use href="#i-clipboard"/></svg> Proposta (${p.length})`;
   toast(had ? 'Tolto dalla proposta' : 'Aggiunto alla proposta');
+}
+
+/* ════ DETTAGLI come pagina a sé (#/g2/CLIENTE/dettagli): a sinistra tutte le serie, a destra la serie scelta a tutta larghezza ════ */
+document.head.insertAdjacentHTML('beforeend', `<style>
+.g2-dlink { display: flex; align-items: center; gap: 14px; width: 100%; background: #fff; border: 1px solid #ebe8e2; border-radius: 16px; padding: 14px 18px; margin: 4px 0 16px; cursor: pointer; text-align: left; font: inherit; color: inherit; transition: box-shadow .15s, border-color .15s; }
+.g2-dlink:hover { border-color: #d9d4ca; box-shadow: 0 6px 20px rgba(20,18,15,.07); }
+.g2-dlink .t { font: 700 15px var(--font-display); letter-spacing: -.01em; }
+.g2-dlink .s { flex: 1; color: var(--mid); font-size: 12.5px; }
+.g2-dlink .g2-bar { width: 160px; }
+.g2-dlink .go { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 12.5px; color: #8e1016; white-space: nowrap; }
+body[data-view="gallery2"] #viewGallery2.g2d-on { overflow: hidden; background: #fbfaf8; }
+.g2d { display: grid; grid-template-columns: 340px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); height: 100%; }
+.g2d-top { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 12px 20px; background: #fff; border-bottom: 1px solid #ebe8e2; }
+.g2d-top h2 { margin: 0; font: 700 19px var(--font-display); letter-spacing: -.02em; }
+.g2d-top h2 small { display: block; font: 600 11px var(--font-body); color: var(--mid); letter-spacing: .1em; text-transform: uppercase; }
+.g2d-kpi { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; justify-content: flex-end; }
+.g2d-kpi span { background: #f6f4f0; border-radius: 999px; padding: 6px 12px; font-size: 12px; color: #555; white-space: nowrap; }
+.g2d-kpi b { color: #1d1d20; font-weight: 700; }
+.g2d-side { border-right: 1px solid #ebe8e2; background: #fff; display: flex; flex-direction: column; min-height: 0; }
+.g2d-tools { display: flex; gap: 6px; padding: 10px 12px; border-bottom: 1px solid #f0ede7; }
+.g2d-tools input { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: 9px; font: inherit; font-size: 13px; }
+.g2d-tools select { padding: 7px 6px; border: 1px solid var(--border); border-radius: 9px; font: inherit; font-size: 12.5px; background: #fff; }
+.g2d-list { overflow-y: auto; flex: 1; padding: 4px 0 20px; }
+.g2d-row { display: block; width: 100%; border: 0; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; padding: 9px 14px 10px 16px; border-left: 3px solid transparent; }
+.g2d-row:hover { background: #f8f7f4; }
+.g2d-row.on { background: #f4f1ec; border-left-color: var(--red); }
+.g2d-row .r1 { display: flex; align-items: baseline; gap: 8px; }
+.g2d-row .n { flex: 1; font: 600 14px var(--font-display); letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.g2d-row .c { font-size: 12px; color: #555; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.g2d-row .c.done { color: #2f7d4f; font-weight: 600; }
+.g2d-row .b { font-size: 11px; color: var(--mid); margin: 1px 0 6px; }
+.g2d-row .g2-bar { display: block; height: 4px; }
+.g2d-main { overflow-y: auto; min-height: 0; padding: 22px 28px 60px; }
+.g2d-head { display: flex; align-items: flex-end; gap: 24px; flex-wrap: wrap; padding-bottom: 16px; border-bottom: 1px solid #ebe8e2; margin-bottom: 4px; }
+.g2d-head .who { flex: 1; min-width: 220px; }
+.g2d-head .br { font: 700 11px var(--font-body); letter-spacing: .14em; text-transform: uppercase; color: #b0101a; }
+.g2d-head h3 { margin: 2px 0 8px; font: 700 30px/1.05 var(--font-display); letter-spacing: -.03em; }
+.g2d-head .meta { display: flex; align-items: center; gap: 12px; font-size: 13px; color: #444; flex-wrap: wrap; }
+.g2d-head .meta .g2-bar { width: 220px; height: 6px; }
+.g2d-head .meta .no { color: #b0101a; font-weight: 600; }
+.g2d-head .meta .ok { color: #2f7d4f; font-weight: 600; }
+.g2d-head .acts { display: flex; gap: 8px; flex-wrap: wrap; }
+.g2d-grps { display: flex; flex-wrap: wrap; gap: 6px 34px; align-items: flex-start; }
+.g2d-main .g2-grp { margin-top: 20px; max-width: 100%; }
+.g2d-main .g2-grp h5 { font-size: 13px; margin-bottom: 10px; }
+.g2d-main .g2-sws { display: flex; flex-wrap: wrap; gap: 12px; }
+.g2d-main .g2-sw { width: 112px; }
+.g2d-empty { color: var(--mid); padding: 40px 0; text-align: center; }
+@media (max-width: 760px) {
+  body[data-view="gallery2"] #viewGallery2.g2d-on { overflow-y: auto; }
+  .g2d { display: block; height: auto; }
+  .g2d-top { padding: 10px 12px; }
+  .g2d-kpi { justify-content: flex-start; }
+  .g2d-side { border-right: 0; border-bottom: 1px solid #ebe8e2; }
+  .g2d-list { max-height: 38vh; }
+  .g2d-main { padding: 16px 12px 40px; }
+  .g2d-head h3 { font-size: 24px; }
+  .g2d-head .meta .g2-bar { width: 140px; }
+  .g2d-main .g2-sws { gap: 8px; }
+  .g2d-main .g2-sw { width: calc((100vw - 24px - 16px) / 3); }
+  .g2d-grps { display: block; }
+}
+</style>`);
+/* riga in Galleria+ che apre la pagina Dettagli */
+function g2DetailsHTML(cid, allC, allSeries, nKeys, nDisp, byBrand) {
+  const tot = allSeries.reduce((a, g) => a + g.comp.tot, 0), has = allSeries.reduce((a, g) => a + g.comp.has, 0);
+  const inc = allSeries.filter(g => g.comp.has < g.comp.tot).length, pct = tot ? Math.round(has / tot * 100) : 0;
+  return `<button class="g2-dlink g2-only" onclick="go('#/g2/${cid}/dettagli')"><span class="t">Dettagli</span>
+    <span class="s">${allSeries.length} serie · ${nKeys} campioni · ${nDisp} espositori · ${has} di ${tot} colori · ${inc} serie incomplete</span>
+    <span class="g2-bar"><i style="width:${pct}%"></i></span><span class="go">Apri <svg class="ic"><use href="#i-cright"/></svg></span></button>`;
+}
+let g2dSel = null, g2dQ = '';
+function renderG2Details(cid) {
+  const v = document.getElementById('viewGallery2'), cl = clients[cid];
+  const allC = galleryDisplays(cid).map(x => x.c);
+  const allSeries = gallerySeries(allC).map(g => Object.assign(g, { comp: g2Complete(allC, g.b, g.s) }));
+  g2DetCtx = { cid, allC, allSeries };
+  const nKeys = new Set(allC.flatMap(c => c.slots.filter(k => k && SAMPLE[k]))).size;
+  const tot = allSeries.reduce((a, g) => a + g.comp.tot, 0), has = allSeries.reduce((a, g) => a + g.comp.has, 0);
+  const brands = new Set(allSeries.map(g => g.b)).size, inc = allSeries.filter(g => g.comp.has < g.comp.tot).length;
+  if (!g2dSel || g2dSel.cid !== cid || !allSeries.some(g => g2Key(g.b, g.s) === g2dSel.k)) {
+    const first = g2dSorted(allSeries)[0]; g2dSel = first ? { cid, k: g2Key(first.b, first.s) } : null;
+  }
+  v.classList.add('g2d-on');
+  v.innerHTML = `<div class="g2d">
+    <div class="g2d-top">
+      <button class="btn" onclick="go('#/g2/${cid}')"><svg class="ic"><use href="#i-left"/></svg> Galleria+</button>
+      <h2><small>Dettagli sala mostra</small>${esc(cl.name)}</h2>
+      <div class="g2d-kpi"><span><b>${allSeries.length}</b> serie</span><span><b>${nKeys}</b> campioni</span><span><b>${allC.length}</b> espositori</span><span><b>${brands}</b> marche</span>
+        <span><b>${has}</b> di ${tot} colori · <b>${tot ? Math.round(has / tot * 100) : 0}%</b></span><span><b>${inc}</b> serie incomplete</span></div>
+    </div>
+    <aside class="g2d-side">
+      <div class="g2d-tools"><input id="g2dSearch" placeholder="Cerca serie…" value="${esc(g2dQ)}">
+        <select onchange="g2.detSort = this.value; g2dList()">${[['miss', 'Più incomplete'], ['brand', 'Marca'], ['name', 'Nome'], ['pct', 'Più complete']].map(([x, l]) => `<option value="${x}" ${(g2.detSort || 'miss') === x ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+      <div class="g2d-list" id="g2dList"></div>
+    </aside>
+    <main class="g2d-main" id="g2dMain"></main>
+  </div>`;
+  document.getElementById('g2dSearch').addEventListener('input', e => { g2dQ = e.target.value; g2dList(); });
+  g2dList(); g2dShow();
+}
+function g2dSorted(list) {
+  const srt = g2.detSort || 'miss';
+  return list.slice().sort(srt === 'brand' ? (a, b) => a.b.localeCompare(b.b) || a.s.localeCompare(b.s)
+    : srt === 'name' ? (a, b) => a.s.localeCompare(b.s)
+    : srt === 'pct' ? (a, b) => b.comp.has / b.comp.tot - a.comp.has / a.comp.tot || a.s.localeCompare(b.s)
+    : (a, b) => (b.comp.tot - b.comp.has) - (a.comp.tot - a.comp.has) || a.s.localeCompare(b.s));
+}
+function g2dList() {
+  const el = document.getElementById('g2dList'); if (!el) return;
+  const q = normTxt(g2dQ).trim();
+  const list = g2dSorted(g2DetCtx.allSeries).filter(g => !q || normTxt(g.s + ' ' + g.b).includes(q));
+  el.innerHTML = list.map(g => {
+    const k = g2Key(g.b, g.s), pct = Math.round(g.comp.has / g.comp.tot * 100), done = g.comp.has >= g.comp.tot;
+    return `<button class="g2d-row${g2dSel && g2dSel.k === k ? ' on' : ''}" data-k="${esc(k)}" onclick="g2dPick(this.dataset.k)">
+      <span class="r1"><span class="n">${esc(glTitle(g.s))}</span><span class="c${done ? ' done' : ''}">${done ? 'completa' : `${g.comp.has}/${g.comp.tot}`}</span></span>
+      <div class="b">${esc(g.b)}${done ? '' : ` · mancano ${g.comp.tot - g.comp.has}`}</div><span class="g2-bar"><i style="width:${pct}%"></i></span></button>`;
+  }).join('') || '<div class="g2d-empty">Nessuna serie.</div>';
+}
+function g2dPick(k) {
+  g2dSel = { cid: g2DetCtx.cid, k };
+  document.querySelectorAll('.g2d-row').forEach(r => r.classList.toggle('on', r.dataset.k === k));
+  g2dShow();
+  const m = document.getElementById('g2dMain'); if (m) m.scrollTop = 0;
+  if (innerWidth <= 760 && m) m.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function g2dShow() {
+  const el = document.getElementById('g2dMain'); if (!el) return;
+  const g = g2dSel && g2DetCtx.allSeries.find(x => g2Key(x.b, x.s) === g2dSel.k);
+  if (!g) { el.innerHTML = '<div class="g2d-empty">Nessuna serie in sala mostra.</div>'; return; }
+  const miss = g.comp.tot - g.comp.has, pct = Math.round(g.comp.has / g.comp.tot * 100);
+  const where = new Set(g2DetCtx.allC.filter(c => c.slots.some(k => k && SAMPLE[k] && SAMPLE[k].b === g.b && SAMPLE[k].s === g.s)).map(c => c.id)).size;
+  el.innerHTML = `<div class="g2d-head"><div class="who"><div class="br">${esc(g.b)}</div><h3>${esc(glTitle(g.s))}</h3>
+      <div class="meta"><span class="g2-bar"><i style="width:${pct}%"></i></span><span><b>${g.comp.has}</b> di ${g.comp.tot} colori</span>
+        ${miss ? `<span class="no">mancano ${miss}</span>` : '<span class="ok">completa</span>'}<span>in ${where} espositor${where === 1 ? 'e' : 'i'}</span></div></div>
+    <div class="acts">${miss ? `<button class="btn" onclick="g2dAllMissing()"><svg class="ic"><use href="#i-plus"/></svg> Tutti i mancanti nella proposta</button>` : ''}
+      <button class="btn dark" onclick="g2dGallery()"><svg class="ic"><use href="#i-image"/></svg> Vedi le foto</button></div></div>
+    <div class="g2d-grps">${g2SeriesBody(g.b, g.s)}</div>`;
+}
+function g2DetRender() { if (document.getElementById('g2dMain')) g2dShow(); }
+/* tutti i colori mancanti della serie nella proposta (formato 60×120 se c'è) */
+function g2dAllMissing() {
+  const g = g2DetCtx.allSeries.find(x => g2Key(x.b, x.s) === g2dSel.k), p = g2Prop(g2DetCtx.cid);
+  const own = new Set(); g2DetCtx.allC.forEach(c => c.slots.forEach(k => { const x = k && SAMPLE[k]; if (x && x.b === g.b && x.s === g.s) own.add(x.c); }));
+  const byC = new Map(); SAMPLES.forEach(x => { if (x.b === g.b && x.s === g.s && !x.toz && !own.has(x.c)) { if (!byC.has(x.c)) byC.set(x.c, []); byC.get(x.c).push(x); } });
+  let n = 0; byC.forEach(l => { if (l.some(x => p.includes(x.key))) return; p.push((l.find(x => x.z === '60x120') || l[0]).key); n++; });
+  clients[g2DetCtx.cid].upd = Date.now(); saveClients(); g2dShow();
+  toast(n ? `${n} colori aggiunti alla proposta` : 'Erano già tutti nella proposta');
+}
+function g2dGallery() {
+  const k = g2dSel.k, cid = g2DetCtx.cid;
+  go('#/g2/' + cid); setTimeout(() => g2Goto(k), 120);
 }
