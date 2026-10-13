@@ -183,7 +183,7 @@ function renderGalleryHome() {
     ${shown.length ? `<div class="gh-grid">${shown.map(({ cl, list, keys }) => {
       const pics = keys.map(k => SAMPLE[k]).filter(s => IMG[photoKey(s)]).slice(0, 6);
       return `<button class="gh-card${keys.length ? '' : ' off'}" ${keys.length ? `onclick="go('#/campioni/${cl.id}/tutti')"` : ''}>
-        <div class="gh-strips">${(pics.length ? pics : [null, null, null]).map(s => `<span style="${s ? `background-image:url('${esc((FOTO_MINI || {})[IMG[photoKey(s)]] || IMG[photoKey(s)])}')` : ''}"></span>`).join('')}</div>
+        <div class="gh-strips">${(pics.length ? pics : [null, null, null]).map(s => `<span style="${s ? `background-image:url('${esc(glPhoto(s))}')` : ''}"></span>`).join('')}</div>
         <div class="in"><div class="nm">${esc(cl.name)}</div>
           <div class="mt">${cl.city ? esc(cl.city) + ' · ' : ''}${keys.length ? `${keys.length} campioni · ${list.length} espositori` : 'sala mostra ancora senza campioni'}</div></div></button>`;
     }).join('')}</div>` : `<div class="gl-empty">${rows.length ? 'Nessun cliente trovato.' : 'Nessun cliente ha ancora una sala mostra con i campioni: crea la sala mostra dalla scheda del cliente.'}</div>`}
