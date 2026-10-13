@@ -347,7 +347,7 @@ function openRoom(id, mode) {
           <button id="rZoom" class="${ui.roomZoom ? 'on' : ''}" onclick="event.stopPropagation(); toggleRoomZoom()" title="Campione aperto: dritto di fronte e da vicino"><svg class="ic"><use href="#i-zoom"/></svg> Zoom</button>
           <button class="rGL ${ui.roomGL !== false ? 'on' : ''}" onclick="event.stopPropagation(); toggleRoomGL()" title="Motore 3D veloce (scheda grafica): fluido e nitido. Spento: la sala mostra di prima"><svg class="ic"><use href="#i-zap"/></svg> 3D</button>
           <button class="rHD ${roomHD() ? 'on' : ''}" onclick="event.stopPropagation(); toggleRoomHD()" title="Acceso: piastrelle in alta definizione · Spento: tutto più leggero e fluido">HD</button>
-          <button id="rPresent"><svg class="ic"><use href="#i-maximize"/></svg> Presenta</button><button onclick="event.stopPropagation(); renderRealistic()" title="Immagine realistica con luce e ombre di questa vista"><svg class="ic"><use href="#i-sun"/></svg> Render</button></div>
+          <button id="rPresent"><svg class="ic"><use href="#i-maximize"/></svg> Presenta</button><button onclick="event.stopPropagation(); renderRealistic()" title="Immagine realistica con luce e ombre di questa vista"><svg class="ic"><use href="#i-sun"/></svg> Render</button><button class="rMis ${ui.roomMis ? 'on' : ''}" onclick="event.stopPropagation(); toggleMisure()" title="Misure del catalogo Merch: di ogni espositore e di quelli che scegli insieme"><svg class="ic"><use href="#i-ruler"/></svg> Misure</button></div>
         <div class="roomhint">Trascina per girare la vista · rotella per lo zoom · clicca un campione per aprirlo</div>
         <div class="showcard" id="showCard" hidden></div>
       </div>
@@ -392,7 +392,7 @@ function openRoom(id, mode) {
           <button data-v="front">Frontale</button><button data-v="persp">Prospettiva <svg class="ic"><use href="#i-dl"/></svg></button><button data-v="persp2">Prospettiva <svg class="ic"><use href="#i-dr"/></svg></button><button data-v="top">Dall'alto</button>
           <button class="rGL ${ui.roomGL !== false ? 'on' : ''}" onclick="event.stopPropagation(); toggleRoomGL()" title="Motore 3D veloce (scheda grafica): fluido e nitido. Spento: la sala mostra di prima"><svg class="ic"><use href="#i-zap"/></svg> 3D</button>
           <button class="rHD ${roomHD() ? 'on' : ''}" onclick="event.stopPropagation(); toggleRoomHD()" title="Acceso: piastrelle in alta definizione · Spento: tutto più leggero e fluido">HD</button>
-          <button id="rPresent"><svg class="ic"><use href="#i-maximize"/></svg> Presenta</button><button onclick="event.stopPropagation(); renderRealistic()" title="Immagine realistica con luce e ombre di questa vista"><svg class="ic"><use href="#i-sun"/></svg> Render</button></div>
+          <button id="rPresent"><svg class="ic"><use href="#i-maximize"/></svg> Presenta</button><button onclick="event.stopPropagation(); renderRealistic()" title="Immagine realistica con luce e ombre di questa vista"><svg class="ic"><use href="#i-sun"/></svg> Render</button><button class="rMis ${ui.roomMis ? 'on' : ''}" onclick="event.stopPropagation(); toggleMisure()" title="Misure del catalogo Merch: di ogni espositore e di quelli che scegli insieme"><svg class="ic"><use href="#i-ruler"/></svg> Misure</button></div>
         <div class="roomhint">Trascina per girare la vista · rotella per lo zoom · clicca un espositore per selezionarlo</div>
       </div>
       <div class="room-plan" id="roomPlan"></div>
@@ -448,7 +448,7 @@ function renderRoom() {
   room.items.forEach(it => {
     const m = roomModels[it.id] = roomModel(it);
     const fp = it.id === roomSel ? `<div class="bx fp" style="width:${m.L + 10}px;height:${m.P + 10}px;transform:translate3d(${-m.L / 2 - 5}px,-0.6px,${-m.P / 2 - 5}px) rotateX(90deg)"></div>` : '';
-    html += `<div class="ritem" data-id="${it.id}" style="transform:${itemT(it)}">${fp}${m.html}</div>`;
+    html += `<div class="ritem" data-id="${it.id}" style="transform:${itemT(it)}">${fp}${m.html}<div class="misanc" style="transform:translate3d(0px,${-(m.H || 100) - 14}px,0px)"></div></div>`;
   });
   document.getElementById('roomScene').innerHTML = html;
   showOpen = null; showHi = null;
@@ -457,6 +457,7 @@ function renderRoom() {
   else if (window.RoomGL) RoomGL.detach();
   if (showSel) sharpFace(showSel.item, showSel.slot);
   applyCam(); renderPlan(); renderRoomSide();
+  if (window.misRefresh) misRefresh();
 }
 const itemT = it => `translate3d(${it.x}px,${-elevY(it)}px,${it.z}px) rotateY(${it.rot || 0}deg)`;
 function applyCam(animate) {
