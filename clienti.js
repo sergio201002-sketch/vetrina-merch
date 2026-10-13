@@ -31,8 +31,11 @@ function route() {
   fixSampleAlias();
   document.body.classList.remove('showlist');                       // lista espositori a tutto schermo (telefono) chiusa cambiando pagina
   window.scrollTo(0, 0);
+  if (window.closeG2Full) closeG2Full();
   const [, a, id, sub] = (location.hash || '#/').split('/');
   if (a === 'cliente' && clients[id]) { document.body.dataset.view = 'client'; renderClient(id); return; }
+  if (a === 'galleria2') { closeGalleryFull(); closeG2Full(); document.body.dataset.view = 'gallery2'; renderGallery2Home(); return; }
+  if (a === 'g2' && clients[id]) { closeG2Full(); document.body.dataset.view = 'gallery2'; renderGallery2(id, sub); return; }
   if (a === 'galleria') { closeGalleryFull(); document.body.dataset.view = 'gallery'; renderGalleryHome(); return; }
   if (a === 'campioni' && clients[id]) { closeGalleryFull(); document.body.dataset.view = 'gallery'; renderGallery(id, sub); return; }
   if (a === 'ambiente' && scenes[id]) { document.body.dataset.view = 'room'; openRoom(id); return; }
