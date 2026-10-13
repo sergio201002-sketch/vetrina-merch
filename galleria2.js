@@ -140,8 +140,8 @@ function renderGallery2Home() {
 /* completezza di una serie in tutta la sala mostra del cliente: colori che ha / colori del listino */
 function g2Complete(all, b, s) {
   const has = new Set(), tot = new Set();
-  all.forEach(c => c.slots.forEach(k => { const x = k && SAMPLE[k]; if (x && x.b === b && x.s === s) has.add(x.c); }));
-  SAMPLES.forEach(x => { if (x.b === b && x.s === s && !x.toz) tot.add(x.c); });
+  all.forEach(c => c.slots.forEach(k => { const x = k && SAMPLE[k]; if (x && x.b === b && x.s === s) has.add(glCid(x)); }));
+  SAMPLES.forEach(x => { if (x.b === b && x.s === s && !x.toz) tot.add(glCid(x)); });
   has.forEach(c => tot.add(c));
   return { has: has.size, tot: tot.size };
 }
@@ -342,27 +342,63 @@ function g2Print(cid) {
 
 /* ════ Dettagli: colori di una serie divisi per tipo (usati dalla pagina Dettagli) ════ */
 let g2DetCtx = null;
-/* i colori di una serie, divisi per tipo: fondi (o famiglie di fondi, es. Neutra / Sassi), poi le grafiche nell'ordine del listino */
+/* i colori di una serie, divisi per tipo: fondi (divisi in famiglie se i nomi lo dicono), poi le grafiche nell'ordine del listino.
+   Famiglie: la parte del nome che si ripete, davanti (Neutra Beige / Sassi Beige) o dietro (Beige Noble / Beige Ancienne,
+   Cream Vein Cut, Dark Fine Grain…). Vale solo se ha almeno 2 colori e le stesse tinte tornano in un'altra famiglia
+   (o le famiglie insieme coprono quasi tutta la serie): così "Grigio Avio / Grigio Basalto" non diventa una famiglia. */
+const G2_COLORW = /\b(beige|white|bianco|blanc|grey|gray|grigio|gris|greige|black|nero|noir|dark|light|sand|sabbia|ivory|avorio|cream|crema|chocolate|silver|taupe|anthracite|antracite|cenere|ash|naturel|naturale|natural|perla|pearl|gold|golden|ambra|azure|blue|blu|green|verde|pink|rosa|brown|moka|miele|corda|talc|lead|smoke|cotone|mandorla|ecru|tabacco|dorato|bruno|basalto|sale|rosso|ocra|terracotta|rosato|superwhite|salvia|cappuccino|amaranto|calce|carbone|petrolio|piombo)\b/i;
+function g2Families(names) {
+  // abbreviazioni ("Brecc.") sciolte con la parola intera usata nella stessa serie ("Brecciato")
+  const words = new Set(names.flatMap(n => n.split(' ')));
+  const norm = n => n.split(' ').map(w => /\.$/.test(w) ? ([...words].find(x => x.length > w.length && x.toLowerCase().startsWith(w.slice(0, -1).toLowerCase())) || w) : w).join(' ');
+  const items = names.map(n => ({ n, w: norm(n).split(' ') }));
+  const tryMode = mode => {
+    // famiglie candidate: parti di k parole (davanti o dietro) che compaiono in almeno 2 nomi con tinte diverse
+    const cnt = new Map();
+    items.forEach(({ w }) => { for (let k = 1; k < w.length; k++) { const f = (mode === 'suf' ? w.slice(-k) : w.slice(0, k)).join(' '); cnt.set(f, (cnt.get(f) || 0) + 1); } });
+    const fam = new Map(), plain = [];
+    items.forEach(it => {
+      let best = '';
+      for (let k = it.w.length - 1; k >= 1; k--) { const f = (mode === 'suf' ? it.w.slice(-k) : it.w.slice(0, k)).join(' '); if (cnt.get(f) >= 2) { best = f; break; } }
+      if (!best) { plain.push(it); return; }
+      const tint = (mode === 'suf' ? it.w.slice(0, it.w.length - best.split(' ').length) : it.w.slice(best.split(' ').length)).join(' ');
+      if (!fam.has(best)) fam.set(best, []); fam.get(best).push(Object.assign({}, it, { tint }));
+    });
+    // tieni le famiglie vere (≥ 2 colori); le altre tornano tra i fondi
+    const groups = [...fam.entries()].filter(([, l]) => l.length >= 2);
+    [...fam.entries()].filter(([, l]) => l.length < 2).forEach(([, l]) => l.forEach(it => plain.push(it)));
+    if (!groups.length) return null;
+    const plainT = new Set(plain.map(it => it.w.join(' ')));
+    const ok = groups.filter(([f, l]) => {
+      const t = new Set(l.map(x => x.tint));
+      return [...plainT].some(x => t.has(x)) || groups.some(([f2, l2]) => f2 !== f && l2.some(x => t.has(x.tint)));
+    });
+    const covered = groups.reduce((a, [, l]) => a + l.length, 0);
+    const valid = ok.length === groups.length && (ok.length >= 2 || plain.length >= 1) || (groups.length >= 2 && covered >= names.length * 0.8);
+    if (!valid) return null;
+    return { mode, covered, groups: groups.map(([f, l]) => ({ name: f, names: l.map(x => x.n), tint: Object.fromEntries(l.map(x => [x.n, x.tint])) })), plain: plain.map(it => it.n) };
+  };
+  const a = tryMode('suf'), b = tryMode('pre');
+  if (!a || !b) return a || b;
+  // a pari merito vince il verso in cui le "tinte" sono davvero colori (Beige, Grigio, Sabbia…) e le famiglie no
+  const colorScore = r => r.groups.reduce((t, g) => t + Object.values(g.tint).filter(x => G2_COLORW.test(x)).length - (G2_COLORW.test(g.name) ? 2 : 0), 0);
+  if (a.covered !== b.covered) return b.covered > a.covered ? b : a;
+  return colorScore(b) > colorScore(a) ? b : a;
+}
 function g2SeriesGroups(b, s) {
   const byC = new Map();
   SAMPLES.forEach(x => {
     if (x.b !== b || x.s !== s || x.toz) return;
-    const e = byC.get(x.c) || { c: x.c, list: [], g: x.g || '', gi: x.gi || 0 };
-    e.list.push(x); byC.set(x.c, e);
+    const e = byC.get(glCid(x)) || { c: x.c, id: glCid(x), list: [], g: x.g || '', gi: x.gi || 0 };
+    e.list.push(x); byC.set(glCid(x), e);
   });
   const cols = [...byC.values()], fondi = cols.filter(e => !e.g), groups = [];
-  // famiglie di fondi: stessa prima parola e stesse tinte (Neutra Beige / Sassi Beige …)
-  const first = e => e.c.split(' ')[0], rest = e => e.c.split(' ').slice(1).join(' ');
-  const fam = new Map();
-  fondi.forEach(e => { if (!rest(e)) return; if (!fam.has(first(e))) fam.set(first(e), []); fam.get(first(e)).push(e); });
-  const famList = [...fam.entries()].filter(([, l]) => l.length >= 2);
-  let split = false;
-  if (famList.length >= 2) { const r0 = new Set(famList[0][1].map(rest)); split = famList[1][1].filter(e => r0.has(rest(e))).length >= 2; }
-  if (split) {
-    const used = new Set();
-    famList.forEach(([f, l]) => { l.forEach(e => used.add(e)); groups.push({ name: f, cols: l, strip: f }); });
-    const others = fondi.filter(e => !used.has(e));
-    if (others.length) groups.unshift({ name: 'Fondi', cols: others });
+  const fam = fondi.length >= 4 ? g2Families(fondi.map(e => e.c)) : null;
+  if (fam) {
+    const byN = new Map(fondi.map(e => [e.c, e]));
+    const pl = fam.plain.map(n => byN.get(n));
+    if (pl.length) groups.push({ name: 'Fondi', cols: pl });
+    fam.groups.forEach(g => groups.push({ name: g.name, cols: g.names.map(n => byN.get(n)), tint: g.tint }));
   } else if (fondi.length) groups.push({ name: 'Fondi', cols: fondi });
   const gr = new Map();
   cols.filter(e => e.g).forEach(e => { if (!gr.has(e.g)) gr.set(e.g, { name: e.g, cols: [], gi: e.gi, strip: e.g }); gr.get(e.g).cols.push(e); });
@@ -375,17 +411,18 @@ function g2SeriesBody(b, s) {
   const ownZ = new Map();   // colore → formati che ha in sala mostra
   allC.forEach(c => c.slots.forEach(k => {
     const x = k && SAMPLE[k];
-    if (x && x.b === b && x.s === s && !x.toz) { if (!ownZ.has(x.c)) ownZ.set(x.c, new Set()); ownZ.get(x.c).add(x.z); }
+    if (x && x.b === b && x.s === s && !x.toz) { if (!ownZ.has(glCid(x))) ownZ.set(glCid(x), new Set()); ownZ.get(glCid(x)).add(x.z); }
   }));
   const bySize = (a, c) => { const A = parseSize(a), B = parseSize(c); return A[0] * A[1] - B[0] * B[1]; };
   return g2SeriesGroups(b, s).map(gr => {
-    const cols = gr.cols.slice().sort((a, c) => (ownZ.has(c.c) ? 1 : 0) - (ownZ.has(a.c) ? 1 : 0));   // prima quelli che ha
-    const n = cols.filter(e => ownZ.has(e.c)).length;
+    const cols = gr.cols.slice().sort((a, c) => (ownZ.has(c.id) ? 1 : 0) - (ownZ.has(a.id) ? 1 : 0));   // prima quelli che ha
+    const n = cols.filter(e => ownZ.has(e.id)).length;
     return `<div class="g2-grp"><h5>${esc(glTitle(gr.name))} <span class="g2-bar"><i style="width:${Math.round(n / cols.length * 100)}%"></i></span><span>${n} di ${cols.length}</span></h5>
       <div class="g2-sws">${cols.map(e => {
-        const own = ownZ.get(e.c), x0 = e.list.find(x => own && own.has(x.z)) || e.list[0], u = IMG[photoKey(x0)], m = u && ((window.FOTO_MINI || {})[u] || u);
+        const own = ownZ.get(e.id), x0 = e.list.find(x => own && own.has(x.z)) || e.list[0], u = IMG[photoKey(x0)], m = u && ((window.FOTO_MINI || {})[u] || u);
         let nm = e.c;
-        if (gr.strip) nm = nm.replace(new RegExp('\\b' + g2ReEsc(gr.strip) + '\\b', 'i'), '').replace(/\s+/g, ' ').trim() || e.c;
+        if (gr.tint && gr.tint[e.c]) nm = gr.tint[e.c];
+        else if (gr.strip) nm = nm.replace(new RegExp('\\b' + g2ReEsc(gr.strip) + '\\b', 'i'), '').replace(/\s+/g, ' ').trim() || e.c;
         const zs = [...new Set(e.list.map(x => x.z))].sort(bySize).map(z => own && own.has(z) ? `<i>${esc(fmt(z))}</i>` : esc(fmt(z))).join(' · ');
         const inP = !own && e.list.some(x => prop.includes(x.key)), key = (e.list.find(x => x.z === '60x120') || e.list[0]).key;
         const act = own ? `title="${esc(glTitle(nm))}: ce l'ha"` : `title="Manca: tocca per ${inP ? 'toglierlo dalla' : 'metterlo nella'} proposta" data-keys="${esc(e.list.map(x => x.key).join('§'))}" data-key="${esc(key)}" onclick="g2DetProp(this)"`;
@@ -547,8 +584,8 @@ function g2DetRender() { if (document.getElementById('g2dMain')) g2dShow(); }
 /* tutti i colori mancanti della serie nella proposta (formato 60×120 se c'è) */
 function g2dAllMissing() {
   const g = g2DetCtx.allSeries.find(x => g2Key(x.b, x.s) === g2dSel.k), p = g2Prop(g2DetCtx.cid);
-  const own = new Set(); g2DetCtx.allC.forEach(c => c.slots.forEach(k => { const x = k && SAMPLE[k]; if (x && x.b === g.b && x.s === g.s) own.add(x.c); }));
-  const byC = new Map(); SAMPLES.forEach(x => { if (x.b === g.b && x.s === g.s && !x.toz && !own.has(x.c)) { if (!byC.has(x.c)) byC.set(x.c, []); byC.get(x.c).push(x); } });
+  const own = new Set(); g2DetCtx.allC.forEach(c => c.slots.forEach(k => { const x = k && SAMPLE[k]; if (x && x.b === g.b && x.s === g.s) own.add(glCid(x)); }));
+  const byC = new Map(); SAMPLES.forEach(x => { if (x.b === g.b && x.s === g.s && !x.toz && !own.has(glCid(x))) { if (!byC.has(glCid(x))) byC.set(glCid(x), []); byC.get(glCid(x)).push(x); } });
   let n = 0; byC.forEach(l => { if (l.some(x => p.includes(x.key))) return; p.push((l.find(x => x.z === '60x120') || l[0]).key); n++; });
   clients[g2DetCtx.cid].upd = Date.now(); saveClients(); g2dShow();
   toast(n ? `${n} colori aggiunti alla proposta` : 'Erano già tutti nella proposta');

@@ -114,8 +114,8 @@ function gallerySeries(list) {
   list.forEach(c => c.slots.forEach((k, i) => {
     const s = k && SAMPLE[k]; if (!s) return;
     const g = groups.get(s.b + '|' + s.s) || { b: s.b, s: s.s, items: [], byColor: new Map() };
-    let it = g.byColor.get(s.c);
-    if (!it) { it = { s, slot: i, c, sizes: [], all: [] }; g.byColor.set(s.c, it); g.items.push(it); }
+    let it = g.byColor.get(glCid(s));
+    if (!it) { it = { s, slot: i, c, sizes: [], all: [] }; g.byColor.set(glCid(s), it); g.items.push(it); }
     if (!it.all.some(x => x.s.key === s.key && x.c === c && x.slot === i)) it.all.push({ s, slot: i, c });
     if (!it.sizes.includes(s.z)) it.sizes.push(s.z);
     groups.set(s.b + '|' + s.s, g);
@@ -123,21 +123,23 @@ function gallerySeries(list) {
   groups.forEach(g => g.items.forEach(it => it.sizes.sort((a, b) => { const A = parseSize(a), B = parseSize(b); return A[0] * A[1] - B[0] * B[1]; })));
   return [...groups.values()];
 }
+/* identità di un colore nella serie: stesso nome ma grafica diversa (es. fondo "Antracite" e "Antracite" Esagona) = colori diversi */
+const glCid = x => ((x.toz && x.pkey && SAMPLE[x.pkey] ? SAMPLE[x.pkey].g : x.g) || '') + '|' + x.c;
 const glSizes = it => it.s.toz ? 'tozzetto' : (it.sizes && it.sizes.length ? it.sizes : [it.s.z]).map(fmt).join(' / ');
 /* con "Colori che non ha": per ogni serie anche gli altri colori del listino (nel formato più usato),
    segnati come "non in sala mostra" oppure, se il cliente li ha in un altro espositore, "in un altro espositore" */
 function addMissingColors(g, all) {
-  const here = new Set(g.items.map(x => x.s.c)), inRoom = new Map();
-  all.forEach(c => c.slots.forEach(k => { const s = k && SAMPLE[k]; if (s && s.b === g.b && s.s === g.s && !inRoom.has(s.c)) inRoom.set(s.c, c); }));
+  const here = new Set(g.items.map(x => glCid(x.s))), inRoom = new Map();
+  all.forEach(c => c.slots.forEach(k => { const s = k && SAMPLE[k]; if (s && s.b === g.b && s.s === g.s && !inRoom.has(glCid(s))) inRoom.set(glCid(s), c); }));
   const zc = {}; g.items.forEach(x => { zc[x.s.z] = (zc[x.s.z] || 0) + 1; });
   const zPref = Object.keys(zc).sort((a, b) => zc[b] - zc[a])[0];
   const byColor = new Map();
-  SAMPLES.filter(x => x.b === g.b && x.s === g.s && !x.toz && !here.has(x.c)).forEach(x => {
-    const cur = byColor.get(x.c), score = (x.z === zPref ? 2 : 0) + (hasPhoto(x) ? 1 : 0);
-    if (!cur || score > cur.score) byColor.set(x.c, { s: x, score });
+  SAMPLES.filter(x => x.b === g.b && x.s === g.s && !x.toz && !here.has(glCid(x))).forEach(x => {
+    const cur = byColor.get(glCid(x)), score = (x.z === zPref ? 2 : 0) + (hasPhoto(x) ? 1 : 0);
+    if (!cur || score > cur.score) byColor.set(glCid(x), { s: x, score });
   });
   [...byColor.values()].sort((a, b) => a.s.c.localeCompare(b.s.c)).forEach(({ s }) => {
-    const other = inRoom.get(s.c);
+    const other = inRoom.get(glCid(s));
     g.items.push(other ? { s, elsewhere: other } : { s, missing: true });
   });
   return glSort(g);
