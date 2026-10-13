@@ -414,8 +414,11 @@ function g2SeriesBody(b, s) {
     if (x && x.b === b && x.s === s && !x.toz) { if (!ownZ.has(glCid(x))) ownZ.set(glCid(x), new Set()); ownZ.get(glCid(x)).add(x.z); }
   }));
   const bySize = (a, c) => { const A = parseSize(a), B = parseSize(c); return A[0] * A[1] - B[0] * B[1]; };
-  return g2SeriesGroups(b, s).map(gr => {
-    const cols = gr.cols.slice().sort((a, c) => (ownZ.has(c.id) ? 1 : 0) - (ownZ.has(a.id) ? 1 : 0));   // prima quelli che ha
+  // i colori senza foto caricata vanno per ultimi (nel gruppo), e i gruppi tutti senza foto in fondo alla serie
+  const ph = e => e.list.some(x => hasPhoto(x)) ? 1 : 0;
+  const grs = g2SeriesGroups(b, s), withPh = grs.filter(gr => gr.cols.some(ph)), noPh = grs.filter(gr => !gr.cols.some(ph));
+  return withPh.concat(noPh).map(gr => {
+    const cols = gr.cols.slice().sort((a, c) => ((ownZ.has(c.id) ? 2 : 0) + ph(c)) - ((ownZ.has(a.id) ? 2 : 0) + ph(a)));   // prima quelli che ha, poi con la foto, ultimi senza foto
     const n = cols.filter(e => ownZ.has(e.id)).length;
     return `<div class="g2-grp"><h5>${esc(glTitle(gr.name))} <span class="g2-bar"><i style="width:${Math.round(n / cols.length * 100)}%"></i></span><span>${n} di ${cols.length}</span></h5>
       <div class="g2-sws">${cols.map(e => {
