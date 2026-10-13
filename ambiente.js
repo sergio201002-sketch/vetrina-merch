@@ -34,7 +34,7 @@ const MODELS = {
      il modello è girato di 90°, con la fila dei portapannelli lungo il muro. Aperto: il carrello esce verso la stanza. */
   swing(d, c, op) {
     const g = swingDims(d, c, 1), L = g.L;
-    const holderT = (i, p) => `translate3d(${-g.w / 2 + (p === 'in' ? 0 : g.travel)}px,0,${swingZ(g, i)}px)`;
+    const holderT = (i, p) => `translate3d(${g.x0 + (p === 'in' ? 0 : g.travel)}px,0,${swingZ(g, i)}px)`;
     const inner = swingModelHTML(g, holderT, () => 'rotateX(0deg)', () => 'in', 'A', (i, back, tf) => {
       const s = SAMPLE[c.slots[i]];
       return s ? `<div class="rf" data-slot="${i}" style="transform:${tf}">${photoLayer(s, g.fw, g.fh, true, ROOM_RES)}</div>` : '';
@@ -44,7 +44,7 @@ const MODELS = {
       const h0 = op % L, side = op >= L ? 'B' : 'A';
       m.after = [[`.holder[data-h="${h0}"]`, holderT(h0, 'out')]];
       // dentro il modello girato di -90°: (x, z) -> (-z, x)
-      m.focus = { x: -swingZ(g, h0), y: -(g.yb + g.h / 2), z: g.travel, w: g.w, h: g.h, yaw: side === 'A' ? 72 : -72, tilt: 6 };
+      m.focus = { x: -swingZ(g, h0), y: -(g.yb + g.h / 2), z: g.x0 + g.w / 2 + g.travel, w: g.w, h: g.h, yaw: side === 'A' ? 72 : -72, tilt: 6 };
     }
     return m;
   },

@@ -1123,47 +1123,51 @@ function swingDims(d, c, k) {
   const geo = d.geo || { w: fw + 37, d: L * 12.9, h: fh + 30, ext: fw * 2 + 50 };
   const W = geo.w * k, D = geo.d * k, Ht = geo.h * k, w = fw * k, h = fh * k;
   const yb = Math.max(4, geo.h - fh) * k;              // altezza da terra del piede delle piastrelle
-  return { n, L, fw, fh, w, h, W, D, Ht, yb, t: 1 * k,
+  // lungo il carrello: [telaio a sbarre interno] [piastrella] [montante esterno a filo con l'estremità, lato d'uscita]
+  const post = 3 * k, gap = 0.6 * k, zone = Math.max(10 * k, W - w - post - 2 * gap);
+  return { n, L, fw, fh, w, h, W, D, Ht, yb, t: 1 * k, gap, zone, x0: -W / 2 + zone + gap,
     pitch: D / L, travel: (geo.ext - geo.w) * k,
-    trayH: 15 * k,                                        // vasca/telaio basso in cui scorrono i carrelli
+    trayH: Math.max(10, Math.min(33, geo.h - fh + 3)) * k,   // vasca nera chiusa: copre il piede delle piastrelle (come nelle foto del catalogo)
     baseH: 15 * k,
-    hingeY: Ht * 0.52,                                    // cima del montante = cerniera della posizione "a tavolo"
-    post: 5 * k, prof: 1.5 * k };                         // montante quadrato 5×5 cm, profilo sul bordo della lastra
+    hingeY: Ht * 0.66,                                    // cima dei montanti = cerniera della posizione "a tavolo" (≈ 1 m da terra)
+    post, postD: Math.min(geo.d / L * 0.54, 6.5) * k, prof: 1.5 * k };   // barre piatte dei carrelli: 6,5 cm di larghezza (una per carrello), 3 cm di spessore
 }
 const swingZ = (g, i) => g.D / 2 - g.pitch / 2 - i * g.pitch;    // centro del portapannello i (0 = davanti)
 /* Carrelli + vasca di base. faceFn(i, retro, transform) disegna la faccia del posto i.
    Ogni carrello (come nella foto dello showroom): montante quadrato 5×5 da terra fino a metà altezza sul lato
    d'uscita, traversa sotto la lastra, profilo nero lungo il bordo verticale, binario a terra. */
 function swingModelHTML(g, holderT, panelT, poseOf, side, faceFn) {
-  const { L, w, h, W, D, Ht, yb, t, trayH, hingeY, post, prof } = g;
+  const { L, w, h, W, D, Ht, yb, t, trayH, hingeY, post, postD, zone } = g;
   const edge = 'background:linear-gradient(90deg,#d9d4ca,#c9c3b8);';
   const blk = (x, y, z, bw, bh, bd) => box3d(x, y, z, bw, bh, bd, METAL);
-  const flat = (x, y, z, bw, bh, face) => face === 'top'
-    ? `<div class="bx" style="width:${bw}px;height:${bh}px;background:${METAL.top};transform:translate3d(${x}px,${y}px,${z}px) rotateX(-90deg)"></div>`
-    : `<div class="bx" style="width:${bw}px;height:${bh}px;background:${METAL.front};transform:translate3d(${x}px,${y}px,${z}px)"></div>`;
+  const gap = g.gap, fw2 = Math.max(8 * t, zone - 5 * t);   // larghezza del telaio a sbarre interno
   let html = '';
   for (let i = L - 1; i >= 0; i--) {
     const p = poseOf(i);
+    // portapannello = telaio: montante interno + montante esterno (con il perno), binario a terra, traversa sotto la piastrella
+    const xi = -gap - fw2, xo = w + gap, rail = 2.5 * t;
     html += `<div class="holder" data-h="${i}" style="transform:${holderT(i, p)}">
       <div class="panel" style="left:0;top:${-Ht}px;width:${w}px;height:${h}px;transform-origin:50% ${Ht - hingeY}px;transform:${panelT(p, side)}">
         ${faceFn(i, false, `translateZ(${t}px)`)}${faceFn(i + L, true, `translateZ(${-t}px) rotateY(180deg)`)}
         <div class="bx" style="width:${2 * t}px;height:${h}px;${edge}transform:translate3d(0,0,${t}px) rotateY(90deg)"></div>
+        <div class="bx" style="width:${2 * t}px;height:${h}px;${edge}transform:translate3d(${w}px,0,${t}px) rotateY(90deg)"></div>
         <div class="bx" style="width:${w}px;height:${2 * t}px;${edge}transform:translate3d(0,0,${t}px) rotateX(-90deg)"></div>
-        ${blk(w - prof * 0.4, 0, t + prof * 0.4, prof * 1.2, h, 2 * t + prof * 0.8)}
-        ${LITE3D ? '' : blk(-prof * 0.2, h - prof, t + prof * 0.4, w + prof * 0.6, prof * 1.4, 2 * t + prof * 0.8)}
       </div>
-      ${blk(w + prof * 0.8, -hingeY, post / 2, post, hingeY, post)}
-      ${LITE3D ? '' : blk(w + prof * 0.8 - post * 0.2, -hingeY - post * 0.25, post * 0.6, post * 1.4, post * 0.5, post * 1.2)}
-      ${blk(-post * 0.5, -yb, post / 2, w + post * 1.3 + prof, post * 0.8, post)}
-      ${blk(-post * 0.5, -post * 1.2, post / 2, w + post * 1.3 + prof, post * 1.2, post)}
-      ${blk(-post * 0.5, -yb, post / 2, post * 0.8, yb - post * 1.2, post)}
+      ${blk(xi, -hingeY, postD / 2, post, hingeY, postD)}
+      ${blk(-gap - post, -hingeY, postD / 2, post, hingeY, postD)}
+      ${blk(xi, -hingeY, postD / 2, fw2, post, postD)}
+      ${blk(xo, -hingeY, postD / 2, post, hingeY, postD)}
+      ${blk(xo + post, -hingeY + 3 * t, 1.6 * t, 3.5 * t, 3 * t, 3.2 * t)}
+      ${blk(xi, -rail, postD / 2, xo + post - xi, rail, postD)}
+      ${blk(xi, -yb - rail * 0.6, postD / 2, xo + post - xi, rail * 0.6, postD)}
     </div>`;
   }
-  // vasca bassa aperta sopra (fondo + 4 sponde)
-  const wall = 2.5 * g.t, bh = trayH;
-  html += box3d(-W / 2, -2 * g.t, D / 2, W, 2 * g.t, D, METAL);
-  html += box3d(-W / 2, -bh, D / 2, W, bh, wall, METAL) + box3d(-W / 2, -bh, -D / 2 + wall, W, bh, wall, METAL);
-  html += box3d(-W / 2, -bh, D / 2, wall, bh, D, METAL) + box3d(W / 2 - wall, -bh, D / 2, wall, bh, D, METAL);
+  // vasca nera chiusa (fondo, fronte con logo, retro, fianco interno); aperta sopra e dal lato da cui escono i portapannelli
+  const wall = 2 * t, bh = trayH, x0 = -W / 2, x1 = W / 2 - post - gap, BW = x1 - x0;
+  html += box3d(x0, -1.5 * t, D / 2, BW, 1.5 * t, D, METAL);
+  html += box3d(x0, -bh, D / 2, BW, bh, wall, METAL) + box3d(x0, -bh, -D / 2 + wall, BW, bh, wall, METAL);
+  html += box3d(x0, -bh, D / 2, wall, bh, D, METAL);
+  html += `<div class="bx" style="width:${4 * t}px;height:${4 * t}px;border-radius:50%;background:#a0121c;transform:translate3d(${x1 - 14 * t}px,${-7 * t}px,${D / 2 + 0.3}px)"></div>`;
   return html;
 }
 function renderSwing(d, c, sc, W, H, st) {
@@ -1180,13 +1184,13 @@ function renderSwing(d, c, sc, W, H, st) {
     : { holder: swing.holder, pose: swing.pose, side: swing.side, zoom: !!ui.zoom };
   lastSwing = { key, holder: swing.holder, pose: swing.pose, side: swing.side, zoom: !!ui.zoom };
 
-  const holderT = (i, p) => `translate3d(${-w / 2 + (p === 'in' ? 0 : travel)}px,0,${swingZ(g, i)}px)`;
+  const holderT = (i, p) => `translate3d(${g.x0 + (p === 'in' ? 0 : travel)}px,0,${swingZ(g, i)}px)`;
   const panelT = (p, side) => p === 'table' ? (side === 'A' ? 'rotateX(90deg)' : 'rotateX(-90deg)') : 'rotateX(0deg)';
   // telecamera: ruota attorno a un perno; lato B = vista dalla parte opposta
   const camT = s => {
     const back = s.side === 'B';
     if (s.zoom) {
-      const hx = s.pose === 'in' ? 0 : travel;
+      const hx = g.x0 + w / 2 + (s.pose === 'in' ? 0 : travel);
       const hz = swingZ(g, s.pose === 'in' ? 0 : s.holder);
       const table = s.pose === 'table';
       const z = Math.min((H * (table ? 0.62 : 0.70)) / h, (W * (table ? 0.6 : 0.72)) / w); camZ = z;
@@ -1194,7 +1198,7 @@ function renderSwing(d, c, sc, W, H, st) {
       const rx = table ? -89.9 : 0, ry = back ? -180 : 0;   // inquadratura dritta, di fronte; -180: cambiando lato la telecamera gira passando davanti (dal lato del carrello estratto), non dietro l'espositore
       return `translate3d(${W / 2}px,${H * 0.45}px,0) scale(${z.toFixed(3)}) rotateX(${rx}deg) rotateY(${ry}deg) translate3d(${-hx}px,${-py}px,${-hz}px)`;
     }
-    const cx = s.pose === 'in' ? 0 : travel / 2;
+    const cx = s.pose === 'in' ? 0 : (g.x0 + w / 2 + travel) / 2;
     const tilt = s.pose === 'table' ? 34 : 16;          // a tavolo: più dall'alto per vedere il piano
     return `translate3d(${W / 2}px,${H * 0.82}px,0) rotateX(${-tilt}deg) rotateY(${back ? -140 : -40}deg) translate3d(${-cx}px,${Ht * 0.08}px,0)`;
   };
