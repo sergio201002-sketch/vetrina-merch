@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Vetrina Merch</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Inter+Tight:wght@600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
 <style>
 :root {
   --red: #C0102A; --red-d: #8F0A1E; --red-l: #FFF0F3;
@@ -398,8 +398,8 @@ body[data-view="room"] #viewRoom, body[data-view="show"] #viewRoom { display: fl
   .mobhead { display: flex !important; }
   header h1 { font-size: 15px; }
   header .hbtn .lbl { display: none; }
-  .savebadge { font-size: 0; padding: 6px 9px; }
-  .savebadge::before { content: attr(data-i); font-size: 14px; }
+  .savebadge .lbl { display: none; }
+  .savebadge { padding: 7px 9px; }
   main { height: auto; }
   .stage { flex: none; height: 440px; min-height: 0; }
   body[data-view="room"] #viewRoom, body[data-view="show"] #viewRoom { flex-direction: column; overflow-y: auto; }
@@ -407,23 +407,77 @@ body[data-view="room"] #viewRoom, body[data-view="show"] #viewRoom { display: fl
   .room-main { order: 1; flex: none; height: 78vh; }
   .hnav { margin-left: 4px; }
 }
+
+/* ════ Design: icone a linea, pulsanti e superfici più puliti ════ */
+:root { --border: #E6E3DD; --bg: #F6F5F2; --bg2: #EEECE7; --white: #FFFFFF; --mid: #6B6B70; --radius: 10px;
+  --shadow-sm: 0 1px 2px rgba(20,18,15,.05); --shadow: 0 1px 2px rgba(20,18,15,.04), 0 6px 20px rgba(20,18,15,.06); }
+body { font-feature-settings: 'cv11', 'ss01'; letter-spacing: -0.003em; }
+h1, h2, h3 { font-weight: 650; letter-spacing: -0.02em; }
+.ic { width: 1.15em; height: 1.15em; vertical-align: -0.22em; fill: none; stroke: currentColor; stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.ic use { pointer-events: none; }
+/* intestazione */
+header { background: #121214; border-bottom: 1px solid #000; gap: 10px; }
+header h1 { font-weight: 700; letter-spacing: -0.03em; font-size: 18px; }
+.hbtn { background: transparent; border: 1px solid transparent; color: rgba(255,255,255,.78); border-radius: 9px; padding: 7px 11px; font-weight: 500;
+  display: inline-flex; align-items: center; gap: 0; transition: background .15s, color .15s; }
+.hbtn .ic { width: 17px; height: 17px; vertical-align: 0; }
+.hbtn .lbl { margin-left: 2px; }
+.hbtn:hover { background: rgba(255,255,255,.08); color: #fff; }
+.hbtn .n { background: rgba(255,255,255,.12); font-weight: 600; }
+body[data-view] .hbtn[data-nav]:is([data-nav]) { position: relative; }
+body[data-view="home"] .hbtn[data-nav="home"], body[data-view="client"] .hbtn[data-nav="home"], body[data-view="show"] .hbtn[data-nav="home"],
+body[data-view="config"] .hbtn[data-nav="config"], body[data-view="gallery"] .hbtn[data-nav="gallery"], body[data-view="gallery2"] .hbtn[data-nav="gallery2"] {
+  background: rgba(255,255,255,.12); border-color: transparent; color: #fff; box-shadow: inset 0 -2px 0 var(--red); }
+.savebadge { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; border-radius: 999px; padding: 6px 11px; }
+.savebadge .ic { width: 15px; height: 15px; vertical-align: 0; }
+.savebadge.ok { color: #a8e6c1; background: rgba(26,122,74,.18); }
+.savebadge.busy .ic { animation: icspin 1.2s linear infinite; }
+@keyframes icspin { to { transform: rotate(360deg); } }
+/* pulsanti */
+.btn, .tb { border-radius: var(--radius); padding: 7px 12px; font-size: 12.5px; font-weight: 600; border-color: var(--border); background: var(--white); color: var(--dark);
+  box-shadow: var(--shadow-sm); transition: background .15s, border-color .15s, box-shadow .15s, transform .05s; line-height: 1.25; }
+.btn:hover, .tb:hover { background: #F7F6F3; border-color: #D9D5CD; }
+.btn:active, .tb:active { transform: translateY(1px); }
+.btn:focus-visible, .tb:focus-visible, .hbtn:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+.btn.red { background: var(--red); border-color: var(--red); color: #fff; box-shadow: 0 1px 2px rgba(192,16,42,.25); }
+.btn.red:hover { background: var(--red-d); border-color: var(--red-d); }
+.btn.dark, .tb.on { background: #18181b; border-color: #18181b; color: #fff; }
+.btn.dark:hover { background: #2a2a2e; }
+.btn:disabled, .tb:disabled { opacity: .45; cursor: default; }
+.tb { background: var(--white); }
+/* superfici */
+.card { border-radius: 14px; box-shadow: var(--shadow-sm); border-color: var(--border); }
+.ccard:hover { border-color: #D6D2C9; box-shadow: var(--shadow); }
+.ccard h3 { display: flex; align-items: center; gap: 8px; font-weight: 650; }
+.ccard h3 .ic { color: var(--red); }
+.mbox { border-radius: 16px; box-shadow: 0 30px 80px rgba(0,0,0,.25); }
+.mhead h3 { font-weight: 650; display: flex; align-items: center; gap: 8px; }
+.toast { border-radius: 12px; background: #18181b; box-shadow: 0 10px 30px rgba(0,0,0,.25); font-weight: 500; }
+.vhead h2 { font-weight: 700; letter-spacing: -0.03em; }
+.ctabs button { font-weight: 600; }
+.ctabs button .ic { margin-right: 2px; }
+input, select, textarea { accent-color: var(--red); }
+textarea { font-family: inherit; }
+.form input, .form textarea, input.tb, select.tb { border-radius: var(--radius); }
+.form input:focus, .form textarea:focus, input.tb:focus, select.tb:focus, .search:focus { outline: none; border-color: #bdb8ae; box-shadow: 0 0 0 3px rgba(17,17,17,.06); }
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="i-users" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol><symbol id="i-panels" viewBox="0 0 24 24"><rect x="3.5" y="3" width="7" height="18" rx="1.5"/><rect x="13.5" y="3" width="7" height="18" rx="1.5"/><path d="M3.5 9h7M13.5 9h7M3.5 15h7M13.5 15h7"/></symbol><symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/></symbol><symbol id="i-sparkles" viewBox="0 0 24 24"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 3v4M17 5h4M5 17v4M3 19h4"/></symbol><symbol id="i-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7.5 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.5z"/><circle cx="12" cy="13" r="3.5"/></symbol><symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></symbol><symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></symbol><symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol><symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6M10 11v6M14 11v6"/></symbol><symbol id="i-paste" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M12 10v7M9 14l3 3 3-3"/></symbol><symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></symbol><symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5M12 7v5l4 2"/></symbol><symbol id="i-zoom" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M11 8v6M8 11h6"/></symbol><symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol><symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol><symbol id="i-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z"/></symbol><symbol id="i-undo" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.7 9.7 0 0 0-6.7 2.7L3 8M3 3v5h5"/></symbol><symbol id="i-login" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></symbol><symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></symbol><symbol id="i-store" viewBox="0 0 24 24"><path d="M3 9l1.5-5h15L21 9M4 9v11h16V9M3 9h18M9 20v-6h6v6"/></symbol><symbol id="i-pencil" viewBox="0 0 24 24"><path d="M17 3a2.8 2.8 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></symbol><symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M9 12h6M9 16h4"/></symbol><symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></symbol><symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></symbol><symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></symbol><symbol id="i-maximize" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"/></symbol><symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol><symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 17v5M9 3h6l-1 7 4 3v2H6v-2l4-3z"/></symbol><symbol id="i-move" viewBox="0 0 24 24"><path d="M8 8l-4 4 4 4M16 8l4 4-4 4M4 12h16"/></symbol><symbol id="i-towall" viewBox="0 0 24 24"><path d="M4 3h16M12 21V8M7 12l5-5 5 5"/></symbol><symbol id="i-left" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7"/></symbol><symbol id="i-cdown" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol><symbol id="i-cup" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></symbol><symbol id="i-cleft" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol><symbol id="i-cright" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol><symbol id="i-monitor" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></symbol><symbol id="i-printer" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8" rx="1"/></symbol><symbol id="i-square" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/></symbol><symbol id="i-tiles" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="1.5"/><path d="M3 12h18M9 3v9M15 12v9"/></symbol><symbol id="i-half" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></symbol><symbol id="i-select" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m8 12 3 3 5-6"/></symbol><symbol id="i-swap" viewBox="0 0 24 24"><path d="M16 3l4 4-4 4M20 7H4M8 21l-4-4 4-4M4 17h16"/></symbol><symbol id="i-dl" viewBox="0 0 24 24"><path d="M17 7 7 17M17 17H7V7"/></symbol><symbol id="i-dr" viewBox="0 0 24 24"><path d="m7 7 10 10M7 17h10V7"/></symbol><symbol id="i-sync" viewBox="0 0 24 24"><path d="M21 12a9 9 0 0 1-15.5 6.3L3 16M3 12a9 9 0 0 1 15.5-6.3L21 8M21 3v5h-5M3 21v-5h5"/></symbol><symbol id="i-cloud" viewBox="0 0 24 24"><path d="M17.5 19H8a6 6 0 1 1 5.7-7.9A4.5 4.5 0 1 1 17.5 19z"/></symbol></defs></svg>
 <div class="app">
   <header>
     <h1 onclick="go('#/')" style="cursor:pointer" title="Clienti">Vetrina <span>Merch</span></h1>
     <nav class="hnav">
-      <button class="hbtn" data-nav="home" onclick="go('#/')">👥<span class="lbl"> Clienti</span></button>
-      <button class="hbtn" data-nav="config" onclick="openFreeCatalog()">🗂<span class="lbl"> Espositori</span></button>
-      <button class="hbtn" data-nav="gallery" onclick="go('#/galleria')" title="Galleria campioni delle sale mostra">🖼<span class="lbl"> Galleria</span></button>
-      <button class="hbtn" data-nav="gallery2" onclick="go('#/galleria2')" title="Galleria+: panoramica, occasioni, proposta di integrazione">✨<span class="lbl"> Galleria+</span></button>
+      <button class="hbtn" data-nav="home" onclick="go('#/')"><svg class="ic"><use href="#i-users"/></svg><span class="lbl"> Clienti</span></button>
+      <button class="hbtn" data-nav="config" onclick="openFreeCatalog()"><svg class="ic"><use href="#i-panels"/></svg><span class="lbl"> Espositori</span></button>
+      <button class="hbtn" data-nav="gallery" onclick="go('#/galleria')" title="Galleria campioni delle sale mostra"><svg class="ic"><use href="#i-image"/></svg><span class="lbl"> Galleria</span></button>
+      <button class="hbtn" data-nav="gallery2" onclick="go('#/galleria2')" title="Galleria+: panoramica, occasioni, proposta di integrazione"><svg class="ic"><use href="#i-sparkles"/></svg><span class="lbl"> Galleria+</span></button>
     </nav>
     <div class="sp"></div>
     <span class="savebadge" id="saveBadge" onclick="Sync.badgeClick()"></span>
-    <button class="hbtn" onclick="openImages()" title="Foto campioni">📷<span class="lbl"> Foto campioni</span> <span class="n" id="imgCount">0</span></button>
-    <button class="hbtn" onclick="exportBackup()" title="Scarica backup (composizioni + foto)">⬇<span class="lbl"> Backup</span></button>
-    <button class="hbtn" onclick="document.getElementById('importFile').click()" title="Ripristina un backup">⬆<span class="lbl"> Ripristina</span></button>
+    <button class="hbtn" onclick="openImages()" title="Foto campioni"><svg class="ic"><use href="#i-camera"/></svg><span class="lbl"> Foto campioni</span> <span class="n" id="imgCount">0</span></button>
+    <button class="hbtn" onclick="exportBackup()" title="Scarica backup (composizioni + foto)"><svg class="ic"><use href="#i-download"/></svg><span class="lbl"> Backup</span></button>
+    <button class="hbtn" onclick="document.getElementById('importFile').click()" title="Ripristina un backup"><svg class="ic"><use href="#i-upload"/></svg><span class="lbl"> Ripristina</span></button>
     <input type="file" id="importFile" accept=".json,application/json" hidden onchange="importBackup(this.files[0]); this.value=''">
   </header>
 
@@ -431,25 +485,25 @@ body[data-view="room"] #viewRoom, body[data-view="show"] #viewRoom { display: fl
 
   <main>
     <div class="toolbar">
-      <button class="tb ctxbtn" id="ctxBtn" onclick="leaveConfig()">← Clienti</button>
+      <button class="tb ctxbtn" id="ctxBtn" onclick="leaveConfig()"><svg class="ic"><use href="#i-left"/></svg>Clienti</button>
       <button class="tb mobsel" id="mobDisp" onclick="toggleDispList(true)"></button>
       <h2 id="dName"></h2><span class="code" id="dCode"></span>
       <div class="sp"></div>
       <select class="tb" id="variantSel" onchange="setVariant(+this.value)" style="display:none"></select>
       <select class="tb" id="compSel" onchange="selectComp(this.value)" title="Composizioni salvate"></select>
       <input class="tb" id="compName" placeholder="Nome composizione" oninput="renameComp(this.value)" style="width:190px">
-      <button class="tb" onclick="newComp()" title="Nuova composizione">＋ Nuova</button>
-      <button class="tb" onclick="dupComp()" title="Duplica composizione">⧉</button>
-      <button class="tb" onclick="deleteComp()" title="Elimina composizione">🗑</button>
+      <button class="tb" onclick="newComp()" title="Nuova composizione"><svg class="ic"><use href="#i-plus"/></svg> Nuova</button>
+      <button class="tb" onclick="dupComp()" title="Duplica composizione"><svg class="ic"><use href="#i-copy"/></svg></button>
+      <button class="tb" onclick="deleteComp()" title="Elimina composizione"><svg class="ic"><use href="#i-trash"/></svg></button>
     </div>
     <div class="toolbar" style="padding-top:6px;padding-bottom:6px">
       <span style="font-size:12px;color:var(--mid)" id="fillInfo"></span>
       <div class="sp"></div>
       <button class="tb on" id="lblBtn" onclick="toggleLabels()">Etichette</button>
-      <button class="tb" onclick="pasteCodes()" title="Incolla un elenco di codici e scegli in quali espositori metterli">📥 Incolla codici</button>
+      <button class="tb" onclick="pasteCodes()" title="Incolla un elenco di codici e scegli in quali espositori metterli"><svg class="ic"><use href="#i-paste"/></svg> Incolla codici</button>
       <button class="tb" onclick="autoFill()" title="Riempie gli slot vuoti con campioni che hanno la foto">Riempi con foto</button>
       <button class="tb" onclick="clearComp()">Svuota</button>
-      <button class="tb" onclick="copyCodes()" title="Copia l'elenco dei codici per l'ordine">📤 Copia codici ordine</button>
+      <button class="tb" onclick="copyCodes()" title="Copia l'elenco dei codici per l'ordine"><svg class="ic"><use href="#i-copy"/></svg> Copia codici ordine</button>
     </div>
     <div class="stage" id="stage">
       <div class="scene" id="scene"></div>
@@ -472,7 +526,7 @@ body[data-view="room"] #viewRoom, body[data-view="show"] #viewRoom { display: fl
       <h3>Foto campioni</h3>
       <input class="search" id="imgSearch" placeholder="Cerca serie o colore…" style="width:220px" oninput="renderImages()">
       <button class="btn" id="imgMissingBtn" onclick="imgOnlyMissing=!imgOnlyMissing; renderImages()">Solo mancanti</button>
-      <button class="btn red" onclick="document.getElementById('bulkFile').click()">⬆ Carica più foto</button>
+      <button class="btn red" onclick="document.getElementById('bulkFile').click()"><svg class="ic"><use href="#i-upload"/></svg> Carica più foto</button>
       <button class="btn" onclick="closeImages()">Chiudi</button>
     </div>
     <div style="padding:10px 18px;border-bottom:1px solid var(--border);font-size:12px;color:var(--mid)">
@@ -486,7 +540,7 @@ body[data-view="room"] #viewRoom, body[data-view="show"] #viewRoom { display: fl
 
 <div class="modal" id="verModal" onclick="if(event.target===this)this.classList.remove('open')">
   <div class="mbox">
-    <div class="mhead"><h3>🕘 Versioni salvate</h3><button class="btn" onclick="document.getElementById('verModal').classList.remove('open')">Chiudi</button></div>
+    <div class="mhead"><h3><svg class="ic"><use href="#i-history"/></svg> Versioni salvate</h3><button class="btn" onclick="document.getElementById('verModal').classList.remove('open')">Chiudi</button></div>
     <div id="verNote" style="padding:10px 18px;border-bottom:1px solid var(--border);font-size:12px;color:var(--mid)">
       Tutto si salva da solo su disco nella cartella <b>dati</b>. Qui ci sono le copie precedenti: una ogni 10 minuti di lavoro e sempre prima di un'eliminazione.
       Ripristinandone una, quella attuale viene salvata comunque, così puoi tornare indietro.</div>
@@ -1195,7 +1249,7 @@ function renderSwing(d, c, sc, W, H, st) {
     const b = document.createElement('button'); b.textContent = t; b.className = on ? 'on' : '';
     b.onclick = e => { e.stopPropagation(); fn(); }; bar.appendChild(b);
   });
-  const z = document.createElement('button'); z.textContent = '🔍 Zoom'; z.className = 'zoom' + (ui.zoom ? ' on' : '');
+  const z = document.createElement('button'); z.innerHTML = '<svg class="ic"><use href="#i-zoom"/></svg> Zoom'; z.className = 'zoom' + (ui.zoom ? ' on' : '');
   z.title = 'Primo piano sulla piastrella aperta';
   z.onclick = e => { e.stopPropagation(); ui.zoom = !ui.zoom; saveUI(); go(swing.holder, swing.pose === 'in' ? 'out' : swing.pose); };
   bar.appendChild(z);
@@ -1268,7 +1322,7 @@ function renderTeca(d, c, sc, W, H, st) {
   const go = i => { selSlot = i; renderStage(); renderStrip(); if (ui.tab === 'pick') renderPicker(false); };
   st.append(navBtn('l', '‹', sel === 0, () => go(sel - 1)), navBtn('r', '›', sel >= n - 1, () => go(sel + 1)));
   const bar = document.createElement('div'); bar.className = 'ctrlbar';
-  const z = document.createElement('button'); z.textContent = '🔍 Zoom'; z.className = ui.zoom ? 'on' : '';
+  const z = document.createElement('button'); z.innerHTML = '<svg class="ic"><use href="#i-zoom"/></svg> Zoom'; z.className = ui.zoom ? 'on' : '';
   z.onclick = e => { e.stopPropagation(); ui.zoom = !ui.zoom; saveUI(); renderStage(); };
   bar.appendChild(z); st.appendChild(bar);
 }
@@ -1329,7 +1383,7 @@ function renderShelf(d, c, sc, W, H, st) {
   const go = i => { selSlot = i; renderStage(); renderStrip(); if (ui.tab === 'pick') renderPicker(false); };
   st.append(navBtn('l', '‹', sel === 0, () => go(sel - 1)), navBtn('r', '›', sel >= n - 1, () => go(sel + 1)));
   const bar = document.createElement('div'); bar.className = 'ctrlbar';
-  const z = document.createElement('button'); z.textContent = '🔍 Zoom'; z.className = ui.zoom ? 'on' : '';
+  const z = document.createElement('button'); z.innerHTML = '<svg class="ic"><use href="#i-zoom"/></svg> Zoom'; z.className = ui.zoom ? 'on' : '';
   z.onclick = e => { e.stopPropagation(); ui.zoom = !ui.zoom; saveUI(); renderStage(); };
   bar.appendChild(z); st.appendChild(bar);
 }
@@ -1407,13 +1461,13 @@ function renderCulla(d, c, sc, W, H, st) {
   const go = i => { selSlot = i; renderStage(); renderStrip(); if (ui.tab === 'pick') renderPicker(false); };
   st.append(navBtn('l', '‹', sel === 0, () => go(sel - 1)), navBtn('r', '›', sel >= n - 1, () => go(sel + 1)));
   const bar = document.createElement('div'); bar.className = 'ctrlbar';
-  const z = document.createElement('button'); z.textContent = '🔍 Zoom'; z.className = ui.zoom ? 'on' : '';
+  const z = document.createElement('button'); z.innerHTML = '<svg class="ic"><use href="#i-zoom"/></svg> Zoom'; z.className = ui.zoom ? 'on' : '';
   z.onclick = e => { e.stopPropagation(); ui.zoom = !ui.zoom; saveUI(); renderStage(); };
   bar.appendChild(z); st.appendChild(bar);
   const cb = document.createElement('div'); cb.className = 'cullabar';
   const btn = (txt, on, fn, tip) => `<button class="${on ? 'on' : ''}" title="${esc(tip || '')}" onclick="event.stopPropagation(); ${fn}">${txt}</button>`;
   cb.innerHTML = `<span class="g"><span class="l">Moduli</span>${(d.variants || [n]).map((v, k) => btn(k + 1, v === n, `setVariant(${v})`, (d.variantLabels || {})[v] + ' · ' + v + ' posti')).join('')}</span>
-    <span class="g"><span class="l">Versione</span>${btn('◄ SX', !dx, `setCullaSide('SX')`, 'Piastrelle girate verso destra · codici PUB/PUD/PUE')}${btn('DX ►', dx, `setCullaSide('DX')`, 'Piastrelle girate verso sinistra · codici PUF/PUG/PUH')}</span>
+    <span class="g"><span class="l">Versione</span>${btn('<svg class="ic"><use href="#i-cleft"/></svg> SX', !dx, `setCullaSide('SX')`, 'Piastrelle girate verso destra · codici PUB/PUD/PUE')}${btn('DX <svg class="ic"><use href="#i-cright"/></svg>', dx, `setCullaSide('DX')`, 'Piastrelle girate verso sinistra · codici PUF/PUG/PUH')}</span>
     <span class="g"><span class="l">Formato</span>${btn('Misti', !c.fmt, `setCullaFmt('')`, 'Formati diversi insieme')}${(d.accept.sizes || []).map(z => btn(fmt(z), c.fmt === z, `setCullaFmt('${z}')`, 'Solo ' + fmt(z))).join('')}</span>`;
   st.appendChild(cb);
 }
@@ -1481,7 +1535,7 @@ function renderSlide(d, c, sc, W, H, st) {
   const go = i => { selSlot = i; renderStage(); renderStrip(); if (ui.tab === 'pick') renderPicker(false); };
   st.append(navBtn('l', '‹', sel === 0, () => go(sel - 1)), navBtn('r', '›', sel >= n - 1, () => go(sel + 1)));
   const bar = document.createElement('div'); bar.className = 'ctrlbar';
-  const z = document.createElement('button'); z.textContent = '🔍 Zoom'; z.className = ui.zoom ? 'on' : '';
+  const z = document.createElement('button'); z.innerHTML = '<svg class="ic"><use href="#i-zoom"/></svg> Zoom'; z.className = ui.zoom ? 'on' : '';
   z.onclick = e => { e.stopPropagation(); ui.zoom = !ui.zoom; saveUI(); renderStage(); };
   bar.appendChild(z); st.appendChild(bar);
 }
@@ -1580,7 +1634,7 @@ function renderCassettiera(d, c, sc, W, H, st) {
     const b = document.createElement('button'); b.textContent = (cassOpen[dr] ? 'Chiudi' : 'Apri') + ' cassetto ' + (dr + 1); b.className = cassOpen[dr] ? 'on' : '';
     b.onclick = e => { e.stopPropagation(); cassOpen[dr] = !cassOpen[dr]; lastCass.sel = sel; renderStage(); }; bar.appendChild(b);
   });
-  const z = document.createElement('button'); z.textContent = '🔍 Zoom'; z.className = 'zoom' + (ui.zoom ? ' on' : '');
+  const z = document.createElement('button'); z.innerHTML = '<svg class="ic"><use href="#i-zoom"/></svg> Zoom'; z.className = 'zoom' + (ui.zoom ? ' on' : '');
   z.onclick = e => { e.stopPropagation(); ui.zoom = !ui.zoom; saveUI(); if (ui.zoom) cassOpen[pos.dr] = true; renderStage(); };
   bar.appendChild(z); st.appendChild(bar);
 }
@@ -1770,9 +1824,9 @@ function renderList() {
         ${filled ? `<div class="fill">● ${filled} campioni inseriti</div>` : ''}</div></div>`;
     });
   });
-  document.getElementById('dispList').innerHTML = `<div class="mobhead">Tutti gli espositori (${DISPLAYS.length}) <button class="btn" onclick="toggleDispList(false)">✕ Chiudi</button></div>` + h;
+  document.getElementById('dispList').innerHTML = `<div class="mobhead">Tutti gli espositori (${DISPLAYS.length}) <button class="btn" onclick="toggleDispList(false)"><svg class="ic"><use href="#i-x"/></svg> Chiudi</button></div>` + h;
   const cur = DISP[ui.disp];
-  document.getElementById('mobDisp').innerHTML = `<span>${esc(cur ? cur.name : 'Espositore')}</span><span class="mx">Tutti gli espositori ▾</span>`;
+  document.getElementById('mobDisp').innerHTML = `<span>${esc(cur ? cur.name : 'Espositore')}</span><span class="mx">Tutti gli espositori <svg class="ic"><use href="#i-cdown"/></svg></span>`;
 }
 function renderToolbar() {
   const d = disp(), c = comp();
@@ -1783,8 +1837,8 @@ function renderToolbar() {
   if (d.variants) vs.innerHTML = d.variants.map(v => `<option value="${v}"${v === c.slots.length ? ' selected' : ''}>${esc((d.variantLabels && d.variantLabels[v]) || v + ' incavi')}</option>`).join('');
   const list = Object.values(comps).filter(x => x.disp === d.id && sameCtx(x)).sort((a, b) => a.name.localeCompare(b.name));
   const cl = clients[ctxClient()];
-  document.getElementById('ctxBtn').textContent = ui.returnTo && ui.returnTo.startsWith('#/ambiente/') ? '← Ambientazione'
-    : ui.returnTo && ui.returnTo.startsWith('#/salamostra/') ? '← Sala mostra' : cl ? '← ' + cl.name : '← Clienti';
+  document.getElementById('ctxBtn').innerHTML = ui.returnTo && ui.returnTo.startsWith('#/ambiente/') ? '<svg class="ic"><use href="#i-left"/></svg>Ambientazione'
+    : ui.returnTo && ui.returnTo.startsWith('#/salamostra/') ? '<svg class="ic"><use href="#i-left"/></svg>Sala mostra' : cl ? '<svg class="ic"><use href="#i-left"/></svg>' + esc(cl.name) : '<svg class="ic"><use href="#i-left"/></svg>Clienti';
   document.getElementById('ctxBtn').title = cl ? 'Torna alla scheda cliente' : 'Catalogo libero (senza cliente) — torna ai clienti';
   document.getElementById('compSel').innerHTML = list.map(x => `<option value="${x.id}"${x.id === c.id ? ' selected' : ''}>${esc(x.name)} (${x.slots.filter(Boolean).length}/${x.slots.length})</option>`).join('');
   const nm = document.getElementById('compName');
@@ -1801,7 +1855,7 @@ function renderStrip() {
     return `<div class="chip${i === selSlot ? ' sel' : ''}" onclick="selectSlot(${i}, true)">
       <div class="th${s ? '' : ' empty'}" style="${s ? swatchStyle(s) : ''}"><span class="no">${esc(slotName(d, i, n))}</span></div>
       <div class="tx">${s ? `<b>${esc(s.s)}</b>${esc(s.c)} · ${esc(fmt(s.toz ? tozFmt(d, c) : s.z) + tozFrom(s))}` : '<span style="color:var(--light)">vuoto — scegli a destra</span>'}</div>
-      ${s ? `<button class="x" title="Togli" onclick="event.stopPropagation(); setSlot(${i}, null)">✕</button>` : ''}
+      ${s ? `<button class="x" title="Togli" onclick="event.stopPropagation(); setSlot(${i}, null)"><svg class="ic"><use href="#i-x"/></svg></button>` : ''}
     </div>`;
   }).join('');
   const el = document.querySelector('.chip.sel'); if (el) el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -1819,7 +1873,7 @@ function renderSheet() {
     <dl><dt>Codice</dt><dd>${esc(d.code)}</dd><dt>Dimensioni</dt><dd>${esc(d.dims)}</dd>
     <dt>Capienza</dt><dd>${esc(d.spec)}</dd><dt>Formati</dt><dd>${esc(acceptLabel(d).join(', '))}</dd>
     <dt>Prezzo</dt><dd>€ ${esc(d.price)}</dd></dl>
-    ${/da verificare/.test(d.spec) ? `<div class="note">⚠️ ${esc(d.spec)}</div>` : ''}
+    ${/da verificare/.test(d.spec) ? `<div class="note"><svg class="ic"><use href="#i-alert"/></svg> ${esc(d.spec)}</div>` : ''}
     ${d.sheet ? `<p style="font-size:12px;color:var(--mid);margin:14px 0 6px">Pagina del catalogo Showroom Displays 2026:</p><a href="${d.sheet}" target="_blank"><img src="${d.sheet}" alt="Scheda catalogo"></a>` : ''}
   </div>`;
 }
@@ -1859,7 +1913,7 @@ function renderPicker(full) {
   document.getElementById('pickFilters').innerHTML =
     `<button class="${!brandFilter ? 'on' : ''}" onclick="brandFilter=''; renderPicker(false)">Tutti</button>` +
     brands.map(b => `<button class="${brandFilter === b ? 'on' : ''}" onclick="brandFilter='${esc(b)}'; renderPicker(false)">${esc(b)}</button>`).join('') +
-    `<button class="${onlyPhoto ? 'on' : ''}" onclick="onlyPhoto=!onlyPhoto; renderPicker(false)">📷 solo con foto</button>`;
+    `<button class="${onlyPhoto ? 'on' : ''}" onclick="onlyPhoto=!onlyPhoto; renderPicker(false)"><svg class="ic"><use href="#i-camera"/></svg> solo con foto</button>`;
   document.getElementById('pickCount').textContent = `${shown.length} campioni compatibili` + (shown.length !== list.length ? ` (su ${list.length})` : '');
   const LIMIT = 5000;                                   // tutti i campioni compatibili
   document.getElementById('pickList').innerHTML = shown.slice(0, LIMIT).map(s => `
@@ -1867,7 +1921,7 @@ function renderPicker(full) {
       <div class="sw" style="${swatchStyle(s)}"></div>
       <div class="info"><div class="brand">${esc(s.b)}</div><div class="ser">${esc(s.s)} <span class="col">${esc(s.c)}</span></div>
       <div class="meta">${esc(s.toz ? 'tozzetto ' + fmt(tozFmt(d, c)) + ' · da ' + s.from.map(fmt).join(', ') : fmt(s.z))} · ${esc(s.t.map(t => t + ' mm').join('/'))}${s.f.length ? ' · ' + esc(s.f.join(', ')) : ''}</div></div>
-      <button class="cam${hasPhoto(s) ? ' has' : ''}" title="${hasPhoto(s) ? 'Cambia foto' : 'Carica foto'}" data-ik="${esc(s.ik)}">${hasPhoto(s) ? '✓' : '📷'}</button>
+      <button class="cam${hasPhoto(s) ? ' has' : ''}" title="${hasPhoto(s) ? 'Cambia foto' : 'Carica foto'}" data-ik="${esc(s.ik)}">${hasPhoto(s) ? '<svg class="ic"><use href="#i-check"/></svg>' : '<svg class="ic"><use href="#i-camera"/></svg>'}</button>
     </div>`).join('') + (shown.length > LIMIT ? `<div class="count" style="padding:12px 14px">Altri ${shown.length - LIMIT}: usa la ricerca per restringere.</div>` : '') +
     (!shown.length ? `<div class="count" style="padding:20px 14px">Nessun campione compatibile con questi filtri.</div>` : '') + otherFormatsNote(d, q, shown);
 }
@@ -1991,9 +2045,9 @@ function renderImages() {
     const st = IMG[k] ? `background-image:url(${imgFor(k, true)})` : swatchStyle({ ik: k, s, c });
     return `<div class="imgrow"><div class="sw" style="${st}"></div>
       <div class="info"><b>${esc(s)}</b> ${esc(c)}<div class="meta">${esc(b)} · ${esc(sizesBy[k].map(fmt).join(', '))}</div></div>
-      ${IMG[k] && IMG[k] === folderURL(k) ? `<span class="meta" title="${esc(FOTO[k])}">📁 dalla cartella foto</span>` : ''}
+      ${IMG[k] && IMG[k] === folderURL(k) ? `<span class="meta" title="${esc(FOTO[k])}"><svg class="ic"><use href="#i-folder"/></svg> dalla cartella foto</span>` : ''}
       ${IMG[k] && IMG[k] !== folderURL(k) ? `<button class="btn" onclick="removeImage('${esc(k).replace(/'/g, "\\'")}').then(renderImages)">Rimuovi</button>` : ''}
-      <button class="btn ${IMG[k] ? '' : 'red'}" onclick="pickImage('${esc(k).replace(/'/g, "\\'")}')">${IMG[k] ? 'Cambia' : '📷 Carica'}</button></div>`;
+      <button class="btn ${IMG[k] ? '' : 'red'}" onclick="pickImage('${esc(k).replace(/'/g, "\\'")}')">${IMG[k] ? 'Cambia' : '<svg class="ic"><use href="#i-camera"/></svg> Carica'}</button></div>`;
   }).join('') + (keys.length > 300 ? `<div class="mfoot">Altri ${keys.length - 300}: usa la ricerca.</div>` : '');
 }
 const normTxt = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();

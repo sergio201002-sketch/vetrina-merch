@@ -327,15 +327,15 @@ function openRoom(id, mode) {
   if (roomMode === 'show') {
     v.innerHTML = `
     <aside class="room-side">
-      <div class="sec"><button class="btn" onclick="go('#/cliente/${room.client}')">← ${clName}</button></div>
+      <div class="sec"><button class="btn" onclick="go('#/cliente/${room.client}')"><svg class="ic"><use href="#i-left"/></svg>${clName}</button></div>
       <div class="sec"><h4>Stanze</h4><div class="roomtabs">${showRooms(room.client).map(r => `<button class="${r.id === room.id ? 'on' : ''}" onclick="go('#/salamostra/${room.client}/${r.id}')">${esc(r.name)}</button>`).join('')}
-        <button class="add" onclick="addShowRoom('${room.client}')" title="Aggiungi una stanza alla sala mostra">＋ Stanza</button></div></div>
+        <button class="add" onclick="addShowRoom('${room.client}')" title="Aggiungi una stanza alla sala mostra"><svg class="ic"><use href="#i-plus"/></svg> Stanza</button></div></div>
       <div class="sec"><h4>Sala mostra · ${esc(room.name)}</h4><div style="font-weight:800;font-size:17px;font-family:var(--font-display)">${clName}</div>
         <div style="font-size:12px;color:var(--mid);margin:6px 0 10px">Clicca un espositore (qui sotto o nella stanza) per aprirlo: sfogli i girevoli, apri i cassetti, tiri fuori i tozzetti e guardi i campioni.</div>
-        <button class="btn dark" onclick="openSampleBoard()" style="width:100%;margin-bottom:6px">🧩 Sistema i campioni</button>
-        <button class="btn" onclick="roomPaste()" style="width:100%;margin-bottom:6px" title="Incolla un elenco di codici e scegli in quali espositori metterli">📥 Incolla codici</button>
-        <button class="btn" onclick="go('#/campioni/${room.client}')" style="width:100%;margin-bottom:6px" title="Tutti i campioni della sala mostra per serie, a tutto schermo">🖼 Galleria campioni</button>
-        <button class="btn" onclick="go('#/ambiente/${room.id}')" style="width:100%">✎ Modifica disposizione</button></div>
+        <button class="btn dark" onclick="openSampleBoard()" style="width:100%;margin-bottom:6px"><svg class="ic"><use href="#i-grid"/></svg> Sistema i campioni</button>
+        <button class="btn" onclick="roomPaste()" style="width:100%;margin-bottom:6px" title="Incolla un elenco di codici e scegli in quali espositori metterli"><svg class="ic"><use href="#i-paste"/></svg> Incolla codici</button>
+        <button class="btn" onclick="go('#/campioni/${room.client}')" style="width:100%;margin-bottom:6px" title="Tutti i campioni della sala mostra per serie, a tutto schermo"><svg class="ic"><use href="#i-image"/></svg> Galleria campioni</button>
+        <button class="btn" onclick="go('#/ambiente/${room.id}')" style="width:100%"><svg class="ic"><use href="#i-pencil"/></svg> Modifica disposizione</button></div>
       <div class="sec"><h4 id="roomItemsTitle">Espositori</h4><div class="addlist layers" id="roomItemList"></div></div>
     </aside>
     <div class="room-main">
@@ -343,11 +343,11 @@ function openRoom(id, mode) {
         <div class="room-scene" id="roomScene"></div>
         ${showRooms(room.client).length > 1 ? `<div class="roomtabs float">${showRooms(room.client).map(r => `<button class="${r.id === room.id ? 'on' : ''}" onclick="event.stopPropagation(); go('#/salamostra/${room.client}/${r.id}')">${esc(r.name)}</button>`).join('')}</div>` : ''}
         <div class="camctl">
-          <button data-v="front">Frontale</button><button data-v="persp">Prospettiva ↙</button><button data-v="persp2">Prospettiva ↘</button>
-          <button id="rZoom" class="${ui.roomZoom ? 'on' : ''}" onclick="event.stopPropagation(); toggleRoomZoom()" title="Campione aperto: dritto di fronte e da vicino">🔍 Zoom</button>
-          <button class="rGL ${ui.roomGL !== false ? 'on' : ''}" onclick="event.stopPropagation(); toggleRoomGL()" title="Motore 3D veloce (scheda grafica): fluido e nitido. Spento: la sala mostra di prima">⚡ 3D</button>
+          <button data-v="front">Frontale</button><button data-v="persp">Prospettiva <svg class="ic"><use href="#i-dl"/></svg></button><button data-v="persp2">Prospettiva <svg class="ic"><use href="#i-dr"/></svg></button>
+          <button id="rZoom" class="${ui.roomZoom ? 'on' : ''}" onclick="event.stopPropagation(); toggleRoomZoom()" title="Campione aperto: dritto di fronte e da vicino"><svg class="ic"><use href="#i-zoom"/></svg> Zoom</button>
+          <button class="rGL ${ui.roomGL !== false ? 'on' : ''}" onclick="event.stopPropagation(); toggleRoomGL()" title="Motore 3D veloce (scheda grafica): fluido e nitido. Spento: la sala mostra di prima"><svg class="ic"><use href="#i-zap"/></svg> 3D</button>
           <button class="rHD ${roomHD() ? 'on' : ''}" onclick="event.stopPropagation(); toggleRoomHD()" title="Acceso: piastrelle in alta definizione · Spento: tutto più leggero e fluido">HD</button>
-          <button id="rPresent">⛶ Presenta</button><button onclick="event.stopPropagation(); renderRealistic()" title="Immagine realistica con luce e ombre di questa vista">📸 Render</button></div>
+          <button id="rPresent"><svg class="ic"><use href="#i-maximize"/></svg> Presenta</button><button onclick="event.stopPropagation(); renderRealistic()" title="Immagine realistica con luce e ombre di questa vista"><svg class="ic"><use href="#i-sun"/></svg> Render</button></div>
         <div class="roomhint">Trascina per girare la vista · rotella per lo zoom · clicca un campione per aprirlo</div>
         <div class="showcard" id="showCard" hidden></div>
       </div>
@@ -361,8 +361,8 @@ function openRoom(id, mode) {
   v.innerHTML = `
     <aside class="room-side">
       <div class="sec" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-        <button class="btn" onclick="go('#/cliente/${room.client}')">← ${clName}</button>
-        ${room.showroom ? `<button class="btn red" onclick="go('#/salamostra/${room.client}/${room.id}')">▶ Vedi sala mostra</button>` : ''}</div>
+        <button class="btn" onclick="go('#/cliente/${room.client}')"><svg class="ic"><use href="#i-left"/></svg>${clName}</button>
+        ${room.showroom ? `<button class="btn red" onclick="go('#/salamostra/${room.client}/${room.id}')"><svg class="ic"><use href="#i-play"/></svg> Vedi sala mostra</button>` : ''}</div>
       <div class="sec"><h4>${room.showroom ? 'Sala mostra (disposizione reale)' : 'Ambientazione'}</h4>
         <input class="search" id="roomName" value="${esc(room.name)}">
         <div class="row" style="margin-top:10px">Larghezza <input type="number" id="rW" min="200" max="2000" step="10" value="${room.w}"> cm</div>
@@ -378,7 +378,7 @@ function openRoom(id, mode) {
       <div class="sec"><h4>Altri espositori del cliente</h4><div class="addlist" id="roomAddList"></div></div>
       <div class="sec"><h4>Distinta</h4>
         <div style="font-size:12px;color:var(--mid);margin-bottom:6px">Codici d'ordine di tutti gli espositori della stanza (inferiore / superiore e SX / DX in base a come li hai montati).</div>
-        <button class="btn" onclick="copyDistinta()" style="width:100%">📋 Copia distinta</button></div>
+        <button class="btn" onclick="copyDistinta()" style="width:100%"><svg class="ic"><use href="#i-clipboard"/></svg> Copia distinta</button></div>
       <div class="sec"><h4>Aggiungi dal catalogo</h4>
         <select class="tb" id="roomAddCat" style="width:100%"><option value="">Scegli un espositore…</option>
           ${[...new Set(DISPLAYS.map(d => d.family))].map(f => `<optgroup label="${esc(f)}">${DISPLAYS.filter(d => d.family === f).map(d => `<option value="${d.id}">${esc(d.name)}</option>`).join('')}</optgroup>`).join('')}
@@ -389,10 +389,10 @@ function openRoom(id, mode) {
       <div class="room-3d" id="room3d">
         <div class="room-scene" id="roomScene"></div>
         <div class="camctl">
-          <button data-v="front">Frontale</button><button data-v="persp">Prospettiva ↙</button><button data-v="persp2">Prospettiva ↘</button><button data-v="top">Dall'alto</button>
-          <button class="rGL ${ui.roomGL !== false ? 'on' : ''}" onclick="event.stopPropagation(); toggleRoomGL()" title="Motore 3D veloce (scheda grafica): fluido e nitido. Spento: la sala mostra di prima">⚡ 3D</button>
+          <button data-v="front">Frontale</button><button data-v="persp">Prospettiva <svg class="ic"><use href="#i-dl"/></svg></button><button data-v="persp2">Prospettiva <svg class="ic"><use href="#i-dr"/></svg></button><button data-v="top">Dall'alto</button>
+          <button class="rGL ${ui.roomGL !== false ? 'on' : ''}" onclick="event.stopPropagation(); toggleRoomGL()" title="Motore 3D veloce (scheda grafica): fluido e nitido. Spento: la sala mostra di prima"><svg class="ic"><use href="#i-zap"/></svg> 3D</button>
           <button class="rHD ${roomHD() ? 'on' : ''}" onclick="event.stopPropagation(); toggleRoomHD()" title="Acceso: piastrelle in alta definizione · Spento: tutto più leggero e fluido">HD</button>
-          <button id="rPresent">⛶ Presenta</button><button onclick="event.stopPropagation(); renderRealistic()" title="Immagine realistica con luce e ombre di questa vista">📸 Render</button></div>
+          <button id="rPresent"><svg class="ic"><use href="#i-maximize"/></svg> Presenta</button><button onclick="event.stopPropagation(); renderRealistic()" title="Immagine realistica con luce e ombre di questa vista"><svg class="ic"><use href="#i-sun"/></svg> Render</button></div>
         <div class="roomhint">Trascina per girare la vista · rotella per lo zoom · clicca un espositore per selezionarlo</div>
       </div>
       <div class="room-plan" id="roomPlan"></div>
@@ -525,13 +525,13 @@ function renderPlan() {
   const W = box.clientWidth, H = box.clientHeight, pad = 22, top = 40;
   planS = Math.min((W - pad * 2) / room.w, (H - top - pad) / room.d);
   const ox = (W - room.w * planS) / 2, oz = top + (H - top - pad - room.d * planS) / 2;
-  let h = `<div class="plan-legend">Pianta ${room.w}×${room.d} cm · muro in alto · trascina per spostare · ▼ = fronte</div>
+  let h = `<div class="plan-legend">Pianta ${room.w}×${room.d} cm · muro in alto · trascina per spostare · <svg class="ic"><use href="#i-cdown"/></svg> = fronte</div>
     <div class="plan-room wall-b${room.wallL ? ' wall-l' : ''}${room.wallR ? ' wall-r' : ''}" style="left:${ox}px;top:${oz}px;width:${room.w * planS}px;height:${room.d * planS}px;background-size:${50 * planS}px ${50 * planS}px;box-sizing:content-box;margin-left:${room.wallL ? -6 : 0}px;margin-top:-6px"></div>`;
   room.items.slice().sort((a, b) => elevY(a) - elevY(b)).forEach(it => {
     const m = roomModels[it.id] || (roomModels[it.id] = roomModel(it));
     const c = comps[it.comp], d = DISP[it.disp], y = elevY(it), up = isUpper(it);
     h += `<div class="pitem${it.id === roomSel ? ' sel' : ''}${up ? ' up' : ''}${y > 0 && !isSystem(it) ? ' wallup' : ''}" data-id="${it.id}" style="left:${ox + it.x * planS}px;top:${oz + it.z * planS}px;width:${m.L * planS}px;height:${m.P * planS}px;transform:translate(-50%,-50%) rotate(${-(it.rot || 0)}deg)">
-      <span>${esc(c ? c.name : d ? d.name : '')}${up ? ' ▲ sopra' : y > 0 ? ' · h ' + y : ''}</span></div>`;
+      <span>${esc(c ? c.name : d ? d.name : '')}${up ? ' <svg class="ic"><use href="#i-cup"/></svg> sopra' : y > 0 ? ' · h ' + y : ''}</span></div>`;
   });
   box.innerHTML = h;
   box.querySelectorAll('.pitem').forEach(el => bindPlanDrag(el, ox, oz));
@@ -588,9 +588,9 @@ function renderRoomSide() {
     box.innerHTML = `<h4>Espositore selezionato</h4>
       <div class="t">${esc(c ? c.name : d.name)}</div>
       <div class="s">${esc(itemLabel(sel))} · cod. <b>${esc(itemCode(sel))}</b><br>${Math.round(m.L)}×${Math.round(m.P)} cm${d.slots ? (c ? ` · ${filledOf(c)} campioni` : ' · <span style="color:var(--red)">senza campioni</span>') : ''}
-        ${isSystem(sel) ? `<br>${isUpper(sel) ? '▲ agganciato sopra un altro mobile (' + y + ' cm da terra)' : 'a terra'}` : ''}</div>
+        ${isSystem(sel) ? `<br>${isUpper(sel) ? '<svg class="ic"><use href="#i-cup"/></svg> agganciato sopra un altro mobile (' + y + ' cm da terra)' : 'a terra'}` : ''}</div>
       ${shelf ? `<div class="row"><b>Altezza da terra</b> <input type="number" step="5" min="10" max="${room.h - 20}" value="${y}" onchange="setItemY(this.value)"> cm
-        <button class="btn" onclick="nudgeY(5)">▲</button><button class="btn" onclick="nudgeY(-5)">▼</button></div>` : ''}
+        <button class="btn" onclick="nudgeY(5)"><svg class="ic"><use href="#i-cup"/></svg></button><button class="btn" onclick="nudgeY(-5)"><svg class="ic"><use href="#i-cdown"/></svg></button></div>` : ''}
       ${d.mirror && DISP[d.mirror] ? `<div class="row"><b>Versione</b> ${[d, DISP[d.mirror]].sort((a, b) => (a.side || '').localeCompare(b.side || '') * -1).map(v =>
           `<button class="btn ${v.id === d.id ? 'dark' : ''}" onclick="switchVersion('${v.id}')">${esc(v.side || v.name)}</button>`).join('')}
           <span style="color:var(--mid)">· resta nello stesso posto</span></div>` : ''}
@@ -601,11 +601,11 @@ function renderRoomSide() {
       <div class="row"><b>Rotazione</b> <input type="number" step="5" value="${sel.rot || 0}" style="width:70px" onchange="setRot(this.value)"> °
         <button class="btn ${!(sel.rot || 0) ? 'dark' : ''}" onclick="setRot(0)">0°</button><button class="btn ${(sel.rot || 0) === 90 ? 'dark' : ''}" onclick="setRot(90)">90°</button>
         <button class="btn ${(sel.rot || 0) === 180 ? 'dark' : ''}" onclick="setRot(180)" title="Girato: il fronte guarda verso il muro (per metterlo schiena a schiena con un altro)">180°</button><button class="btn ${(sel.rot || 0) === 270 ? 'dark' : ''}" onclick="setRot(270)">270°</button></div>
-      ${isUpper(sel) ? '' : `<div class="btns"><button class="btn ${sel.free ? '' : 'dark'}" onclick="setFree(false)" title="Appoggiato al muro di fondo">📌 Attaccato al muro</button>
-        <button class="btn ${sel.free ? 'dark' : ''}" onclick="setFree(true)" title="Si può mettere in qualsiasi punto della stanza, anche in mezzo">↔ Staccato dal muro</button></div>`}
-      <div class="btns"><button class="btn" onclick="toWall()" title="Lo appoggia al muro di fondo, girato verso la stanza">⇡ Al muro</button>
-        <button class="btn" onclick="dupItem()">⧉ Duplica</button><button class="btn" onclick="removeItem()">🗑 Togli</button></div>
-      ${d.slots ? `<div class="btns"><button class="btn dark" onclick="editItem()" style="flex:1">✎ Apri e modifica i campioni</button></div>` : ''}
+      ${isUpper(sel) ? '' : `<div class="btns"><button class="btn ${sel.free ? '' : 'dark'}" onclick="setFree(false)" title="Appoggiato al muro di fondo"><svg class="ic"><use href="#i-pin"/></svg> Attaccato al muro</button>
+        <button class="btn ${sel.free ? 'dark' : ''}" onclick="setFree(true)" title="Si può mettere in qualsiasi punto della stanza, anche in mezzo"><svg class="ic"><use href="#i-move"/></svg> Staccato dal muro</button></div>`}
+      <div class="btns"><button class="btn" onclick="toWall()" title="Lo appoggia al muro di fondo, girato verso la stanza"><svg class="ic"><use href="#i-towall"/></svg> Al muro</button>
+        <button class="btn" onclick="dupItem()"><svg class="ic"><use href="#i-copy"/></svg> Duplica</button><button class="btn" onclick="removeItem()"><svg class="ic"><use href="#i-trash"/></svg> Togli</button></div>
+      ${d.slots ? `<div class="btns"><button class="btn dark" onclick="editItem()" style="flex:1"><svg class="ic"><use href="#i-pencil"/></svg> Apri e modifica i campioni</button></div>` : ''}
       <div class="row" style="margin-top:4px">X <input type="number" step="5" value="${sel.x}" onchange="setItemPos('x', this.value)"> cm
         ${sel.free ? `· dal muro <input type="number" step="5" value="${Math.round(sel.z - m.P / 2)}" onchange="setItemPos('z', +this.value + ${m.P / 2})"> cm` : '<span style="color:var(--mid)">· a filo muro</span>'}</div>`;
   }
@@ -614,7 +614,7 @@ function renderRoomSide() {
   document.getElementById('roomItemsTitle').textContent = `Espositori nella stanza (${items.length})`;
   document.getElementById('roomItemList').innerHTML = items.length ? items.map(it => {
     const c = comps[it.comp], d = DISP[it.disp], y = elevY(it);
-    const where = isUpper(it) ? '▲ sopra' : y > 0 ? `h ${y} cm` : 'a terra';
+    const where = isUpper(it) ? '<svg class="ic"><use href="#i-cup"/></svg> sopra' : y > 0 ? `h ${y} cm` : 'a terra';
     return `<button class="${it.id === roomSel ? 'sel' : ''}" onclick="selectItem('${it.id}')"><img src="${d ? d.img : ''}" alt="">
       <span><b>${esc(c ? c.name : d ? d.name : '')}</b><br><span style="color:var(--mid)">${esc(itemLabel(it))} · ${esc(itemCode(it))} · ${where}${d && d.slots && c ? ' · ' + filledOf(c) + ' campioni' : ''}</span></span></button>`;
   }).join('') : `<div style="font-size:12px;color:var(--mid)">La stanza è vuota: metti un espositore del cliente o uno dal catalogo.</div>`;
@@ -622,7 +622,7 @@ function renderRoomSide() {
   const cc = visibleComps(room.client).filter(c => !inRoom.has(c.id));
   document.getElementById('roomAddList').innerHTML = cc.length ? cc.map(c => `<div class="addrow"><img src="${DISP[c.disp].img}" alt="">
       <span><b>${esc(c.name)}</b><br><span style="color:var(--mid)">${filledOf(c)} campioni</span></span>
-      <button class="btn" onclick="addCompItem('${c.id}')">＋ Metti</button></div>`).join('')
+      <button class="btn" onclick="addCompItem('${c.id}')"><svg class="ic"><use href="#i-plus"/></svg> Metti</button></div>`).join('')
     : `<div style="font-size:12px;color:var(--mid)">Tutti gli espositori del cliente sono già nella stanza.</div>`;
 }
 /* ── Sala mostra: il campione si apre dentro la stanza (carrello che esce, tozzetto, cassetto, lastra) ── */
@@ -778,7 +778,7 @@ function renderShowCard() {
     // frecce e occhio sempre fermi a sinistra; il nome dopo (la sua lunghezza non sposta i pulsanti); la X in fondo
     box.innerHTML = `<div class="sc-mini"><button class="btn" onclick="stepSample(-1)" title="Campione precedente">‹</button><button class="btn" onclick="stepSample(1)" title="Campione successivo">›</button>${eye}
       <div class="sc-name">${s ? `<b>${esc(s.s)}</b> ${esc(s.c)}` : 'Posto vuoto'}</div>
-      <button class="btn sc-x" onclick="closeSample()" title="Chiudi">✕</button></div>`;
+      <button class="btn sc-x" onclick="closeSample()" title="Chiudi"><svg class="ic"><use href="#i-x"/></svg></button></div>`;
     return;
   }
   box.innerHTML = `${eye}<div class="sc-img" style="${s ? swatchStyle(s, true) : ''}"></div>
@@ -790,7 +790,7 @@ function renderShowCard() {
         ${s.k.length ? `<div class="sc-meta">Codici: <b>${esc(s.k.join(' / '))}</b></div>` : ''}
         ${hasPhoto(s) ? '' : '<div class="sc-meta" style="color:var(--red)">foto non ancora caricata</div>'}` : '<div class="sc-ser">Posto vuoto</div>'}
       <div class="sc-btns"><button class="btn" onclick="stepSample(-1)">‹</button><button class="btn" onclick="stepSample(1)">›</button>
-        <button class="btn dark" onclick="closeSample()">✕ Chiudi</button></div>
+        <button class="btn dark" onclick="closeSample()"><svg class="ic"><use href="#i-x"/></svg> Chiudi</button></div>
     </div>`;
 }
 /* occhio della scheda campione: scheda completa ↔ solo serie e colore (resta così anche per i prossimi campioni) */
@@ -847,7 +847,7 @@ function cullaOptsHTML(d, c) {
   const per = d.perModule || 1, n = c.slots.length, dx = c.side === 'DX';
   const b = (t, on, fn, tip) => `<button class="btn ${on ? 'dark' : ''}" title="${esc(tip || '')}" onclick="${fn}">${t}</button>`;
   return `<div class="row"><b>Moduli</b> ${(d.variants || [n]).map((v, k) => b(k + 1, v === n, `roomCulla('variant', ${v})`, (d.variantLabels || {})[v] + ' · ' + v + ' posti')).join('')}</div>
-    <div class="row"><b>Versione</b> ${b('◄ SX', !dx, `roomCulla('side', 'SX')`, 'Campioni girati verso destra')}${b('DX ►', dx, `roomCulla('side', 'DX')`, 'Campioni girati verso sinistra')}</div>
+    <div class="row"><b>Versione</b> ${b('<svg class="ic"><use href="#i-cleft"/></svg> SX', !dx, `roomCulla('side', 'SX')`, 'Campioni girati verso destra')}${b('DX <svg class="ic"><use href="#i-cright"/></svg>', dx, `roomCulla('side', 'DX')`, 'Campioni girati verso sinistra')}</div>
     <div class="row"><b>Formato</b> ${b('Misti', !c.fmt, `roomCulla('fmt', '')`, 'Formati diversi insieme')}${(d.accept.sizes || []).map(z => b(fmt(z), c.fmt === z, `roomCulla('fmt', '${z}')`, 'Solo ' + fmt(z))).join('')}</div>`;
 }
 async function roomCulla(what, v) {

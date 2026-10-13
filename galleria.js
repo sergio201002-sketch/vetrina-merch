@@ -9,7 +9,6 @@
 document.head.insertAdjacentHTML('beforeend', `<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
 <style>
 body[data-view="gallery"] #viewGallery { display: block; }
-body[data-view="gallery"] .hbtn[data-nav="gallery"] { background: var(--red); border-color: var(--red); }
 /* pagina iniziale della galleria: un riquadro per cliente con le strisce dei suoi campioni */
 .gh-search { flex: 1; max-width: 320px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; font: inherit; background: #fff; }
 .gh-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; margin-top: 8px; }
@@ -203,15 +202,15 @@ function renderGallery(cid, sub) {
   const nTot = new Set(allC.flatMap(c => c.slots.filter(k => k && SAMPLE[k]))).size;
   v.innerHTML = `<div class="gl-wrap">
     <div class="gl-head">
-      <button class="btn" onclick="go('#/galleria')">← Galleria</button>
+      <button class="btn" onclick="go('#/galleria')"><svg class="ic"><use href="#i-left"/></svg>Galleria</button>
       <h2><small>Sala mostra · campioni</small>${esc(cl.name)}</h2>
       <button class="btn" onclick="go('#/cliente/${cid}')">Scheda cliente</button>
-      <button class="btn red" onclick="go('#/salamostra/${cid}')">▶ Entra nella sala mostra</button>
+      <button class="btn red" onclick="go('#/salamostra/${cid}')"><svg class="ic"><use href="#i-play"/></svg> Entra nella sala mostra</button>
     </div>
     ${list.length ? `<div class="gl-tabs"><button class="gl-tab all ${isAll ? 'on' : ''}" onclick="go('#/campioni/${cid}/tutti')"><span>Tutta la sala mostra<span class="k">${nTot} campioni · ${list.length} espositori</span></span></button>${list.map(x => `<button class="gl-tab ${x === cur ? 'on' : ''}" onclick="go('#/campioni/${cid}/${x.c.id}')">
         <img src="${x.d.img}" alt=""><span>${esc(x.c.name)}<span class="k">${esc(x.d.name)} · ${filledOf(x.c)} campioni${showRooms(cid).length > 1 ? ' · ' + esc(x.room) : ''}</span></span></button>`).join('')}</div>` : ''}
     ${list.length ? `<div class="gl-tools"><button class="btn ${ui.glMissing ? 'on' : ''}" onclick="ui.glMissing = !ui.glMissing; saveUI(); renderGallery('${cid}', '${isAll ? 'tutti' : cur ? cur.c.id : ''}')"
-        title="Mostra anche gli altri colori di ogni serie">${ui.glMissing ? '✓ ' : ''}◐ Colori che non ha</button>
+        title="Mostra anche gli altri colori di ogni serie">${ui.glMissing ? '<svg class="ic"><use href="#i-check"/></svg> ' : ''}<svg class="ic"><use href="#i-half"/></svg> Colori che non ha</button>
       ${ui.glMissing ? `<span class="lg"><span><i style="background:#ddd"></i>in sala mostra</span><span><i style="background:#fff;box-shadow:0 0 0 2px rgba(214,40,50,.5),0 0 6px 2px rgba(230,60,70,.3)"></i>non in sala mostra</span>${isAll ? '' : '<span><i style="background:#fff;border:1px solid #ccc"></i>in un altro espositore</span>'}</span>` : ''}</div>` : ''}
     <div id="glBody">${groups.length ? groups.map((g, gi) => galleryBlock(g, gi, isAll)).join('') : `<div class="gl-empty">La sala mostra di ${esc(cl.name)} non ha ancora campioni negli espositori.</div>`}</div>
   </div>`;
@@ -250,7 +249,7 @@ function openGalleryFull(code) {
   if (!m) {
     document.body.insertAdjacentHTML('beforeend', `<div class="gl-full" id="glFull"><div class="gl-stage" id="glStage">
       <button class="gl-rot" onclick="glTurn = (glTurn + 90) % 360; glShow()" title="Gira la foto">⟳ Gira</button>
-      <button class="gl-x" onclick="closeGalleryFull()">✕ Chiudi</button>
+      <button class="gl-x" onclick="closeGalleryFull()"><svg class="ic"><use href="#i-x"/></svg> Chiudi</button>
       <button class="gl-nav l" onclick="glStep(-1)">‹</button><img id="glImg" alt=""><button class="gl-nav r" onclick="glStep(1)">›</button>
       <div class="gl-count" id="glCount"></div></div><aside class="gl-side" id="glSide"></aside></div>`);
     m = document.getElementById('glFull');

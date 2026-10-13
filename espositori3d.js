@@ -355,7 +355,7 @@ function renderModel3D(d, c, sc, W, H, st) {
       const b = document.createElement('button'); b.textContent = t; b.className = gcam.view === id ? 'on' : '';
       b.onclick = e => { e.stopPropagation(); setGView(id); }; bar.appendChild(b);
     });
-    const z = document.createElement('button'); z.textContent = '🔍 Zoom'; z.className = 'zoom' + (ui.zoom ? ' on' : '');
+    const z = document.createElement('button'); z.innerHTML = '<svg class="ic"><use href="#i-zoom"/></svg> Zoom'; z.className = 'zoom' + (ui.zoom ? ' on' : '');
     z.title = 'Primo piano sulla piastrella aperta';
     z.onclick = e => { e.stopPropagation(); ui.zoom = !ui.zoom; saveUI(); renderStage(); };
     bar.appendChild(z); st.appendChild(bar);

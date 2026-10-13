@@ -64,7 +64,7 @@ async function renderRealistic() {
   const root = document.getElementById('roomScene'), box = document.getElementById('room3d');
   if (!root || !box) { toast('Apri una sala mostra per fare il render'); return; }
   const modal = document.createElement('div'); modal.className = 'rnd-modal';
-  modal.innerHTML = `<div class="msg">📸 Preparo il render realistico…</div>`;
+  modal.innerHTML = `<div class="msg">Preparo il render realistico…</div>`;
   document.body.appendChild(modal);
   try { await loadThree(); } catch (e) { modal.remove(); say('Non riesco a caricare il motore 3D (serve internet). Riprova.'); return; }
   const T = window.THREE;
@@ -179,7 +179,7 @@ async function renderRealistic() {
   const cam = new T.PerspectiveCamera(2 * Math.atan(fh / 2 / P) * 180 / Math.PI, fw / fh, 5, P * 20);
   cam.position.set(pox, -poy, P); cam.lookAt(pox, -poy, 0);
   cam.setViewOffset(fw, fh, fw / 2 - pox, fh / 2 - poy, W, H);
-  modal.querySelector('.msg').textContent = `📸 Carico le foto (${Object.keys(imgs).length})…`;
+  modal.querySelector('.msg').textContent = `Carico le foto (${Object.keys(imgs).length})…`;
   await Promise.all(pending);
   await new Promise(r => setTimeout(r, 200));
   const rdr = new T.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
@@ -193,7 +193,7 @@ async function renderRealistic() {
   const url = rdr.domElement.toDataURL('image/jpeg', 0.92);
   rdr.dispose(); scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } });
   modal.innerHTML = `<img src="${url}" alt="Render della sala mostra">
-    <div class="bar"><button class="btn" id="rndSave">⬇ Salva immagine</button><button class="btn dark" id="rndClose">Chiudi</button></div>`;
+    <div class="bar"><button class="btn" id="rndSave"><svg class="ic"><use href="#i-download"/></svg> Salva immagine</button><button class="btn dark" id="rndClose">Chiudi</button></div>`;
   modal.querySelector('#rndClose').onclick = () => modal.remove();
   modal.querySelector('#rndSave').onclick = () => {
     const a = document.createElement('a'); a.href = url; a.download = 'sala-mostra-' + ((window.room && room.name) || 'render').replace(/[^\w-]+/g, '_') + '.jpg'; a.click();

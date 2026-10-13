@@ -83,11 +83,11 @@ function openSampleBoard() {
   let m = document.getElementById('csModal');
   if (!m) {
     document.body.insertAdjacentHTML('beforeend', `<div class="modal cs-modal" id="csModal"><div class="mbox">
-      <div class="mhead"><h3>🧩 Sistema i campioni</h3>
+      <div class="mhead"><h3><svg class="ic"><use href="#i-grid"/></svg> Sistema i campioni</h3>
         <div class="cs-size">Grandezza <button class="btn" onclick="csZoom(-1)" title="Quadratini più piccoli: ne vedi di più">−</button><button class="btn" onclick="csZoom(1)" title="Quadratini più grandi">+</button></div>
-        <button class="btn" onclick="roomPaste()" title="Incolla un elenco di codici in uno o più espositori">📥 Incolla codici</button>
+        <button class="btn" onclick="roomPaste()" title="Incolla un elenco di codici in uno o più espositori"><svg class="ic"><use href="#i-paste"/></svg> Incolla codici</button>
         <button class="btn dark" onclick="closeSampleBoard()">Fatto</button></div>
-      <div class="cs-hint">Trascina per spostare o scambiare (telefono: tieni premuto e trascina) · tocca un posto per inserire, cambiare o togliere: dopo ogni campione passa da solo al posto accanto (partendo dall'ultimo a destra va verso sinistra, ⇄ cambia verso) · Invio nella ricerca mette il campione se ne è rimasto uno solo · ☐ Seleziona: scegli più campioni e spostali insieme o toglili · con − e + vedi più o meno quadratini.</div>
+      <div class="cs-hint">Trascina per spostare o scambiare (telefono: tieni premuto e trascina) · tocca un posto per inserire, cambiare o togliere: dopo ogni campione passa da solo al posto accanto (partendo dall'ultimo a destra va verso sinistra, <svg class="ic"><use href="#i-swap"/></svg> cambia verso) · Invio nella ricerca mette il campione se ne è rimasto uno solo · <svg class="ic"><use href="#i-select"/></svg> Seleziona: scegli più campioni e spostali insieme o toglili · con − e + vedi più o meno quadratini.</div>
       <div class="cs-tabs" id="csTabs"></div>
       <div class="cs-body" id="csBody"></div>
       <div class="cs-selbar" id="csSelBar" hidden></div>
@@ -285,7 +285,7 @@ async function csPaste(btn) {
   renderSampleBoard(); pasteReport(o);
 }
 function csSelBtn() {
-  return `<button class="btn" onclick="csPaste(this)" title="Incolla un elenco di codici (uno per riga)">📥 Incolla codici</button>` + `<button class="btn${csSelMode ? ' on' : ''}" onclick="csToggleSelMode()" title="Scegli più campioni: poi li sposti tutti insieme o li togli">${csSelMode ? '✓ Selezione attiva' : '☐ Seleziona (sposta o togli)'}</button>`;
+  return `<button class="btn" onclick="csPaste(this)" title="Incolla un elenco di codici (uno per riga)"><svg class="ic"><use href="#i-paste"/></svg> Incolla codici</button>` + `<button class="btn${csSelMode ? ' on' : ''}" onclick="csToggleSelMode()" title="Scegli più campioni: poi li sposti tutti insieme o li togli">${csSelMode ? '<svg class="ic"><use href="#i-check"/></svg> Selezione attiva' : '<svg class="ic"><use href="#i-select"/></svg> Seleziona (sposta o togli)'}</button>`;
 }
 function csToggleSelMode() {
   csSelMode = !csSelMode; csSel = []; csArm = false;
@@ -317,7 +317,7 @@ function renderSelBar() {
   bar.innerHTML = csArm
     ? `<span>Tocca il posto dove mettere il <b>primo</b>: gli altri seguono verso destra</span><button class="btn" onclick="csArm=false; renderSelBar()">Indietro</button>`
     : `<span>${n ? `<b>${n}</b> selezionat${n === 1 ? 'o' : 'i'}` : 'Tocca i campioni da spostare'}</span>
-       ${n ? `<button class="btn dark" onclick="csArm=true; renderSelBar()">Sposta…</button><button class="btn" onclick="csRemoveSel()">🗑 Togli</button><button class="btn" onclick="csSel=[]; renderSampleBoard()">Deseleziona</button>` : ''}
+       ${n ? `<button class="btn dark" onclick="csArm=true; renderSelBar()">Sposta…</button><button class="btn" onclick="csRemoveSel()"><svg class="ic"><use href="#i-trash"/></svg> Togli</button><button class="btn" onclick="csSel=[]; renderSampleBoard()">Deseleziona</button>` : ''}
        <button class="btn" onclick="csToggleSelMode()">Fine</button>`;
 }
 /* sposta i selezionati (nell'ordine in cui li vedi) nei posti consecutivi a partire da quello toccato;
@@ -374,8 +374,8 @@ function openSlotPicker(cid, i) {
   const lab = tEl ? tEl.querySelector('.p').textContent : null;
   const c = comps[cid], d = DISP[c.disp], s = SAMPLE[c.slots[i]], box = document.getElementById('csPick');
   box.hidden = false;
-  box.innerHTML = `<div class="pkh"><div class="t">Posto ${esc(lab || slotName(d, i, c.slots.length))} · ${esc(c.name)} <span style="color:var(--mid);font-weight:600">· poi ${csDir > 0 ? 'a destra →' : '← a sinistra'}</span></div>
-      <button class="btn" onclick="csDir=-csDir; openSlotPicker('${cid}', ${i})" title="Cambia direzione">⇄</button>
+  box.innerHTML = `<div class="pkh"><div class="t">Posto ${esc(lab || slotName(d, i, c.slots.length))} · ${esc(c.name)} <span style="color:var(--mid);font-weight:600">· poi ${csDir > 0 ? 'a destra →' : '<svg class="ic"><use href="#i-left"/></svg>a sinistra'}</span></div>
+      <button class="btn" onclick="csDir=-csDir; openSlotPicker('${cid}', ${i})" title="Cambia direzione"><svg class="ic"><use href="#i-swap"/></svg></button>
       ${s ? `<button class="btn" onclick="setBoardSlot(null)">Togli</button>` : ''}
       <button class="btn" onclick="document.getElementById('csPick').hidden=true">Chiudi</button>
       <input id="csSearch" placeholder="Cerca serie, colore, codice… (${esc(acceptLabel(d, c).slice(0, 2).join(' · '))})" oninput="csQ=this.value; renderSlotPicker()" onkeydown="if(event.key==='Enter'){event.preventDefault(); csPickOnly()}" enterkeyhint="done"></div>
@@ -402,7 +402,7 @@ function renderSlotPicker() {
   document.getElementById('csList').innerHTML = list.map(s => `<div class="srow${inRoom.has(s.key) ? ' used' : ''}" onclick="setBoardSlot('${s.key.replace(/'/g, "\\'")}')">
       <span class="sw" style="${swatchStyle(s)}"></span>
       <div class="info"><div class="brand">${esc(s.b)}</div><div class="ser">${esc(s.s)}</div><div class="col">${esc(s.c)} · ${esc(s.toz ? 'tozzetto' + tozFrom(s) : fmt(s.z))}</div>
-      <div class="meta">${esc((s.k || []).join(' / '))}${hasPhoto(s) ? '' : ' · senza foto'}</div></div>${inRoom.has(s.key) ? '<span title="già in sala">✓</span>' : ''}</div>`).join('')
+      <div class="meta">${esc((s.k || []).join(' / '))}${hasPhoto(s) ? '' : ' · senza foto'}</div></div>${inRoom.has(s.key) ? '<span title="già in sala"><svg class="ic"><use href="#i-check"/></svg></span>' : ''}</div>`).join('')
     + (more ? `<div class="empty-note">Altri risultati: scrivi qualche lettera in più per trovarli.</div>` : '')
     + (list.length ? '' : `<div class="empty-note">Nessun campione compatibile trovato.</div>`);
 }

@@ -96,7 +96,7 @@ function renderHome() {
   v.innerHTML = `<div class="vwrap">
     <div class="vhead"><h2>Clienti</h2>
       <input class="search" id="homeSearch" placeholder="Cerca cliente o città…" value="${esc(homeQ)}">
-      <button class="btn red" onclick="homeNew=true; renderHome(); document.getElementById('nc_name').focus()">＋ Nuovo cliente</button>
+      <button class="btn red" onclick="homeNew=true; renderHome(); document.getElementById('nc_name').focus()"><svg class="ic"><use href="#i-plus"/></svg> Nuovo cliente</button>
     </div>
     ${homeNew ? `<div class="card" style="margin-bottom:14px"><div class="form">
         <label>Nome cliente *<input id="nc_name" placeholder="es. Ceramiche Rossi"></label>
@@ -115,16 +115,16 @@ function renderHome() {
           <div class="stats"><div><b>${cc.length}</b>espositori</div><div><b>${pcs}</b>campioni</div><div><b>${clientScenes(c.id).length}</b>ambientazioni</div></div>
         </div>`;
       }).join('')}
-      ${!list.length && !q ? `<div class="card ccard newcard" onclick="homeNew=true; renderHome(); document.getElementById('nc_name').focus()">＋ Crea il primo cliente</div>` : ''}
+      ${!list.length && !q ? `<div class="card ccard newcard" onclick="homeNew=true; renderHome(); document.getElementById('nc_name').focus()"><svg class="ic"><use href="#i-plus"/></svg> Crea il primo cliente</div>` : ''}
     </div>
     ${!list.length && q ? `<div class="empty-note">Nessun cliente trovato per "${esc(homeQ)}".</div>` : ''}
     <div class="vhead" style="margin-top:28px"><h2 style="font-size:18px">Strumenti</h2></div>
     <div class="cgrid">
-      <div class="card ccard" onclick="openFreeCatalog()"><h3>🗂 Catalogo espositori</h3>
+      <div class="card ccard" onclick="openFreeCatalog()"><h3><svg class="ic"><use href="#i-panels"/></svg> Catalogo espositori</h3>
         <div class="sub">Prova gli espositori senza cliente${free ? ` · ${free} composizioni libere` : ''}</div></div>
-      <div class="card ccard" onclick="openVersions()"><h3>🕘 Versioni salvate</h3>
+      <div class="card ccard" onclick="openVersions()"><h3><svg class="ic"><use href="#i-history"/></svg> Versioni salvate</h3>
         <div class="sub">Tutto si salva da solo su disco. Qui puoi tornare a una versione precedente.</div></div>
-      <div class="card ccard" onclick="openImages()"><h3>📷 Foto campioni</h3>
+      <div class="card ccard" onclick="openImages()"><h3><svg class="ic"><use href="#i-camera"/></svg> Foto campioni</h3>
         <div class="sub">${IMG_KEYS.filter(k => IMG[k]).length} foto su ${IMG_KEYS.length} serie/colori</div></div>
     </div>
   </div>`;
@@ -154,9 +154,9 @@ function renderClient(cid) {
   const v = document.getElementById('viewClient');
   v.innerHTML = `<div class="vwrap">
     <div class="vhead">
-      <button class="btn" onclick="go('#/')">← Clienti</button>
+      <button class="btn" onclick="go('#/')"><svg class="ic"><use href="#i-left"/></svg>Clienti</button>
       <h2>${esc(cl.name)}</h2>
-      <button class="btn" onclick="deleteClient('${cid}')" title="Elimina cliente">🗑 Elimina</button>
+      <button class="btn" onclick="deleteClient('${cid}')" title="Elimina cliente"><svg class="ic"><use href="#i-trash"/></svg> Elimina</button>
     </div>
     <div class="card"><div class="form">
       <label>Nome cliente<input value="${esc(cl.name)}" oninput="updClient('${cid}','name',this.value)"></label>
@@ -166,7 +166,7 @@ function renderClient(cid) {
       <label class="full">Note<textarea oninput="updClient('${cid}','note',this.value)" placeholder="Note sul cliente, sullo showroom, sugli spazi…">${esc(cl.note || '')}</textarea></label>
     </div></div>
     <div class="ctabs">
-      <button class="${clientTab === 'show' ? 'on' : ''}" onclick="clientTab='show'; renderClient('${cid}')">🏬 Sala mostra</button>
+      <button class="${clientTab === 'show' ? 'on' : ''}" onclick="clientTab='show'; renderClient('${cid}')"><svg class="ic"><use href="#i-store"/></svg> Sala mostra</button>
       <button class="${clientTab === 'esp' ? 'on' : ''}" onclick="clientTab='esp'; renderClient('${cid}')">Espositori<span class="n">${cc.length}</span></button>
       <button class="${clientTab === 'inv' ? 'on' : ''}" onclick="clientTab='inv'; renderClient('${cid}')">Inventario campioni<span class="n">${pcs}</span></button>
       <button class="${clientTab === 'amb' ? 'on' : ''}" onclick="clientTab='amb'; renderClient('${cid}')">Ambientazioni<span class="n">${sc.length}</span></button>
@@ -196,11 +196,11 @@ function espHTML(cid, cc) {
   const free = Object.values(comps).filter(c => !c.client && c.slots.some(Boolean) && DISP[c.disp]);
   return `
     <div class="vhead"><h2 style="font-size:17px">Espositori del cliente</h2>
-      <span style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" onclick="pasteIntoComps(visibleComps('${cid}'), null, () => renderClient('${cid}'))" title="Incolla un elenco di codici e scegli in quali espositori metterli">📥 Incolla codici</button>
-      <button class="btn red" onclick="addingDisp=!addingDisp; renderClient('${cid}')">${addingDisp ? 'Chiudi' : '＋ Aggiungi espositore'}</button></span></div>
+      <span style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" onclick="pasteIntoComps(visibleComps('${cid}'), null, () => renderClient('${cid}'))" title="Incolla un elenco di codici e scegli in quali espositori metterli"><svg class="ic"><use href="#i-paste"/></svg> Incolla codici</button>
+      <button class="btn red" onclick="addingDisp=!addingDisp; renderClient('${cid}')">${addingDisp ? 'Chiudi' : '<svg class="ic"><use href="#i-plus"/></svg> Aggiungi espositore'}</button></span></div>
     ${addingDisp ? `<div class="card" style="margin-bottom:12px">${dispPickerHTML(`addCompTo('${cid}', '%ID%')`)}</div>` : ''}
     ${cc.length ? `<div style="display:flex;flex-direction:column;gap:8px">${cc.map(c => compCardHTML(c, cid)).join('')}</div>`
-      : `<div class="card empty-note">Nessun espositore per questo cliente.<br>Premi <b>＋ Aggiungi espositore</b> e scegli quello che ha (o che gli proponi), poi inserisci i campioni.</div>`}
+      : `<div class="card empty-note">Nessun espositore per questo cliente.<br>Premi <b><svg class="ic"><use href="#i-plus"/></svg> Aggiungi espositore</b> e scegli quello che ha (o che gli proponi), poi inserisci i campioni.</div>`}
     ${free.length ? `<div class="vhead" style="margin-top:24px"><h2 style="font-size:15px;color:var(--mid)">Composizioni del catalogo libero (senza cliente)</h2></div>
       <div style="display:flex;flex-direction:column;gap:8px">${free.map(c => `<div class="card ecard"><img src="${DISP[c.disp].img}" alt="">
         <div class="info"><div class="t">${esc(c.name)}</div><div class="s">${esc(DISP[c.disp].name)} · ${filledOf(c)}/${c.slots.length} campioni</div></div>
@@ -215,9 +215,9 @@ function compCardHTML(c, cid) {
       <div class="sws">${shown.map(k => `<span style="${swatchStyle(SAMPLE[k])}" title="${esc(SAMPLE[k].s + ' ' + SAMPLE[k].c)}"></span>`).join('')}${f > shown.length ? `<span style="display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--mid)">+${f - shown.length}</span>` : ''}</div></div>
     <div class="acts">
       <button class="btn dark" onclick="openComp('${c.id}')">Apri</button>
-      <button class="btn" onclick="renameCompUI('${c.id}','${cid}')" title="Rinomina">✎</button>
-      <button class="btn" onclick="dupCompFor('${c.id}','${cid}')" title="Duplica">⧉</button>
-      <button class="btn" onclick="delCompFor('${c.id}','${cid}')" title="Elimina">🗑</button></div></div>`;
+      <button class="btn" onclick="renameCompUI('${c.id}','${cid}')" title="Rinomina"><svg class="ic"><use href="#i-pencil"/></svg></button>
+      <button class="btn" onclick="dupCompFor('${c.id}','${cid}')" title="Duplica"><svg class="ic"><use href="#i-copy"/></svg></button>
+      <button class="btn" onclick="delCompFor('${c.id}','${cid}')" title="Elimina"><svg class="ic"><use href="#i-trash"/></svg></button></div></div>`;
 }
 function dispPickerHTML(action) {
   const fams = [...new Set(DISPLAYS.map(d => d.family))];
@@ -286,8 +286,8 @@ function invHTML(cid, inv) {
       ${noPhoto ? `<div class="card"><b style="color:var(--red)">${noPhoto}</b><span>referenze senza foto</span></div>` : ''}
     </div>
     <div class="vhead"><input class="search" id="invSearch" placeholder="Cerca serie, colore, formato, codice…" value="${esc(invQ)}" style="flex:1">
-      <button class="btn" onclick="copyInventory('${cid}')">📋 Copia</button>
-      <button class="btn dark" onclick="exportInventoryCSV('${cid}')">⬇ Excel (CSV)</button></div>
+      <button class="btn" onclick="copyInventory('${cid}')"><svg class="ic"><use href="#i-clipboard"/></svg> Copia</button>
+      <button class="btn dark" onclick="exportInventoryCSV('${cid}')"><svg class="ic"><use href="#i-download"/></svg> Excel (CSV)</button></div>
     <div class="card" style="overflow-x:auto"><table class="inv">
       <thead><tr><th></th><th>Serie / colore</th><th>Formato</th><th>Codici / finiture</th><th style="text-align:center">Pezzi</th><th>Dove si trova</th></tr></thead>
       <tbody>${body || `<tr><td colspan="6" class="empty-note">Nessun campione per "${esc(invQ)}".</td></tr>`}</tbody></table></div>`;
@@ -318,7 +318,7 @@ function showroomHTML(cid) {
       <h3 style="font-size:18px;margin-bottom:6px">Sala mostra di ${esc(cl.name)}</h3>
       <div style="font-size:14px;color:var(--mid);margin-bottom:14px">Ricrea lo showroom vero del cliente con i suoi espositori e i suoi campioni: poi potrai entrarci,
         cliccare un espositore e aprirlo (sfogliare i girevoli, aprire i cassetti, tirare fuori i tozzetti).</div>
-      <button class="btn red" onclick="createShowroom('${cid}')">＋ Crea la sala mostra</button>
+      <button class="btn red" onclick="createShowroom('${cid}')"><svg class="ic"><use href="#i-plus"/></svg> Crea la sala mostra</button>
       ${others.length ? `<div style="margin-top:16px;font-size:13px;color:var(--mid)">Oppure usa un'ambientazione che hai già:
         ${others.map(o => `<button class="btn" style="margin:4px 4px 0 0" onclick="useAsShowroom('${cid}','${o.id}')">${esc(o.name)}</button>`).join('')}</div>` : ''}
     </div>`;
@@ -326,18 +326,18 @@ function showroomHTML(cid) {
   const rooms = showRooms(cid), fill = r => r.items.reduce((n, it) => n + (comps[it.comp] ? filledOf(comps[it.comp]) : 0), 0);
   const tot = rooms.reduce((n, r) => n + fill(r), 0), nEsp = rooms.reduce((n, r) => n + r.items.length, 0);
   return `<div class="card" style="padding:22px">
-    <h3 style="font-size:18px;margin-bottom:6px">🏬 Sala mostra di ${esc(cl.name)}</h3>
+    <h3 style="font-size:18px;margin-bottom:6px"><svg class="ic"><use href="#i-store"/></svg> Sala mostra di ${esc(cl.name)}</h3>
     <div class="stats" style="margin:10px 0 16px"><div><b>${rooms.length}</b>${rooms.length === 1 ? 'stanza' : 'stanze'}</div><div><b>${nEsp}</b>espositori</div><div><b>${tot}</b>campioni esposti</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
-      <button class="btn red" style="font-size:14px;padding:10px 16px" onclick="go('#/salamostra/${cid}')">▶ Entra nella sala mostra</button>
-      <button class="btn dark" style="font-size:14px;padding:10px 16px" onclick="go('#/campioni/${cid}')">🖼 Galleria campioni</button>
-      <button class="btn" onclick="addShowRoom('${cid}')">＋ Aggiungi una stanza</button>
-      <button class="btn" onclick="pasteShowroom('${cid}')" title="Incolla un elenco di codici e scegli in quali espositori della sala mostra metterli">📥 Incolla codici</button></div>
+      <button class="btn red" style="font-size:14px;padding:10px 16px" onclick="go('#/salamostra/${cid}')"><svg class="ic"><use href="#i-play"/></svg> Entra nella sala mostra</button>
+      <button class="btn dark" style="font-size:14px;padding:10px 16px" onclick="go('#/campioni/${cid}')"><svg class="ic"><use href="#i-image"/></svg> Galleria campioni</button>
+      <button class="btn" onclick="addShowRoom('${cid}')"><svg class="ic"><use href="#i-plus"/></svg> Aggiungi una stanza</button>
+      <button class="btn" onclick="pasteShowroom('${cid}')" title="Incolla un elenco di codici e scegli in quali espositori della sala mostra metterli"><svg class="ic"><use href="#i-paste"/></svg> Incolla codici</button></div>
     <div class="roomlist">${rooms.map(r => `<div class="roomrow">
       <div class="info"><b>${esc(r.name)}</b><div class="meta">${r.items.length} espositori · ${fill(r)} campioni · ${r.w}×${r.d} cm</div></div>
-      <button class="btn dark" onclick="go('#/salamostra/${cid}/${r.id}')">▶ Entra</button>
-      <button class="btn" onclick="go('#/ambiente/${r.id}')">✎ Modifica</button>
-      ${rooms.length > 1 ? `<button class="btn" title="Elimina questa stanza" onclick="delShowRoom('${r.id}')">🗑</button>` : ''}</div>`).join('')}</div>
+      <button class="btn dark" onclick="go('#/salamostra/${cid}/${r.id}')"><svg class="ic"><use href="#i-play"/></svg> Entra</button>
+      <button class="btn" onclick="go('#/ambiente/${r.id}')"><svg class="ic"><use href="#i-pencil"/></svg> Modifica</button>
+      ${rooms.length > 1 ? `<button class="btn" title="Elimina questa stanza" onclick="delShowRoom('${r.id}')"><svg class="ic"><use href="#i-trash"/></svg></button>` : ''}</div>`).join('')}</div>
   </div>`;
 }
 /* incolla codici negli espositori della sala mostra (tutte le stanze, da sinistra a destra) */
@@ -374,13 +374,13 @@ function useAsShowroom(cid, sid) {
 /* ── Ambientazioni del cliente ── */
 function scenesHTML(cid, sc) {
   return `<div class="vhead"><h2 style="font-size:17px">Ambientazioni</h2>
-      <button class="btn red" onclick="newScene('${cid}')">＋ Nuova ambientazione</button></div>
+      <button class="btn red" onclick="newScene('${cid}')"><svg class="ic"><use href="#i-plus"/></svg> Nuova ambientazione</button></div>
     ${sc.length ? `<div class="cgrid">${sc.map(s => `<div class="card ccard" onclick="go('#/ambiente/${s.id}')">
         <h3>${esc(s.name)}</h3><div class="sub">Stanza ${s.w}×${s.d} cm · aggiornata ${dateIt(s.upd)}</div>
         <div class="stats"><div><b>${s.items.length}</b>espositori</div></div>
         <div style="display:flex;gap:6px" onclick="event.stopPropagation()">
-          <button class="btn" onclick="dupScene('${s.id}')">⧉ Duplica</button>
-          <button class="btn" onclick="delScene('${s.id}')">🗑</button></div></div>`).join('')}</div>`
+          <button class="btn" onclick="dupScene('${s.id}')"><svg class="ic"><use href="#i-copy"/></svg> Duplica</button>
+          <button class="btn" onclick="delScene('${s.id}')"><svg class="ic"><use href="#i-trash"/></svg></button></div></div>`).join('')}</div>`
       : `<div class="card empty-note">Crea un'ambientazione: una stanza con muro bianco e pavimento dove sistemare gli espositori per mostrare al cliente come verrà lo showroom.</div>`}`;
 }
 function newScene(cid) {

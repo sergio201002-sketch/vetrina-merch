@@ -12,7 +12,6 @@
 (() => { const v = document.createElement('div'); v.id = 'viewGallery2'; v.className = 'view'; document.body.appendChild(v); })();
 document.head.insertAdjacentHTML('beforeend', `<style>
 body[data-view="gallery2"] #viewGallery2 { display: block; }
-body[data-view="gallery2"] .hbtn[data-nav="gallery2"] { background: var(--red); border-color: var(--red); }
 #viewGallery2 { background: #fbfaf8; min-height: calc(100vh - 56px); }
 .g2-over { display: grid; grid-template-columns: minmax(220px, 300px) 1fr; gap: 22px; background: #fff; border: 1px solid #ebe8e2; border-radius: 18px; padding: 18px 20px; margin: 4px 0 16px; }
 .g2-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start; }
@@ -117,10 +116,10 @@ function renderGallery2(cid, sub) {
   const prop = g2Prop(cid);
   v.innerHTML = `<div class="gl-wrap ${pres ? 'g2-pres' : ''}">
     <div class="gl-head">
-      <button class="btn" onclick="go('#/galleria2')">← Galleria+</button>
+      <button class="btn" onclick="go('#/galleria2')"><svg class="ic"><use href="#i-left"/></svg>Galleria+</button>
       <h2><small>Galleria+ · sala mostra</small>${esc(cl.name)}</h2>
-      <button class="btn ${pres ? 'dark' : ''}" onclick="ui.g2Pres = !ui.g2Pres; saveUI(); renderGallery2('${cid}', '${g2.scope}')" title="Per il banco: solo foto, serie e colori">${pres ? '✓ ' : ''}🖥 Presentazione</button>
-      <button class="btn red" onclick="go('#/salamostra/${cid}')">▶ Sala mostra</button>
+      <button class="btn ${pres ? 'dark' : ''}" onclick="ui.g2Pres = !ui.g2Pres; saveUI(); renderGallery2('${cid}', '${g2.scope}')" title="Per il banco: solo foto, serie e colori">${pres ? '<svg class="ic"><use href="#i-check"/></svg> ' : ''}<svg class="ic"><use href="#i-monitor"/></svg> Presentazione</button>
+      <button class="btn red" onclick="go('#/salamostra/${cid}')"><svg class="ic"><use href="#i-play"/></svg> Sala mostra</button>
     </div>
     ${pres ? '' : `<div class="g2-over g2-only">
       <div class="g2-stats"><div><b>${allSeries.length}</b><span>serie</span></div><div><b>${nKeys}</b><span>campioni</span></div>
@@ -135,12 +134,12 @@ function renderGallery2(cid, sub) {
       <select onchange="g2.brand = this.value; renderGallery2('${cid}', '${g2.scope}')"><option value="">Tutte le marche</option>${brands.map(b => `<option ${g2.brand === b ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select>
       <select onchange="g2.size = this.value; renderGallery2('${cid}', '${g2.scope}')"><option value="">Tutti i formati</option>${sizes.map(z => `<option value="${z}" ${g2.size === z ? 'selected' : ''}>${esc(fmt(z))}</option>`).join('')}</select>
       ${pres ? '' : `<button class="g2-chip red ${g2.onlyInc ? 'on' : ''}" onclick="g2.onlyInc = !g2.onlyInc; renderGallery2('${cid}', '${g2.scope}')">Solo incomplete</button>
-      <button class="g2-chip red ${g2.allMiss ? 'on' : ''}" onclick="g2.allMiss = !g2.allMiss; renderGallery2('${cid}', '${g2.scope}')">◐ Mostra i mancanti</button>`}
+      <button class="g2-chip red ${g2.allMiss ? 'on' : ''}" onclick="g2.allMiss = !g2.allMiss; renderGallery2('${cid}', '${g2.scope}')"><svg class="ic"><use href="#i-half"/></svg> Mostra i mancanti</button>`}
       <input id="g2Search" placeholder="Cerca serie, colore o codice…" value="${esc(g2.q)}">
     </div>
     <div id="g2Body">${groups.length ? groups.map((g, gi) => g2Block(g, gi, pres, !!cur)).join('') : '<div class="gl-empty">Nessuna serie con questi filtri.</div>'}</div>
   </div>
-  ${pres ? '' : `<button class="btn red g2-prop" onclick="openG2Prop('${cid}')">📋 Proposta (${prop.length})</button>`}`;
+  ${pres ? '' : `<button class="btn red g2-prop" onclick="openG2Prop('${cid}')"><svg class="ic"><use href="#i-clipboard"/></svg> Proposta (${prop.length})</button>`}`;
   const inp = document.getElementById('g2Search');
   inp.addEventListener('input', e => { g2.q = e.target.value; const pos = e.target.selectionStart; renderGallery2(cid, g2.scope); const n = document.getElementById('g2Search'); n.focus(); n.setSelectionRange(pos, pos); });
   g2State = { cid, list: groups.flatMap(g => g.items.map(it => Object.assign(it, { group: g }))) };
@@ -162,7 +161,7 @@ function g2Block(g, gi, pres, single) {
     return `<div class="gl-strip${missing ? ' miss' : ''}" role="button" tabindex="0" onclick="openG2Full(${gi * 1000 + j})">
       ${p ? `<div class="glph${turn ? ' turn' : ''}" data-bg="${esc(p)}"></div>` : '<div class="nof">foto non disponibile</div>'}
       <div class="nm">${esc(glTitle(s.c))}<small>${esc(glSizes(it))}</small></div>
-      ${missing ? `<button class="add ${inProp ? 'in' : ''}" title="${inProp ? 'Nella proposta' : 'Aggiungi alla proposta'}" onclick="event.stopPropagation(); g2Toggle('${s.key.replace(/'/g, "\\'")}')">${inProp ? '✓' : '＋'}</button><span class="tag">non in sala mostra</span>`
+      ${missing ? `<button class="add ${inProp ? 'in' : ''}" title="${inProp ? 'Nella proposta' : 'Aggiungi alla proposta'}" onclick="event.stopPropagation(); g2Toggle('${s.key.replace(/'/g, "\\'")}')">${inProp ? '<svg class="ic"><use href="#i-check"/></svg>' : '<svg class="ic"><use href="#i-plus"/></svg>'}</button><span class="tag">non in sala mostra</span>`
         : elsewhere && single ? `<span class="tag el">in: ${esc(elsewhere.name)}</span>` : ''}</div>`;
   }).join('');
   return `<section class="gl-serie" data-k="${esc(k)}">
@@ -170,7 +169,7 @@ function g2Block(g, gi, pres, single) {
     <div class="gl-info"><div class="b">${esc(g.b)}</div><div class="t">Serie:</div><h3>${esc(glTitle(g.s))}</h3>
       <div class="g2-shead g2-only"><span class="g2-bar"><i style="width:${pct}%"></i></span><span class="p">ha <b>${g.comp.has}</b> di ${g.comp.tot} colori</span></div>
       <p><b>Formati:</b> ${esc(sizes.join(' · '))}</p>
-      ${pres || g.comp.has >= g.comp.tot ? '' : `<p class="g2-only"><button class="btn" onclick="g2ToggleMiss('${esc(k).replace(/'/g, "\\'")}')">${shown ? 'Nascondi i mancanti' : `◐ Mostra i ${g.comp.tot - g.comp.has} mancanti`}</button></p>`}</div>
+      ${pres || g.comp.has >= g.comp.tot ? '' : `<p class="g2-only"><button class="btn" onclick="g2ToggleMiss('${esc(k).replace(/'/g, "\\'")}')">${shown ? 'Nascondi i mancanti' : `<svg class="ic"><use href="#i-half"/></svg> Mostra i ${g.comp.tot - g.comp.has} mancanti`}</button></p>`}</div>
   </section>`;
 }
 function g2ToggleMiss(k) { if (g2.showMiss.has(k)) g2.showMiss.delete(k); else g2.showMiss.add(k); const y = scrollY; renderGallery2(g2.cid, g2.scope); scrollTo(0, y); }
@@ -198,7 +197,7 @@ function openG2Full(code) {
   g2Idx = Math.max(0, Math.min(g2State.list.length - 1, starts[Math.floor(code / 1000)] + code % 1000)); g2Posa = false;
   if (!document.getElementById('g2Full')) {
     document.body.insertAdjacentHTML('beforeend', `<div class="gl-full" id="g2Full"><div class="gl-stage" id="g2Stage">
-      <button class="gl-x" onclick="closeG2Full()">✕ Chiudi</button>
+      <button class="gl-x" onclick="closeG2Full()"><svg class="ic"><use href="#i-x"/></svg> Chiudi</button>
       <button class="gl-nav l" onclick="g2Step(-1)">‹</button><div id="g2Pic" style="display:flex;align-items:center;justify-content:center;width:100%;height:calc(100% - 76px);margin-bottom:76px"></div><button class="gl-nav r" onclick="g2Step(1)">›</button>
       <div class="g2-thumbs" id="g2Thumbs"></div></div><aside class="gl-side" id="g2Side"></aside></div>`);
     const st = document.getElementById('g2Stage'); let sx = null;
@@ -235,9 +234,9 @@ function g2Show() {
       ${!pres && all.length ? `<dt>Dove</dt><dd>${all.map(x => `${esc(x.c.name)} · posto ${esc(slotName(DISP[x.c.disp], x.slot, x.c.slots.length))}`).join('<br>')}</dd>` : ''}</dl>
     ${!pres && missing ? '<div class="warn">Non presente in sala mostra</div>' : ''}
     <div class="g2-acts">
-      <button onclick="g2Posa = !g2Posa; g2Show()">${g2Posa ? '▢ Piastrella singola' : '▦ Vedi posata'}</button>
-      ${!pres && all.length ? `<button onclick="g2OpenInRoom()">🏬 Vedi in sala mostra</button>` : ''}
-      ${!pres && missing ? `<button class="${inProp ? '' : 'red'}" onclick="g2Toggle('${s.key.replace(/'/g, "\\'")}'); g2Show()">${inProp ? '✓ Nella proposta' : '＋ Aggiungi alla proposta'}</button>` : ''}
+      <button onclick="g2Posa = !g2Posa; g2Show()">${g2Posa ? '<svg class="ic"><use href="#i-square"/></svg> Piastrella singola' : '<svg class="ic"><use href="#i-tiles"/></svg> Vedi posata'}</button>
+      ${!pres && all.length ? `<button onclick="g2OpenInRoom()"><svg class="ic"><use href="#i-store"/></svg> Vedi in sala mostra</button>` : ''}
+      ${!pres && missing ? `<button class="${inProp ? '' : 'red'}" onclick="g2Toggle('${s.key.replace(/'/g, "\\'")}'); g2Show()">${inProp ? '<svg class="ic"><use href="#i-check"/></svg> Nella proposta' : '<svg class="ic"><use href="#i-plus"/></svg> Aggiungi alla proposta'}</button>` : ''}
     </div>`;
 }
 /* apre la sala mostra sul campione (stanza, espositore e posto giusti) */
@@ -256,16 +255,16 @@ function openG2Prop(cid) {
   const html = rows.length ? rows.map(s => { const u = IMG[photoKey(s)], m = u && ((window.FOTO_MINI || {})[u] || u);
     return `<div class="srow"><span class="sw" style="${m ? `background-image:url('${esc(m)}')` : ''}"></span><div class="info"><div class="brand">${esc(s.b)}</div><div class="ser">${esc(glTitle(s.s))}</div>
       <div class="col">${esc(glTitle(s.c))} · ${esc(fmt(s.z))}</div><div class="meta">${esc((s.k || []).join(' / '))}</div></div>
-      <button class="btn" onclick="g2Toggle('${s.key.replace(/'/g, "\\'")}'); openG2Prop('${cid}')">✕</button></div>`; }).join('')
-    : '<div class="empty-note">La proposta è vuota: nei colori che non ha tocca ＋ per aggiungerli.</div>';
+      <button class="btn" onclick="g2Toggle('${s.key.replace(/'/g, "\\'")}'); openG2Prop('${cid}')"><svg class="ic"><use href="#i-x"/></svg></button></div>`; }).join('')
+    : '<div class="empty-note">La proposta è vuota: nei colori che non ha tocca <svg class="ic"><use href="#i-plus"/></svg> per aggiungerli.</div>';
   let m = document.getElementById('g2PropM');
   if (!m) { document.body.insertAdjacentHTML('beforeend', `<div class="modal open" id="g2PropM"><div class="mbox" style="max-width:620px;width:calc(100vw - 32px)"><div id="g2PropB"></div></div></div>`); m = document.getElementById('g2PropM'); m.addEventListener('click', e => { if (e.target === m) m.remove(); }); }
-  document.getElementById('g2PropB').innerHTML = `<div class="mhead"><h3>📋 Proposta di integrazione · ${esc(cl.name)}</h3><button class="btn" onclick="document.getElementById('g2PropM').remove()">Chiudi</button></div>
+  document.getElementById('g2PropB').innerHTML = `<div class="mhead"><h3><svg class="ic"><use href="#i-clipboard"/></svg> Proposta di integrazione · ${esc(cl.name)}</h3><button class="btn" onclick="document.getElementById('g2PropM').remove()">Chiudi</button></div>
     <div style="max-height:52vh;overflow:auto;margin:10px 0">${html}</div>
     ${rows.length ? `<div class="btns" style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn" onclick="g2CopyCodes('${cid}')">📤 Copia codici</button>
-      <button class="btn" onclick="g2Print('${cid}')">🖨 PDF / Stampa</button>
-      <button class="btn dark" onclick="g2PutIn('${cid}')">📥 Metti in un espositore</button>
+      <button class="btn" onclick="g2CopyCodes('${cid}')"><svg class="ic"><use href="#i-copy"/></svg> Copia codici</button>
+      <button class="btn" onclick="g2Print('${cid}')"><svg class="ic"><use href="#i-printer"/></svg> PDF / Stampa</button>
+      <button class="btn dark" onclick="g2PutIn('${cid}')"><svg class="ic"><use href="#i-paste"/></svg> Metti in un espositore</button>
       <button class="btn" onclick="if (confirm('Svuotare la proposta?')) { clients['${cid}'].proposta = []; saveClients(); openG2Prop('${cid}'); renderGallery2('${cid}', g2.scope); }">Svuota</button></div>` : ''}`;
 }
 function g2Lines(cid) { return g2Prop(cid).map(k => SAMPLE[k]).filter(Boolean).map(s => `${glTitle(s.s)} ${glTitle(s.c)} ${fmt(s.z)} - ${(s.k || [])[0] || ''}`); }

@@ -156,7 +156,7 @@ const Sync = {
     let tried = false; try { tried = sessionStorage.getItem('vm_login_try') === '1'; sessionStorage.removeItem('vm_login_try'); } catch (e) {}
     if (!user) {
       this.needLogin = true; this.badge();                         // finché non accedi, i dati restano in questo browser
-      if (tried) setTimeout(() => say(`Accesso non completato.\n\nIl browser ha bloccato l'ultimo passaggio dell'accesso con Google (succede con Brave e con le protezioni anti-tracciamento).\n\n• Brave: tocca il leone in basso, spegni gli Shields per questo sito, poi tocca di nuovo 🔑\n• Oppure apri il sito con Safari o Chrome`), 600);   // tornato dalla pagina di Google ma senza accesso
+      if (tried) setTimeout(() => say(`Accesso non completato.\n\nIl browser ha bloccato l'ultimo passaggio dell'accesso con Google (succede con Brave e con le protezioni anti-tracciamento).\n\n• Brave: tocca il leone in basso, spegni gli Shields per questo sito, poi tocca di nuovo «Accedi»\n• Oppure apri il sito con Safari o Chrome`), 600);   // tornato dalla pagina di Google ma senza accesso
       return;
     }
     await this.startFire(user);
@@ -186,8 +186,8 @@ const Sync = {
         try { sessionStorage.setItem('vm_login_try', '1'); } catch (er) {}
         await A.signInWithRedirect(auth, prov);
       }
-      else if (['auth/network-request-failed', 'auth/web-storage-unsupported', 'auth/internal-error'].includes(e.code)) say(`Accesso non completato.\n\nIl browser ha bloccato l'ultimo passaggio dell'accesso con Google (succede con Brave e con le protezioni anti-tracciamento).\n\n• Brave: tocca il leone in basso, spegni gli Shields per questo sito, poi tocca di nuovo 🔑\n• Oppure apri il sito con Safari o Chrome`);
-      else if (e.code === 'auth/timeout-vetrina') say(`Accesso non completato.\n\nIl browser ha bloccato l'ultimo passaggio dell'accesso con Google (succede con Brave e con le protezioni anti-tracciamento).\n\n• Brave: tocca il leone in basso, spegni gli Shields per questo sito, poi tocca di nuovo 🔑\n• Oppure apri il sito con Safari o Chrome`);
+      else if (['auth/network-request-failed', 'auth/web-storage-unsupported', 'auth/internal-error'].includes(e.code)) say(`Accesso non completato.\n\nIl browser ha bloccato l'ultimo passaggio dell'accesso con Google (succede con Brave e con le protezioni anti-tracciamento).\n\n• Brave: tocca il leone in basso, spegni gli Shields per questo sito, poi tocca di nuovo «Accedi»\n• Oppure apri il sito con Safari o Chrome`);
+      else if (e.code === 'auth/timeout-vetrina') say(`Accesso non completato.\n\nIl browser ha bloccato l'ultimo passaggio dell'accesso con Google (succede con Brave e con le protezioni anti-tracciamento).\n\n• Brave: tocca il leone in basso, spegni gli Shields per questo sito, poi tocca di nuovo «Accedi»\n• Oppure apri il sito con Safari o Chrome`);
       else if (e.code !== 'auth/popup-closed-by-user') say('Accesso non riuscito: ' + (e.message || e.code));
     }
   },
@@ -278,18 +278,18 @@ const Sync = {
     const el = document.getElementById('saveBadge'); if (!el) return;
     const where = this.mode === 'cloud' ? 'online' + (this.user && this.user.email ? ' (' + this.user.email + ')' : '') : 'su disco';
     let txt, cls, tip;
-    if (this.connecting && !this.online && !this.needLogin) { txt = '… Collegamento'; cls = 'busy'; tip = 'Collegamento al salvataggio in corso'; }
-    else if (this.needLogin) { txt = '🔑 Accedi con Google'; cls = 'warn'; tip = 'Accedi per salvare tutto online, uguale su PC e telefono'; }
+    if (this.connecting && !this.online && !this.needLogin) { txt = '<svg class="ic"><use href="#i-sync"/></svg>Collegamento'; cls = 'busy'; tip = 'Collegamento al salvataggio in corso'; }
+    else if (this.needLogin) { txt = '<svg class="ic"><use href="#i-login"/></svg>Accedi con Google'; cls = 'warn'; tip = 'Accedi per salvare tutto online, uguale su PC e telefono'; }
     else if (!this.online) {
-      txt = '⚠ Solo nel browser'; cls = 'warn';
+      txt = '<svg class="ic"><use href="#i-alert"/></svg>Solo nel browser'; cls = 'warn';
       tip = window.claude ? 'Il database della pagina non risponde: le modifiche restano in questo browser'
         : this.provider === 'fire' ? 'Non collegato al salvataggio online: tocca per riprovare e accedere con Google' : 'Apri la vetrina con "AVVIA VETRINA.bat" per salvare tutto su disco';
-      if (this.provider === 'fire') txt = '⚠ Tocca per accedere';
+      if (this.provider === 'fire') txt = '<svg class="ic"><use href="#i-alert"/></svg>Tocca per accedere';
     }
-    else if (this.error) { txt = '⚠ Non salvato, riprovo…'; cls = 'warn'; tip = 'Il salvataggio non risponde: le modifiche restano nel browser e vengono salvate appena possibile'; }
-    else if (this.pending || this.busy) { txt = '… Salvataggio'; cls = 'busy'; tip = ''; }
-    else { txt = '✓ Salvato'; cls = 'ok'; tip = 'Tutto salvato ' + where + (this.lastSaved ? ' · ' + new Date(this.lastSaved).toLocaleString('it-IT') : ''); }
-    el.textContent = txt; el.className = 'savebadge ' + cls; el.title = tip; el.dataset.i = Array.from(txt)[0];
+    else if (this.error) { txt = '<svg class="ic"><use href="#i-alert"/></svg>Non salvato, riprovo…'; cls = 'warn'; tip = 'Il salvataggio non risponde: le modifiche restano nel browser e vengono salvate appena possibile'; }
+    else if (this.pending || this.busy) { txt = '<svg class="ic"><use href="#i-sync"/></svg>Salvataggio'; cls = 'busy'; tip = ''; }
+    else { txt = '<svg class="ic"><use href="#i-cloud"/></svg>Salvato'; cls = 'ok'; tip = 'Tutto salvato ' + where + (this.lastSaved ? ' · ' + new Date(this.lastSaved).toLocaleString('it-IT') : ''); }
+    el.innerHTML = txt.replace(/(<\/svg>)(.*)$/, '$1<span class="lbl">$2</span>'); el.className = 'savebadge ' + cls; el.title = tip || txt.replace(/<[^>]+>/g, '');
   },
 };
 window.Sync = Sync;
@@ -320,7 +320,7 @@ async function openVersions() {
     return `<b>${x[3]}/${x[2]}/${x[1]} ${x[4]}:${x[5]}</b> · ${WHY[x[7]] || x[7]}`; };
   body.innerHTML = !Sync.online ? `<div class="empty-note">Le versioni si salvano solo quando la vetrina salva su disco ("AVVIA VETRINA.bat") oppure online.</div>`
     : list.length ? list.map(v => `<div class="imgrow"><div class="info">${nice(v.file)}<div class="meta">${Math.round(v.size / 1024)} KB</div></div>
-        <button class="btn" onclick="restoreVersion('${v.file}')">↺ Ripristina</button></div>`).join('')
+        <button class="btn" onclick="restoreVersion('${v.file}')"><svg class="ic"><use href="#i-undo"/></svg> Ripristina</button></div>`).join('')
     : `<div class="empty-note">Ancora nessuna versione precedente: la prima viene salvata dopo 10 minuti di lavoro o prima di un'eliminazione.</div>`;
   m.classList.add('open');
 }
