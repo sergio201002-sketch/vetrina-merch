@@ -1,0 +1,206 @@
+'use strict';
+/* ════════════════════════════════════════════════════════════
+   SALA MOSTRA IN WebGL (three.js): la stanza CSS resta come "scheletro" invisibile (posizioni, aperture, animazioni),
+   e una tela WebGL la ridisegna con la scheda grafica: fluida anche sul telefono e foto nitide a ogni distanza
+   (texture con mipmap). Il campione aperto usa la foto grande. Clic sui campioni: raggio nel 3D vero.
+   Se il WebGL non c'è, resta la sala mostra di prima.
+   ════════════════════════════════════════════════════════════ */
+document.head.insertAdjacentHTML('beforeend', `<style>
+#room3d.gl #roomScene { visibility: hidden; }
+#room3d canvas.glc { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+#room3d.gl .camctl, #room3d.gl .roomhint, #room3d.gl .roomtabs, #room3d.gl .showcard { z-index: 5; }
+</style>`);
+
+const RoomGL = {
+  ok: null, on: false, T: null, rdr: null, scene: null, camera: null, view: null, meshes: [], dyn: new Map(), canvas: null,
+  until: 0, raf: 0, texCache: {}, imgCache: {}, rev: null, floorTex: null, sharpMeshes: [],
+  wanted() { return ui.roomGL !== false; },
+  /* foto: indirizzo originale da qualsiasi versione (medie, sala, galleria) */
+  origOf(url) {
+    if (!this.rev) {
+      this.rev = {};
+      [window.FOTO_MED, window.FOTO_ROOM, window.FOTO_GAL, window.FOTO_MINI].forEach(m => Object.entries(m || {}).forEach(([o, v]) => { this.rev[v] = o; }));
+    }
+    const rel = url.replace(location.href.replace(/[#?].*$/, '').replace(/[^/]*$/, ''), '');
+    return this.rev[decodeURI(rel)] || this.rev[rel] || null;
+  },
+  // foto della vista generale: 800 px sul PC, 480 px sul telefono (memoria grafica); il campione aperto passa alla grande
+  smallUrl(url) { const o = this.origOf(url); return o ? ((LOWMEM ? window.FOTO_ROOM : window.FOTO_GAL) || {})[o] || FOTO_MED[o] || o : url; },
+  bigUrl(url) { const o = this.origOf(url); if (!o) return url; return (window.AVIF_OK || !/\.avif$/i.test(o)) ? o : (FOTO_MED[o] || o); },
+
+  async attach() {
+    const box = document.getElementById('room3d'), root = document.getElementById('roomScene');
+    if (!box || !root || !this.wanted() || this.ok === false) { this.detach(); return; }
+    try { await loadThree(); } catch (e) { this.ok = false; return; }
+    const T = this.T = window.THREE;
+    if (!this.rdr) {
+      try { this.rdr = new T.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' }); }
+      catch (e) { this.ok = false; toast('Il 3D veloce non è disponibile su questo dispositivo'); return; }
+      this.ok = true;
+      this.rdr.outputEncoding = T.sRGBEncoding; this.rdr.toneMapping = T.ACESFilmicToneMapping; this.rdr.toneMappingExposure = 1.0;
+      this.canvas = this.rdr.domElement; this.canvas.className = 'glc';
+      ['pointerdown', 'pointermove', 'wheel', 'keydown', 'touchmove'].forEach(ev => window.addEventListener(ev, () => this.poke(), { passive: true }));
+      window.addEventListener('resize', () => this.poke());
+    }
+    if (this.canvas.parentElement !== box) box.insertBefore(this.canvas, box.firstChild);
+    box.classList.add('gl'); this.on = true;
+    this.build();
+  },
+  detach() {
+    this.on = false; cancelAnimationFrame(this.raf); this.raf = 0;
+    const box = document.getElementById('room3d'); if (box) box.classList.remove('gl');
+    if (this.canvas && this.canvas.parentElement) this.canvas.remove();
+  },
+  /* immagine → texture (una per foto e ripetizione), con mipmap: nitida vicino e lontano */
+  tex(url, rx, ry, cover, pw, ph, onload) {
+    const T = this.T;
+    const im = this.imgCache[url] || (this.imgCache[url] = new Promise(r => { const i = new Image(); i.decoding = 'async'; i.onload = () => r(i); i.onerror = () => r(null); i.src = url; }));
+    return im.then(img => {
+      if (!img) return null;
+      let sx = 1, sy = 1;
+      if (cover) { const pa = pw / ph, ia = img.width / img.height; if (ia > pa) sx = Math.round(pa / ia * 1000) / 1000; else sy = Math.round(ia / pa * 1000) / 1000; }
+      const k = url + '|' + rx + '|' + ry + '|' + sx + '|' + sy;
+      if (!this.texCache[k]) {
+        const t = new T.Texture(img); t.encoding = T.sRGBEncoding; t.anisotropy = Math.min(8, this.rdr.capabilities.getMaxAnisotropy()); t.needsUpdate = true;
+        if (rx > 1.02 || ry > 1.02) { t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); }
+        else if (sx < 1 || sy < 1) { t.repeat.set(sx, sy); t.offset.set((1 - sx) / 2, (1 - sy) / 2); }
+        this.texCache[k] = t;
+      }
+      return this.texCache[k];
+    });
+  },
+  /* elementi che si muovono (aperture, carrelli, cassetti, espositori trascinati): la loro posizione si ricalcola */
+  isDyn(e) { return e.classList && (e.classList.contains('ritem') || e.classList.contains('ttile') || e.classList.contains('drawer3d') || e.classList.contains('holder') || e.classList.contains('panel')); },
+  local(e) {
+    const cs = getComputedStyle(e), t = cs.transform && cs.transform !== 'none' ? new DOMMatrix(cs.transform) : new DOMMatrix();
+    const [ox = 0, oy = 0, oz = 0] = cs.transformOrigin.split(' ').map(v => parseFloat(v) || 0);
+    return new DOMMatrix().translate(e.offsetLeft || 0, e.offsetTop || 0).translate(ox, oy, oz).multiply(t).translate(-ox, -oy, -oz);
+  },
+  build() {
+    const T = this.T, root = document.getElementById('roomScene'); if (!root || !this.on) return;
+    // pulizia
+    if (this.scene) this.scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+    this.scene = new T.Scene(); this.scene.background = new T.Color(0xf3f2ef);
+    this.view = new T.Group(); this.view.matrixAutoUpdate = false; this.scene.add(this.view);
+    this.meshes = []; this.dyn = new Map(); this.sharpMeshes = [];
+    const FLIP = new DOMMatrix().scale(1, -1, 1);
+    this.flip = FLIP;
+    const dynOf = new Map();                               // elemento → antenato che si muove (o null = la stanza)
+    const findDyn = e => { if (dynOf.has(e)) return dynOf.get(e); let p = e.parentElement; while (p && p !== root && !this.isDyn(p)) p = p.parentElement; const r = p && p !== root ? p : null; dynOf.set(e, r); return r; };
+    const relTo = (e, stop) => { let m = new DOMMatrix(); for (let x = e; x && x !== stop && x !== root; x = x.parentElement) m = this.local(x).multiply(m); return m; };
+    for (const el of root.querySelectorAll('*')) {
+      const w = el.offsetWidth, h = el.offsetHeight; if (w < 0.05 || h < 0.05) continue;
+      if (el.classList.contains('empty')) continue;
+      const cs = getComputedStyle(el); if (cs.display === 'none') continue;
+      const bi = cs.backgroundImage, url0 = (bi.match(/url\("?([^")]+)"?\)/) || [])[1];
+      let ccol = cssColor(cs.backgroundColor);
+      if ((!ccol || ccol.a === 0) && bi && bi !== 'none' && !url0) { const fc = firstColor(bi); if (fc) ccol = cssColor(fc); }
+      if (!url0 && (!ccol || ccol.a === 0)) continue;
+      const floor = el.classList.contains('rfloor'), wall = el.classList.contains('rwall');
+      const mat = new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, metalness: 0, side: T.DoubleSide, envMapIntensity: 0.3 });
+      let photo = null;
+      if (floor) {
+        if (!this.floorTex) { this.floorTex = new T.CanvasTexture(floorTileCanvas()); this.floorTex.encoding = T.sRGBEncoding; this.floorTex.wrapS = this.floorTex.wrapT = T.RepeatWrapping; this.floorTex.anisotropy = 8; }
+        const ft = this.floorTex.clone(); ft.needsUpdate = true; ft.repeat.set(w / 60, h / 60); mat.map = ft; mat.roughness = 0.35; mat.color = new T.Color(0xdedcd8);
+      } else if (wall) { mat.color = new T.Color(0xf6f5f2).convertSRGBToLinear(); mat.roughness = 0.95; }
+      else if (url0) {
+        const sz = cs.backgroundSize.split(',').pop().trim().split(/\s+/);
+        let rx = 1, ry = 1; if (/%$/.test(sz[0]) && /%$/.test(sz[1] || '')) { rx = Math.round(100 / parseFloat(sz[0]) * 100) / 100; ry = Math.round(100 / parseFloat(sz[1]) * 100) / 100; }
+        const isRetro = /retro_/.test(url0), url = isRetro ? url0 : this.smallUrl(url0);
+        photo = { url0, rx, ry, cover: sz[0] === 'cover', w, h };
+        this.tex(url, rx, ry, photo.cover, w, h).then(t => { if (t) { mat.map = t; mat.needsUpdate = true; this.poke(); } });
+        if (isRetro && ccol) { const c2 = ccol.c.clone(); c2.lerp(new T.Color(1, 1, 1), 0.45); mat.color = c2; }
+        mat.roughness = 0.45; mat.envMapIntensity = 0.22;
+      } else {
+        mat.color = ccol.c; const l = ccol.c.r + ccol.c.g + ccol.c.b;
+        if (l < 0.5) { mat.color = new T.Color(0x0b0b0c); mat.roughness = 0.55; mat.metalness = 0.05; mat.envMapIntensity = 0.12; }   // metallo nero degli espositori
+        if (ccol.a < 1) { mat.transparent = true; mat.opacity = ccol.a; }
+      }
+      const g = new T.PlaneGeometry(1, 1); g.translate(0.5, -0.5, 0); g.scale(w, h, 1);   // piano w×h con origine in alto a sinistra (y verso il basso dopo il ribaltamento)
+      g.scale(1, -1, 1);
+      const mesh = new T.Mesh(g, mat); mesh.matrixAutoUpdate = false;
+      const D = this.isDyn(el) ? el : findDyn(el);
+      const staticM = D === el ? new DOMMatrix() : relTo(el, D);   // senza antenato mobile: fino alla stanza
+      mesh.userData = { el, D, staticM, self: D === el, item: el.closest('.ritem'), wall: el.closest('[data-wall]'), photo };
+      this.view.add(mesh); this.meshes.push(mesh);
+      if (D && !this.dyn.has(D)) this.dyn.set(D, null);
+    }
+    this.scene.add(new T.HemisphereLight(0xffffff, 0xa8a399, 0.65));
+    const sun = new T.DirectionalLight(0xfff4e8, 0.6); sun.position.set(-0.4, 1, 0.8); this.scene.add(sun);
+    if (!this.envTex) this.envTex = showroomEnv(T, this.rdr);
+    this.scene.environment = this.envTex;
+    this.updateMatrices(true);
+    this.poke(2500);
+  },
+  /* posizione di ogni pezzo: (antenato che si muove, ricalcolato) × (parte fissa calcolata una volta) */
+  updateMatrices(all) {
+    const root = document.getElementById('roomScene');
+    const memo = new Map();
+    const rel = e => { if (!e) return new DOMMatrix(); if (memo.has(e)) return memo.get(e); let p = e.parentElement; while (p && p !== root && !this.isDyn(p)) p = p.parentElement;
+      // da e fino al prossimo antenato mobile: parte fissa ricalcolata (pochi livelli)
+      let m = new DOMMatrix(); for (let x = e; x && x !== root && (x === e || !this.isDyn(x)); x = x.parentElement) m = this.local(x).multiply(m);
+      const r = (p && p !== root ? rel(p) : new DOMMatrix()).multiply(m); memo.set(e, r); return r; };
+    for (const mesh of this.meshes) {
+      const u = mesh.userData;
+      if (!all && !u.D) continue;
+      const m = u.D ? (u.self ? rel(u.D) : rel(u.D).multiply(u.staticM)) : u.staticM;
+      mesh.matrix.fromArray(m.toFloat32Array()); mesh.matrixWorldNeedsUpdate = true;
+    }
+  },
+  updateVisibility() {
+    for (const mesh of this.meshes) {
+      const u = mesh.userData;
+      mesh.visible = !(u.item && u.item.style.visibility === 'hidden') && !(u.wall && u.wall.style.display === 'none');
+    }
+  },
+  updateCamera() {
+    const T = this.T, box = document.getElementById('room3d'), root = document.getElementById('roomScene');
+    const W = box.clientWidth, H = box.clientHeight; if (!W || !H) return false;
+    const csb = getComputedStyle(box), P = parseFloat(csb.perspective) || 2400;
+    const [pox, poy] = csb.perspectiveOrigin.split(' ').map(v => parseFloat(v) || 0);
+    const tr = getComputedStyle(root).transform, view = tr && tr !== 'none' ? new DOMMatrix(tr) : new DOMMatrix();
+    this.view.matrix.fromArray(this.flip.multiply(view).toFloat32Array()); this.view.matrixWorldNeedsUpdate = true;
+    const pr = Math.min(window.devicePixelRatio || 1, 2);
+    if (this._w !== W || this._h !== H || this._pr !== pr) { this.rdr.setPixelRatio(pr); this.rdr.setSize(W, H, false); this._w = W; this._h = H; this._pr = pr; }
+    const fw = 2 * Math.max(pox, W - pox), fh = 2 * Math.max(poy, H - poy);
+    if (!this.camera) this.camera = new T.PerspectiveCamera(30, 1, 5, 100000);
+    const c = this.camera; c.fov = 2 * Math.atan(fh / 2 / P) * 180 / Math.PI; c.aspect = fw / fh; c.near = 5; c.far = P * 30;
+    c.position.set(pox, -poy, P); c.lookAt(pox, -poy, 0); c.setViewOffset(fw, fh, fw / 2 - pox, fh / 2 - poy, W, H); c.updateProjectionMatrix();
+    return true;
+  },
+  /* disegna per un po' (animazioni CSS in corso); fuori da lì non consuma niente */
+  poke(ms = 1400) {
+    if (!this.on) return;
+    this.until = Math.max(this.until, performance.now() + ms);
+    if (!this.raf) this.raf = requestAnimationFrame(() => this.loop());
+  },
+  loop() {
+    this.raf = 0;
+    if (!this.on || !document.getElementById('roomScene')) return;
+    if (this.updateCamera()) { this.updateMatrices(false); this.updateVisibility(); this.rdr.render(this.scene, this.camera); }
+    if (performance.now() < this.until) this.raf = requestAnimationFrame(() => this.loop());
+  },
+  /* clic: il pezzo 3D sotto il dito → l'elemento della stanza CSS corrispondente */
+  hit(x, y) {
+    if (!this.on || !this.camera) return null;
+    const r = this.canvas.getBoundingClientRect(), T = this.T;
+    const ray = new T.Raycaster(), v = new T.Vector2(((x - r.left) / r.width) * 2 - 1, -((y - r.top) / r.height) * 2 + 1);
+    this.scene.updateMatrixWorld(true); ray.setFromCamera(v, this.camera);
+    const hits = ray.intersectObjects(this.meshes.filter(m => m.visible), false);
+    const h = hits.find(i => i.object.userData.item);
+    return h ? h.object.userData.el : (hits[0] ? hits[0].object.userData.el : null);
+  },
+  /* campione aperto: foto grande sulle sue facce (al posto di quella leggera) */
+  sharp(id, slot) {
+    this.unsharp();
+    this.meshes.forEach(m => {
+      const u = m.userData; if (!u.photo || !u.item || u.item.dataset.id !== id) return;
+      const s = u.el.closest('[data-slot]'); if (!s || +s.dataset.slot !== slot) return;
+      const prev = m.material.map;
+      this.tex(this.bigUrl(u.photo.url0), u.photo.rx, u.photo.ry, u.photo.cover, u.photo.w, u.photo.h).then(t => { if (t && this.sharpMeshes.includes(m)) { m.material.map = t; m.material.needsUpdate = true; this.poke(); } });
+      this.sharpMeshes.push(m); u.prevMap = prev;
+    });
+  },
+  unsharp() { this.sharpMeshes.forEach(m => { if (m.userData.prevMap) { m.material.map = m.userData.prevMap; m.material.needsUpdate = true; } }); this.sharpMeshes = []; this.poke(); },
+};
+window.RoomGL = RoomGL;

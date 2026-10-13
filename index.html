@@ -815,7 +815,7 @@ let AVIF_OK = false, FULLRES = false;
 function imgFor(ik) {
   const u = IMG[ik];
   if (FULLRES && u && (AVIF_OK || !/\.avif$/i.test(u))) return u;                  // campione aperto: foto originale
-  if (LITE3D && typeof roomHD === 'function' && !roomHD()) return (window.FOTO_ROOM || {})[u] || FOTO_MED[u] || u;   // sala mostra senza HD: foto leggere
+  if (LITE3D && ((typeof roomHD === 'function' && !roomHD()) || (window.RoomGL && RoomGL.wanted() && RoomGL.ok !== false))) return (window.FOTO_ROOM || {})[u] || FOTO_MED[u] || u;   // sala mostra senza HD, o col 3D veloce (lì le foto le carica il WebGL): foto leggere
   return (LOWMEM && FOTO_MED[u]) || u;
 }
 async function resizeImage(file, max = 1600) {
@@ -2103,6 +2103,6 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 </script>
 <script>/* sempre l'ultima versione del programma (niente copie vecchie rimaste nel browser) */
-['salva.js', 'clienti.js', 'ambiente.js', 'espositori3d.js', 'campioni.js', 'render.js', 'galleria.js'].forEach(f => document.write('<script src="' + f + '?v=' + APPV + '"><\/script>'));</script>
+['salva.js', 'clienti.js', 'ambiente.js', 'espositori3d.js', 'campioni.js', 'render.js', 'galleria.js', 'roomgl.js'].forEach(f => document.write('<script src="' + f + '?v=' + APPV + '"><\/script>'));</script>
 </body>
 </html>

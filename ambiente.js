@@ -345,6 +345,7 @@ function openRoom(id, mode) {
         <div class="camctl">
           <button data-v="front">Frontale</button><button data-v="persp">Prospettiva ↙</button><button data-v="persp2">Prospettiva ↘</button>
           <button id="rZoom" class="${ui.roomZoom ? 'on' : ''}" onclick="event.stopPropagation(); toggleRoomZoom()" title="Campione aperto: dritto di fronte e da vicino">🔍 Zoom</button>
+          <button class="rGL ${ui.roomGL !== false ? 'on' : ''}" onclick="event.stopPropagation(); toggleRoomGL()" title="Motore 3D veloce (scheda grafica): fluido e nitido. Spento: la sala mostra di prima">⚡ 3D</button>
           <button class="rHD ${roomHD() ? 'on' : ''}" onclick="event.stopPropagation(); toggleRoomHD()" title="Acceso: piastrelle in alta definizione · Spento: tutto più leggero e fluido">HD</button>
           <button id="rPresent">⛶ Presenta</button><button onclick="event.stopPropagation(); renderRealistic()" title="Immagine realistica con luce e ombre di questa vista">📸 Render</button></div>
         <div class="roomhint">Trascina per girare la vista · rotella per lo zoom · clicca un campione per aprirlo</div>
@@ -389,6 +390,7 @@ function openRoom(id, mode) {
         <div class="room-scene" id="roomScene"></div>
         <div class="camctl">
           <button data-v="front">Frontale</button><button data-v="persp">Prospettiva ↙</button><button data-v="persp2">Prospettiva ↘</button><button data-v="top">Dall'alto</button>
+          <button class="rGL ${ui.roomGL !== false ? 'on' : ''}" onclick="event.stopPropagation(); toggleRoomGL()" title="Motore 3D veloce (scheda grafica): fluido e nitido. Spento: la sala mostra di prima">⚡ 3D</button>
           <button class="rHD ${roomHD() ? 'on' : ''}" onclick="event.stopPropagation(); toggleRoomHD()" title="Acceso: piastrelle in alta definizione · Spento: tutto più leggero e fluido">HD</button>
           <button id="rPresent">⛶ Presenta</button><button onclick="event.stopPropagation(); renderRealistic()" title="Immagine realistica con luce e ombre di questa vista">📸 Render</button></div>
         <div class="roomhint">Trascina per girare la vista · rotella per lo zoom · clicca un espositore per selezionarlo</div>
@@ -451,6 +453,8 @@ function renderRoom() {
   document.getElementById('roomScene').innerHTML = html;
   showOpen = null; showHi = null;
   room.items.forEach(it => { const m = roomModels[it.id]; if (m && m.after) applyOpen(it.id, m.after, 0); });
+  if (window.RoomGL && RoomGL.wanted()) RoomGL.attach().then(() => { if (showSel && RoomGL.on) RoomGL.sharp(showSel.item, showSel.slot); });
+  else if (window.RoomGL) RoomGL.detach();
   if (showSel) sharpFace(showSel.item, showSel.slot);
   applyCam(); renderPlan(); renderRoomSide();
 }
@@ -468,6 +472,7 @@ function applyCam(animate) {
   } else
   sc.style.transform = `translate3d(${W / 2}px,${H * (0.5 + 0.12 * Math.cos(t))}px,0) scale(${s.toFixed(4)}) rotateX(${-cam.tilt}deg) rotateY(${cam.yaw}deg) translate3d(${-w / 2}px,${h * 0.35}px,${-d / 2}px)`;
   hideBlockers();
+  if (window.RoomGL) RoomGL.poke(animate ? 1500 : 400);
   // pareti laterali visibili solo dal lato giusto (non devono coprire la stanza)
   const sy = Math.sin(cam.yaw * Math.PI / 180);
   sc.querySelectorAll('[data-wall="l"]').forEach(e => e.style.display = sy < 0.05 ? '' : 'none');
@@ -499,7 +504,7 @@ function bindOrbit(el) {
   el.addEventListener('pointerup', e => {
     // clic senza trascinare: l'espositore sotto il puntatore (la cattura del puntatore nasconde il vero bersaglio)
     if (st && !orbitMoved && !(e.target.closest && e.target.closest('.camctl'))) {
-      const hit = document.elementFromPoint(e.clientX, e.clientY), ri = hit && hit.closest('.ritem');
+      const hit = (window.RoomGL && RoomGL.on && RoomGL.hit(e.clientX, e.clientY)) || document.elementFromPoint(e.clientX, e.clientY), ri = hit && hit.closest('.ritem');
       if (ri && roomMode === 'show') {
         const se = hit.closest('[data-slot]') || hit.closest('[data-t]'), ho = hit.closest('.holder');
         const slot = se ? +(se.dataset.slot != null ? se.dataset.slot : se.dataset.t) : ho ? +ho.dataset.h : null;
@@ -669,6 +674,14 @@ function toggleRoomHD() {
   if (showSel) { const s = showSel; showSel = null; openSample(s.item, s.slot); }
   toast(roomHD() ? 'HD acceso: piastrelle in alta definizione' : 'HD spento: sala mostra leggera e fluida');
 }
+function toggleRoomGL() {
+  ui.roomGL = ui.roomGL === false; saveUI();
+  document.querySelectorAll('.rGL').forEach(b => b.classList.toggle('on', ui.roomGL !== false));
+  if (ui.roomGL === false && window.RoomGL) RoomGL.detach();
+  roomModels = {}; showOpen = null; renderRoom();
+  if (showSel) { const s = showSel; showSel = null; openSample(s.item, s.slot); }
+  toast(ui.roomGL !== false ? '3D veloce acceso' : '3D veloce spento: sala mostra di prima');
+}
 function toggleRoomZoom() {
   ui.roomZoom = !ui.roomZoom; saveUI();
   const b = document.getElementById('rZoom'); if (b) b.classList.toggle('on', !!ui.roomZoom);
@@ -697,9 +710,11 @@ function applyOpen(id, after, delay) {
     steps.forEach(([el, tf, dl]) => { el._closeTok = null; if (!dl) el.style.transform = tf; else setTimeout(() => { if (tok === showToken) el.style.transform = tf; }, dl); });
   };
   if (delay) setTimeout(run, delay); else requestAnimationFrame(() => requestAnimationFrame(run));
+  if (window.RoomGL) RoomGL.poke((delay || 0) + 2200);
 }
 /* rimette a posto un pezzo; se si era aperto in due tempi, torna indietro passando per la posizione intermedia */
 function closeEl(el) {
+  if (window.RoomGL) RoomGL.poke(2000);
   if (!el.dataset.mid) { el.style.transform = el.dataset.t0; return; }
   const tok = el._closeTok = {};
   el.style.transform = el.dataset.mid;
@@ -707,6 +722,7 @@ function closeEl(el) {
 }
 /* la piastrella aperta si ridisegna ad alta risoluzione (da vicino nitida come negli Espositori); le altre restano leggere */
 function sharpFace(id, slot) {
+  if (window.RoomGL && RoomGL.on) { RoomGL.sharp(id, slot); return; }   // 3D veloce: foto grande sulla texture, la stanza CSS non cambia
   restoreFace();
   const it = room.items.find(i => i.id === id), d = DISP[it.disp], c = comps[it.comp], s = c && SAMPLE[c.slots[slot]], root = itemEl(id);
   if (!s || !root) return;
@@ -720,7 +736,7 @@ function sharpFace(id, slot) {
     FULLRES = true; try { el.innerHTML = photoLayer(s, w, h, tiled, hi); } finally { FULLRES = false; }
   });
 }
-function restoreFace() { if (showHi) showHi.forEach(([el, html]) => { el.innerHTML = html; }); showHi = null; }
+function restoreFace() { if (window.RoomGL && RoomGL.on) RoomGL.unsharp(); if (showHi) showHi.forEach(([el, html]) => { el.innerHTML = html; }); showHi = null; }
 /* Girevoli uguali messi uno accanto all'altro (stessa fila, attaccati): si sfogliano come un unico espositore.
    Restituisce gli elementi della fila da sinistra a destra (un solo elemento se è staccato dagli altri). */
 function swingRow(it) {
