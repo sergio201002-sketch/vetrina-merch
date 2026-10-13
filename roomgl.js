@@ -25,7 +25,7 @@ const RoomGL = {
     return this.rev[decodeURI(rel)] || this.rev[rel] || null;
   },
   // foto della vista generale: 800 px sul PC, 480 px sul telefono (memoria grafica); il campione aperto passa alla grande
-  smallUrl(url) { const o = this.origOf(url); return o ? ((LOWMEM ? window.FOTO_ROOM : window.FOTO_GAL) || {})[o] || FOTO_MED[o] || o : url; },
+  smallUrl(url) { const o = this.origOf(url); const hd = typeof roomHD !== 'function' || roomHD(); return o ? ((hd ? window.FOTO_GAL : window.FOTO_ROOM) || {})[o] || FOTO_MED[o] || o : url; },   // HD: 800 px anche sul telefono; senza HD: 480 px
   bigUrl(url) { const o = this.origOf(url); if (!o) return url; return (window.AVIF_OK || !/\.avif$/i.test(o)) ? o : (FOTO_MED[o] || o); },
 
   async attach() {
@@ -34,7 +34,7 @@ const RoomGL = {
     try { await loadThree(); } catch (e) { this.ok = false; return; }
     const T = this.T = window.THREE;
     if (!this.rdr) {
-      try { this.rdr = new T.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' }); }
+      try { this.rdr = new T.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance', logarithmicDepthBuffer: true });   // profondità precisa: facce vicine (davanti/retro) senza quadrettature }
       catch (e) { this.ok = false; toast('Il 3D veloce non è disponibile su questo dispositivo'); return; }
       this.ok = true;
       this.rdr.outputEncoding = T.sRGBEncoding; this.rdr.toneMapping = T.ACESFilmicToneMapping; this.rdr.toneMappingExposure = 1.0;
@@ -61,7 +61,7 @@ const RoomGL = {
       if (cover) { const pa = pw / ph, ia = img.width / img.height; if (ia > pa) sx = Math.round(pa / ia * 1000) / 1000; else sy = Math.round(ia / pa * 1000) / 1000; }
       const k = url + '|' + rx + '|' + ry + '|' + sx + '|' + sy;
       if (!this.texCache[k]) {
-        const t = new T.Texture(img); t.encoding = T.sRGBEncoding; t.anisotropy = Math.min(8, this.rdr.capabilities.getMaxAnisotropy()); t.needsUpdate = true;
+        const t = new T.Texture(img); t.encoding = T.sRGBEncoding; t.anisotropy = this.rdr.capabilities.getMaxAnisotropy(); t.generateMipmaps = true; t.minFilter = T.LinearMipmapLinearFilter; t.needsUpdate = true;
         if (rx > 1.02 || ry > 1.02) { t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); }
         else if (sx < 1 || sy < 1) { t.repeat.set(sx, sy); t.offset.set((1 - sx) / 2, (1 - sy) / 2); }
         this.texCache[k] = t;
@@ -160,11 +160,11 @@ const RoomGL = {
     const [pox, poy] = csb.perspectiveOrigin.split(' ').map(v => parseFloat(v) || 0);
     const tr = getComputedStyle(root).transform, view = tr && tr !== 'none' ? new DOMMatrix(tr) : new DOMMatrix();
     this.view.matrix.fromArray(this.flip.multiply(view).toFloat32Array()); this.view.matrixWorldNeedsUpdate = true;
-    const pr = Math.min(window.devicePixelRatio || 1, 2);
+    const hd = typeof roomHD !== 'function' || roomHD(), pr = Math.min(window.devicePixelRatio || 1, hd ? 3 : 1.5);   // HD: densità piena dello schermo (iPhone 3×)
     if (this._w !== W || this._h !== H || this._pr !== pr) { this.rdr.setPixelRatio(pr); this.rdr.setSize(W, H, false); this._w = W; this._h = H; this._pr = pr; }
     const fw = 2 * Math.max(pox, W - pox), fh = 2 * Math.max(poy, H - poy);
     if (!this.camera) this.camera = new T.PerspectiveCamera(30, 1, 5, 100000);
-    const c = this.camera; c.fov = 2 * Math.atan(fh / 2 / P) * 180 / Math.PI; c.aspect = fw / fh; c.near = 5; c.far = P * 30;
+    const c = this.camera; c.fov = 2 * Math.atan(fh / 2 / P) * 180 / Math.PI; c.aspect = fw / fh; c.near = P * 0.05; c.far = P * 6;
     c.position.set(pox, -poy, P); c.lookAt(pox, -poy, 0); c.setViewOffset(fw, fh, fw / 2 - pox, fh / 2 - poy, W, H); c.updateProjectionMatrix();
     return true;
   },
