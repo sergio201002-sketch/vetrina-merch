@@ -38,7 +38,7 @@ const RoomGL = {
       try { this.rdr = new T.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance', logarithmicDepthBuffer: true }); }
       catch (e) { this.ok = false; toast('Il 3D veloce non è disponibile su questo dispositivo'); return; }
       this.ok = true;
-      this.rdr.outputEncoding = T.sRGBEncoding; this.rdr.toneMapping = T.ACESFilmicToneMapping; this.rdr.toneMappingExposure = 1.0;
+      this.rdr.outputEncoding = T.sRGBEncoding; this.rdr.toneMapping = T.NoToneMapping;   // colori veri delle foto, senza la curva cinema che li spegne
       this.canvas = this.rdr.domElement; this.canvas.className = 'glc';
       ['pointerdown', 'pointermove', 'wheel', 'keydown', 'touchmove'].forEach(ev => window.addEventListener(ev, () => this.poke(), { passive: true }));
       window.addEventListener('resize', () => this.poke());
@@ -98,7 +98,10 @@ const RoomGL = {
       if ((!ccol || ccol.a === 0) && bi && bi !== 'none' && !url0) { const fc = firstColor(bi); if (fc) ccol = cssColor(fc); }
       if (!url0 && (!ccol || ccol.a === 0)) continue;
       const floor = el.classList.contains('rfloor'), wall = el.classList.contains('rwall');
-      const mat = new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, metalness: 0, side: T.DoubleSide, envMapIntensity: 0.3 });
+      const face = url0 && !floor && !/retro_/.test(url0);
+      // davanti delle piastrelle: la foto com'è (niente luci che la scuriscono o la sbiadiscono)
+      const mat = face ? new T.MeshBasicMaterial({ color: 0xffffff, side: T.DoubleSide, toneMapped: false })
+        : new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, metalness: 0, side: T.DoubleSide, envMapIntensity: 0.3 });
       let photo = null;
       if (floor) {
         if (!this.floorTex) { this.floorTex = new T.CanvasTexture(floorTileCanvas()); this.floorTex.encoding = T.sRGBEncoding; this.floorTex.wrapS = this.floorTex.wrapT = T.RepeatWrapping; this.floorTex.anisotropy = 8; }
@@ -111,14 +114,16 @@ const RoomGL = {
         photo = { url0, rx, ry, cover: sz[0] === 'cover', w, h };
         this.tex(url, rx, ry, photo.cover, w, h).then(t => { if (t) { mat.map = t; mat.needsUpdate = true; this.poke(); } });
         if (isRetro && ccol) { const c2 = ccol.c.clone(); c2.lerp(new T.Color(1, 1, 1), 0.45); mat.color = c2; }
-        mat.roughness = 0.45; mat.envMapIntensity = 0.22;
+        if (!face) { mat.roughness = 0.45; mat.envMapIntensity = 0.22; }
       } else {
         mat.color = ccol.c; const l = ccol.c.r + ccol.c.g + ccol.c.b;
-        if (l < 0.5) { mat.color = new T.Color(0x0b0b0c); mat.roughness = 0.55; mat.metalness = 0.05; mat.envMapIntensity = 0.12; }   // metallo nero degli espositori
+        if (l < 0.5) { mat.color = new T.Color(0x050506); mat.roughness = 0.55; mat.metalness = 0.05; mat.envMapIntensity = 0.08; }   // metallo nero degli espositori
         if (ccol.a < 1) { mat.transparent = true; mat.opacity = ccol.a; }
       }
       const g = new T.PlaneGeometry(1, 1); g.translate(0.5, -0.5, 0); g.scale(w, h, 1);   // piano w×h con origine in alto a sinistra (y verso il basso dopo il ribaltamento)
       g.scale(1, -1, 1);
+      // la foto sta sullo stesso piano del pannello sotto: la stacco appena verso chi guarda, così non si mescolano a puntini
+      if (photo) g.translate(0, 0, 0.08);
       const mesh = new T.Mesh(g, mat); mesh.matrixAutoUpdate = false;
       const D = this.isDyn(el) ? el : findDyn(el);
       const staticM = D === el ? new DOMMatrix() : relTo(el, D);   // senza antenato mobile: fino alla stanza
@@ -126,8 +131,8 @@ const RoomGL = {
       this.view.add(mesh); this.meshes.push(mesh);
       if (D && !this.dyn.has(D)) this.dyn.set(D, null);
     }
-    this.scene.add(new T.HemisphereLight(0xffffff, 0xa8a399, 0.65));
-    const sun = new T.DirectionalLight(0xfff4e8, 0.6); sun.position.set(-0.4, 1, 0.8); this.scene.add(sun);
+    this.scene.add(new T.HemisphereLight(0xffffff, 0xb5b0a6, 0.95));
+    const sun = new T.DirectionalLight(0xfff6ec, 0.85); sun.position.set(-0.4, 1, 0.8); this.scene.add(sun);
     if (!this.envTex) this.envTex = showroomEnv(T, this.rdr);
     this.scene.environment = this.envTex;
     this.updateMatrices(true);
