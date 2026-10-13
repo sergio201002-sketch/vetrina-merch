@@ -104,7 +104,8 @@ async function renderRealistic() {
     if (w < 0.05 || h < 0.05) continue;
     if (el.classList.contains('empty') || el.classList.contains('rfloor') || el.classList.contains('rwall')) continue;
     const cs = getComputedStyle(el);
-    if (cs.visibility === 'hidden' || cs.display === 'none' || !el.getClientRects().length) continue;
+    const ri = el.closest('.ritem');   // (col 3D veloce la stanza CSS è invisibile: contano solo gli espositori nascosti apposta)
+    if ((ri && ri.style.visibility === 'hidden') || cs.display === 'none' || !el.getClientRects().length) continue;
     const bi = cs.backgroundImage;
     let url = (bi.match(/url\("?([^")]+)"?\)/) || [])[1];
     if (url && /\/foto\/sala\//.test(url)) { const rel = url.slice(url.indexOf('foto/sala/')), big = roomBig[rel]; if (big) url = new URL(big, location.href).href; }   // nel render: foto grandi
