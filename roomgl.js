@@ -34,7 +34,8 @@ const RoomGL = {
     try { await loadThree(); } catch (e) { this.ok = false; return; }
     const T = this.T = window.THREE;
     if (!this.rdr) {
-      try { this.rdr = new T.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance', logarithmicDepthBuffer: true });   // profondità precisa: facce vicine (davanti/retro) senza quadrettature }
+      // profondità precisa (logarithmicDepthBuffer): facce vicine (davanti/retro) senza quadrettature
+      try { this.rdr = new T.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance', logarithmicDepthBuffer: true }); }
       catch (e) { this.ok = false; toast('Il 3D veloce non è disponibile su questo dispositivo'); return; }
       this.ok = true;
       this.rdr.outputEncoding = T.sRGBEncoding; this.rdr.toneMapping = T.ACESFilmicToneMapping; this.rdr.toneMappingExposure = 1.0;
