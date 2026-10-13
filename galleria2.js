@@ -16,15 +16,15 @@ body[data-view="gallery2"] #viewGallery2 { display: block; }
 .g2-over { display: grid; grid-template-columns: minmax(220px, 300px) 1fr; gap: 22px; background: #fff; border: 1px solid #ebe8e2; border-radius: 18px; padding: 18px 20px; margin: 4px 0 16px; }
 .g2-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start; }
 .g2-stats div { background: #f6f4f0; border-radius: 12px; padding: 10px 12px; }
-.g2-stats b { display: block; font: 600 26px 'Playfair Display', Georgia, serif; }
+.g2-stats b { display: block; font: 700 26px var(--font-display); letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .g2-stats span { font-size: 12px; color: var(--mid); }
 .g2-brands { grid-column: 1 / -1; font-size: 12.5px; color: #555; line-height: 1.6; }
 .g2-stats .g2-brands b { display: inline; font: 700 12.5px var(--font-body); color: #222; }
 .g2-stats div.g2-brands { background: none; padding: 2px 2px 0; }
 .g2-occ h4 { margin: 0 0 8px; font: 700 12px var(--font-body); letter-spacing: .12em; text-transform: uppercase; color: #8e1016; }
-.g2-occ button { display: grid; grid-template-columns: 1fr 120px 64px; gap: 12px; align-items: center; width: 100%; border: 0; background: none; padding: 7px 4px; border-radius: 8px; cursor: pointer; text-align: left; font: inherit; color: inherit; }
+.g2-occ button { display: grid; grid-template-columns: minmax(150px, 240px) minmax(80px, 1fr) 64px; gap: 12px; align-items: center; width: 100%; border: 0; background: none; padding: 7px 4px; border-radius: 8px; cursor: pointer; text-align: left; font: inherit; color: inherit; }
 .g2-occ button:hover { background: #f6f4f0; }
-.g2-occ .n { font: 500 15px 'Playfair Display', Georgia, serif; }
+.g2-occ .n { font: 600 15px var(--font-display); letter-spacing: -.02em; }
 .g2-occ .n small { display: block; font: 500 11px var(--font-body); color: var(--mid); }
 .g2-bar { height: 7px; border-radius: 99px; background: #eee9e1; overflow: hidden; }
 .g2-bar i { display: block; height: 100%; background: linear-gradient(90deg, #2f7d4f, #58a473); border-radius: 99px; }
@@ -65,7 +65,7 @@ body[data-view="gallery2"] #viewGallery2 { display: block; }
 /* stampa della proposta */
 @media print { body.g2-printing > *:not(#g2Print) { display: none !important; } #g2Print { display: block !important; } }
 #g2Print { display: none; font-family: Inter, Arial, sans-serif; color: #111; padding: 10mm; }
-#g2Print h1 { font: 600 26px 'Playfair Display', Georgia, serif; margin: 0 0 4px; }
+#g2Print h1 { font: 700 26px var(--font-display); letter-spacing: -.02em; margin: 0 0 4px; }
 #g2Print .it { display: grid; grid-template-columns: 34mm 1fr; gap: 5mm; padding: 4mm 0; border-bottom: 1px solid #ddd; break-inside: avoid; }
 #g2Print .it img { width: 34mm; height: 34mm; object-fit: cover; border-radius: 3mm; }
 </style>`);
@@ -284,7 +284,7 @@ function g2Print(cid) {
   let el = document.getElementById('g2Print'); if (!el) { el = document.createElement('div'); el.id = 'g2Print'; document.body.appendChild(el); }
   el.innerHTML = `<h1>Proposta di integrazione</h1><div style="color:#555;margin-bottom:6mm">${esc(cl.name)}${cl.city ? ' · ' + esc(cl.city) : ''} · ${new Date().toLocaleDateString('it-IT')}</div>` +
     rows.map(s => `<div class="it"><img src="${esc(glPhoto(s) || '')}" alt=""><div><div style="font:700 10px Inter;color:#b0101a;letter-spacing:.1em;text-transform:uppercase">${esc(s.b)}</div>
-      <div style="font:600 18px 'Playfair Display',Georgia,serif">${esc(glTitle(s.s))} · ${esc(glTitle(s.c))}</div>
+      <div style="font:600 18px 'Inter Tight',Inter,sans-serif">${esc(glTitle(s.s))} · ${esc(glTitle(s.c))}</div>
       <div style="color:#444;margin-top:2mm">${esc(fmt(s.z))} cm · ${esc((s.f || []).join(', '))}</div><div style="color:#444">Codici: ${esc((s.k || []).join(' · '))}</div></div></div>`).join('');
   document.body.classList.add('g2-printing');
   const done = () => { document.body.classList.remove('g2-printing'); window.removeEventListener('afterprint', done); };

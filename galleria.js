@@ -6,8 +6,7 @@
    a tutto schermo con serie, colore, formato, finiture e codici; frecce o scorrendo col dito per gli altri.
    ════════════════════════════════════════════════════════════ */
 (() => { const v = document.createElement('div'); v.id = 'viewGallery'; v.className = 'view'; document.body.appendChild(v); })();
-document.head.insertAdjacentHTML('beforeend', `<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600&display=swap" rel="stylesheet">
-<style>
+document.head.insertAdjacentHTML('beforeend', `<style>
 body[data-view="gallery"] #viewGallery { display: block; }
 /* pagina iniziale della galleria: un riquadro per cliente con le strisce dei suoi campioni */
 .gh-search { flex: 1; max-width: 320px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; font: inherit; background: #fff; }
@@ -18,7 +17,7 @@ body[data-view="gallery"] #viewGallery { display: block; }
 .gh-strips { display: flex; gap: 6px; height: 150px; padding: 12px 12px 0; background: #f6f4f0; }
 .gh-strips span { flex: 1; border-radius: 8px 8px 999px 999px; background: #e6e2da center/cover; margin-bottom: 10px; }
 .gh-card .in { padding: 12px 14px 14px; }
-.gh-card .nm { font: 500 22px/1.15 'Playfair Display', Georgia, serif; }
+.gh-card .nm { font: 600 22px/1.15 var(--font-display); letter-spacing: -.02em; }
 .gh-card .mt { font-size: 12.5px; color: var(--mid); margin-top: 4px; }
 .gh-card.off { opacity: .55; cursor: default; }
 #viewGallery { background: #fbfaf8; min-height: calc(100vh - 56px); }
@@ -46,7 +45,7 @@ body[data-view="gallery"] #viewGallery { display: block; }
 .gl-strip .nof { position: absolute; inset: auto 0 44% 0; text-align: center; font-size: 11px; color: #8a857b; }
 .gl-info { flex: none; width: 270px; border-left: 2px solid #d8d4cc; padding: 6px 0 6px 22px; display: flex; flex-direction: column; justify-content: center; }
 .gl-info .t { font: 600 12.5px var(--font-body); letter-spacing: .14em; text-transform: uppercase; color: #333; }
-.gl-info h3 { font: 500 34px/1.08 'Playfair Display', Georgia, serif; letter-spacing: -.01em; margin: 6px 0 12px; color: #1a1a1a; }
+.gl-info h3 { font: 600 34px/1.08 var(--font-display); letter-spacing: -.02em; letter-spacing: -.01em; margin: 6px 0 12px; color: #1a1a1a; }
 .gl-info .b { font: 700 11px var(--font-body); color: var(--red); letter-spacing: .1em; text-transform: uppercase; }
 .gl-info p { margin: 8px 0 0; font-size: 13.5px; line-height: 1.5; color: #444; }
 .gl-info p b { color: #222; }
@@ -78,7 +77,7 @@ body[data-view="gallery"] #viewGallery { display: block; }
 .gl-full .gl-stage img { object-fit: contain; border-radius: 6px; box-shadow: 0 30px 80px rgba(0,0,0,.6); transition: transform .35s, opacity .2s; }
 .gl-full .gl-side { width: 330px; flex: none; background: #17171a; padding: 26px 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
 .gl-full .gl-side .t { font: 600 11.5px var(--font-body); letter-spacing: .16em; text-transform: uppercase; color: #9a9a9a; }
-.gl-full .gl-side h3 { font: 500 32px/1.1 'Playfair Display', Georgia, serif; margin: 2px 0 0; }
+.gl-full .gl-side h3 { font: 600 32px/1.1 var(--font-display); letter-spacing: -.02em; margin: 2px 0 0; }
 .gl-full .gl-side .col { font: 600 20px var(--font-body); color: #fff; }
 .gl-full .gl-side .b { font: 700 11px var(--font-body); color: #ff5a5a; letter-spacing: .1em; text-transform: uppercase; }
 .gl-full .gl-side dl { margin: 6px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 8px 14px; font-size: 13.5px; }
