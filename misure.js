@@ -7,6 +7,8 @@
    ════════════════════════════════════════════════════════════ */
 document.head.insertAdjacentHTML('beforeend', `<style>
 .misanc { position: absolute; width: 1px; height: 1px; pointer-events: none; }
+.misanchors { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-style: preserve-3d; pointer-events: none; }
+.misanchors .misanc { left: 0; top: 0; }
 .mislayer { position: absolute; inset: 0; pointer-events: none; z-index: 4; overflow: hidden; }
 .mislbl { position: absolute; transform: translate(-50%, -100%); transition: opacity .15s; background: rgba(255,255,255,.95); border: 1px solid #ddd8cf; border-radius: 10px; padding: 5px 9px 6px;
   font-size: 11.5px; line-height: 1.25; color: #222; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,.12); pointer-events: auto; cursor: pointer; text-align: center; }
@@ -19,6 +21,7 @@ document.head.insertAdjacentHTML('beforeend', `<style>
   background: rgba(255,255,255,.97); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 12px 34px rgba(0,0,0,.18); font-size: 12.5px; overflow: hidden; }
 .mispanel .mh { display: flex; align-items: center; gap: 6px; padding: 10px 12px 8px; border-bottom: 1px solid #eee; }
 .mispanel .mh b { flex: 1; font-size: 13px; }
+.mispanel .mh button.on { background: var(--red); border-color: var(--red); color: #fff; }
 .mispanel .mh button { border: 1px solid var(--border); background: #fff; border-radius: 8px; padding: 4px 8px; font: 600 11.5px var(--font-body); cursor: pointer; }
 .mispanel .ml { overflow: auto; padding: 4px 6px; flex: 1 1 auto; min-height: 60px; }
 .mispanel label { display: grid; grid-template-columns: 18px 1fr; gap: 6px; padding: 6px; border-radius: 8px; cursor: pointer; align-items: start; }
@@ -31,6 +34,9 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .mispanel .mt .k { color: #666; font-size: 11.5px; }
 .mispanel .mt .row2 { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; }
 .mispanel.min .ml, .mispanel.min .mt .row2 { display: none; }
+svg.mislines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.misdim { position: absolute; transform: translate(-50%, -100%); margin-top: -3px; font: 700 11.5px var(--font-body); padding: 2px 6px; border-radius: 6px; white-space: nowrap; color: #fff; pointer-events: none; }
+.misdim.t1 { background: #1d1d20; } .misdim.t2 { background: var(--red); } .misdim.t3 { background: #1f5fbf; } .misdim.gap { background: #fff; color: #555; border: 1px dashed #999; }
 .misfp { position: absolute; border: 2px dashed var(--red); border-radius: 3px; pointer-events: none; z-index: 3; }
 .misfp span { position: absolute; left: 50%; top: -20px; transform: translateX(-50%); background: var(--red); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px; white-space: nowrap; }
 @media (max-width: 720px) { .mispanel { max-height: 48%; } .mislbl { font-size: 10.5px; padding: 4px 7px; } .mislbl small { display: none; } }
@@ -43,34 +49,39 @@ function toggleMisure() {
   document.querySelectorAll('.rMis').forEach(b => b.classList.toggle('on', misOn()));
   misRefresh();
 }
-/* misure del catalogo: L × P × H (la prima cifra se ce ne sono due, es. girevole chiuso / aperto) */
+/* misure del catalogo: L × P × H (se c'è "67/289" la prima è da chiuso) */
 function misCat(d) {
   const raw = String(d.dims || '');
   const parts = raw.replace(/cm.*$/i, '').split('×').map(t => t.trim());
   const nums = parts.map(t => (t.replace(/,/g, '.').match(/[\d.]+/g) || []).map(Number));
-  return { raw: raw.replace(/\s*\(per modulo\)/i, ''), L: (nums[0] || [])[0] || 0, Lopen: (nums[0] || [])[1] || 0, P: (nums[1] || [])[0] || 0, H: (nums[2] || [])[0] || 0, perMod: /per modulo/i.test(raw) };
+  return { L: (nums[0] || [])[0] || 0, P: (nums[1] || [])[0] || 0, H: (nums[2] || [])[0] || 0, perMod: /per modulo/i.test(raw) };
 }
-/* ingombro dell'espositore come è disegnato nella stanza (L lungo la parete, P in profondità), con le misure del catalogo */
+/* ingombro come è messo nella stanza: L = larghezza (lungo la parete), P = profondità, H = altezza; valori del catalogo.
+   Il catalogo non scrive sempre L e P nello stesso verso (es. girevole 160×160): li abbino al disegno dell'espositore.
+   Girevoli: "aperto" = quando giri fuori una piastrella a tavolo, sul lato dove scorre la piastrella (dai disegni del catalogo). */
 function misSize(it) {
   const d = DISP[it.disp], m = roomModels[it.id] || (roomModels[it.id] = roomModel(it)), c = misCat(d || {});
-  if (!d || c.perMod || !c.L || !c.P) return { L: m.L, P: m.P, H: c.H && !c.perMod ? c.H : m.H || 0 };
-  // il catalogo a volte scrive L e P al contrario rispetto al fronte: li abbino al modello
-  const swap = Math.abs(m.L - c.P) + Math.abs(m.P - c.L) < Math.abs(m.L - c.L) + Math.abs(m.P - c.P);
-  return { L: swap ? c.P : c.L, P: swap ? c.L : c.P, H: c.H || m.H };
-}
-/* versione breve per l'etichetta: 103 × 97 · h 150 */
-function misShort(it) {
-  const c = misCat(DISP[it.disp] || {}), sz = misSize(it);
-  if (c.perMod) return `${misFmt(sz.L)} × ${misFmt(sz.P)} · h ${misFmt(c.H || sz.H)}`;
-  return `${misFmt(c.L || sz.L)}${c.Lopen ? '/' + misFmt(c.Lopen) : ''} × ${misFmt(c.P || sz.P)} · h ${misFmt(c.H || sz.H)}`;
+  let L = m.L, P = m.P, H = m.H || 0;
+  if (d && !c.perMod && c.L && c.P) {
+    const swap = Math.abs(m.L - c.P) + Math.abs(m.P - c.L) < Math.abs(m.L - c.L) + Math.abs(m.P - c.P);
+    L = swap ? c.P : c.L; P = swap ? c.L : c.P; H = c.H || H;
+  } else if (c.perMod && c.H) H = c.H;
+  let openL = 0, openP = 0;
+  if (d && d.mode === 'swing' && d.geo && d.geo.ext) { if (Math.abs(P - d.geo.w) <= Math.abs(L - d.geo.w)) openP = d.geo.ext; else openL = d.geo.ext; }
+  return { L, P, H, openL, openP, Hmodel: Math.max(H, m.H || 0) };
 }
 const misFmt = v => (Math.round(v * 10) / 10).toLocaleString('it-IT');
+/* etichetta breve: 103 × 97 · h 150 (aperto 169) */
+function misShort(it) {
+  const s = misSize(it);
+  return `${misFmt(s.L)} × ${misFmt(s.P)} · h ${misFmt(s.H)}`;
+}
 function misLabel(it) {
-  const d = DISP[it.disp], c = misCat(d || {}), comp = comps[it.comp];
-  let main = c.raw || `L${misFmt(misSize(it).L)} × P${misFmt(misSize(it).P)} × H${misFmt(misSize(it).H)} cm`;
-  if (c.perMod) { const s = misSize(it), n = cullaMods(d, (comp && comp.slots || []).length || defVariant(d)); main = `${n} modul${n > 1 ? 'i' : 'o'} · L${misFmt(s.L)} × P${misFmt(s.P)} × H${misFmt(c.H || s.H)} cm`; }
-  if (c.Lopen) main = main.replace(/L([\d,.]+)\/([\d,.]+)/, 'L$1 (aperto $2)');
-  return { main, name: comp ? comp.name : d ? d.name : '' };
+  const d = DISP[it.disp], c = misCat(d || {}), comp = comps[it.comp], s = misSize(it);
+  let main = `L ${misFmt(s.L)} × P ${misFmt(s.P)} × H ${misFmt(s.H)} cm`;
+  if (c.perMod) { const n = cullaMods(d, (comp && comp.slots || []).length || defVariant(d)); main = `${n} modul${n > 1 ? 'i' : 'o'} · ` + main; }
+  const open = s.openP ? `aperto: profondità ${misFmt(s.openP)} cm` : s.openL ? `aperto: larghezza ${misFmt(s.openL)} cm` : '';
+  return { main, open, name: comp ? comp.name : d ? d.name : '' };
 }
 /* rettangolo a terra di un gruppo di espositori (con rotazioni qualsiasi) */
 function misBox(items) {
@@ -103,13 +114,16 @@ function misRefresh() {
   if (!layer) { layer = document.createElement('div'); layer.className = 'mislayer'; box.appendChild(layer); }
   if (!panel) { panel = document.createElement('div'); panel.className = 'mispanel'; box.appendChild(panel); ['pointerdown', 'wheel', 'touchstart'].forEach(ev => panel.addEventListener(ev, e => e.stopPropagation(), { passive: true })); }
   const all = misItems(), chosen = misChosen(), ids = new Set(chosen.map(i => i.id)), partial = chosen.length < all.length;
-  layer.innerHTML = all.map(it => { const l = misLabel(it);
+  misAnchors(ui.misLines ? chosen : null);
+  if (ui.misLines) layer.innerHTML = '<svg class="mislines"></svg>';
+  else layer.innerHTML = all.map(it => { const l = misLabel(it);
     if (partial && !ids.has(it.id)) return '';   // con una scelta: etichette solo sui scelti
-    return `<div class="mislbl${partial ? ' sel' : ''}" data-id="${it.id}" title="${esc(l.name + ' · ' + l.main)} — tocca per toglierlo dal totale"><b>${esc(misShort(it))}</b><small>${esc(l.name)}</small></div>`; }).join('');
+    return `<div class="mislbl${partial ? ' sel' : ''}" data-id="${it.id}" title="${esc(l.name + ' · ' + l.main + (l.open ? ' · ' + l.open : ''))} — tocca per toglierlo dal totale"><b>${esc(misShort(it))}</b>${l.open ? `<small>${esc(l.open)}</small>` : ''}<small>${esc(l.name)}</small></div>`; }).join('');
   layer.querySelectorAll('.mislbl').forEach(el => { el.onpointerdown = e => e.stopPropagation(); el.onclick = e => { e.stopPropagation(); misToggleItem(el.dataset.id); }; });
   const b = misBox(chosen);
   panel.classList.toggle('min', misPanelMin);
   panel.innerHTML = `<div class="mh"><b>Misure espositori</b>
+      <button class="mlbtn ${ui.misLines ? 'on' : ''}" onclick="ui.misLines = !ui.misLines; saveUI(); misRefresh()" title="Quote: ogni espositore, i gruppi attaccati, gli spazi tra loro e il totale">Linee misure</button>
       <button onclick="misOnly(null)">Tutti</button><button onclick="misNone()">Nessuno</button>
       <button onclick="misPanelMin = !misPanelMin; misRefresh()" title="${misPanelMin ? 'Apri' : 'Riduci'}">${misPanelMin ? '<svg class="ic"><use href="#i-cup"/></svg>' : '<svg class="ic"><use href="#i-cdown"/></svg>'}</button>
       <button onclick="toggleMisure()" title="Chiudi"><svg class="ic"><use href="#i-x"/></svg></button></div>
@@ -118,7 +132,7 @@ function misRefresh() {
       <div class="row2"><span><span class="k">Altezza max</span><br><b>${misFmt(b.H)} cm</b></span><span><span class="k">Superficie occupata</span><br><b>${misFmt(b.area / 10000)} m²</b></span>
         <span><span class="k">Rettangolo a terra</span><br><b>${misFmt(b.L * b.P / 10000)} m²</b></span></div>` : '<div class="k">Scegli uno o più espositori per vedere l\'ingombro.</div>'}</div>
     <div class="ml">${all.map(it => { const l = misLabel(it);
-      return `<label><input type="checkbox" ${ids.has(it.id) ? 'checked' : ''} onchange="misToggleItem('${it.id}')"><span><span class="n">${esc(l.name)}</span><br><span class="d">${esc(l.main)}</span></span></label>`; }).join('') || '<div style="padding:10px;color:#777">Nessun espositore nella stanza.</div>'}</div>`;
+      return `<label><input type="checkbox" ${ids.has(it.id) ? 'checked' : ''} onchange="misToggleItem('${it.id}')"><span><span class="n">${esc(l.name)}</span><br><span class="d">${esc(l.main)}${l.open ? '<br>' + esc(l.open) : ''}</span></span></label>`; }).join('') || '<div style="padding:10px;color:#777">Nessun espositore nella stanza.</div>'}</div>`;
   misPlan(b);
   cancelAnimationFrame(misRaf); misLast = '';
   const tick = () => { misPlace(); if (misOn() && document.body.contains(layer)) misRaf = requestAnimationFrame(tick); };
@@ -128,6 +142,7 @@ function misRefresh() {
 let misLast = '';
 function misPlace() {
   const box = document.getElementById('room3d'), layer = box && box.querySelector('.mislayer'); if (!layer) return;
+  if (ui.misLines) { misDrawLines(box, layer); return; }
   const r0 = box.getBoundingClientRect(); let key = '';
   const pos = [...layer.children].map(el => {
     const a = document.querySelector(`#roomScene .ritem[data-id="${el.dataset.id}"] > .misanc`); if (!a) return null;
@@ -152,4 +167,59 @@ function misPlan(b) {
   const pr = plan.querySelector('.plan-room'); if (!pr) return;
   const ox = parseFloat(pr.style.left), oz = parseFloat(pr.style.top);
   plan.insertAdjacentHTML('beforeend', `<div class="misfp" style="left:${ox + b.x0 * planS}px;top:${oz + b.z0 * planS}px;width:${b.L * planS}px;height:${b.P * planS}px"><span>${misFmt(b.L)} × ${misFmt(b.P)} cm</span></div>`);
+}
+
+/* ── LINEE MISURE: quote come in un disegno tecnico, nella stanza 3D ──
+   livello 1: ogni espositore (dall'inizio alla fine) + gli spazi vuoti tra gruppi staccati
+   livello 2: ogni gruppo di espositori attaccati (es. una coppia)
+   livello 3: dal primo all'ultimo (es. coppia + spazio + coppia)
+   Le misure sono lungo la larghezza della stanza (parallele al muro di fondo), tutte alla stessa altezza per livello, davanti agli espositori. */
+let misSegs = [];
+function misLinesPlan(items) {
+  const rows = items.filter(it => !isUpper(it) && elevY(it) < 50).map(it => {
+    const s = misSize(it), a = (it.rot || 0) * Math.PI / 180, cs = Math.abs(Math.cos(a)), sn = Math.abs(Math.sin(a));
+    const hx = (cs * s.L + sn * s.P) / 2, hz = (sn * s.L + cs * s.P) / 2;
+    return { it, x0: it.x - hx, x1: it.x + hx, zf: it.z + hz, top: elevY(it) + s.Hmodel };
+  }).sort((a, b) => a.x0 - b.x0);
+  if (!rows.length) return [];
+  const groups = [];
+  rows.forEach(r => { const g = groups[groups.length - 1]; if (g && r.x0 - g.x1 <= 3) { g.rows.push(r); g.x1 = Math.max(g.x1, r.x1); } else groups.push({ rows: [r], x0: r.x0, x1: r.x1 }); });
+  const z = Math.max(...rows.map(r => r.zf)) + 4, base = Math.max(...rows.map(r => r.top)) + 15, step = 26;
+  const segs = [];
+  rows.forEach(r => segs.push({ t: 't1', x0: r.x0, x1: r.x1, y: base, ext: r.top + 3 }));
+  for (let i = 1; i < groups.length; i++) segs.push({ t: 'gap', x0: groups[i - 1].x1, x1: groups[i].x0, y: base });
+  const pairs = groups.filter(g => g.rows.length > 1);
+  pairs.forEach(g => segs.push({ t: 't2', x0: g.x0, x1: g.x1, y: base + step, ext: base }));
+  if (groups.length > 1) segs.push({ t: 't3', x0: groups[0].x0, x1: groups[groups.length - 1].x1, y: base + step * (pairs.length ? 2 : 1), ext: base });
+  segs.forEach(sg => { sg.z = z; sg.len = sg.x1 - sg.x0; });
+  return segs.filter(sg => sg.len > 0.5);
+}
+/* punti 3D nella stanza → elementi invisibili: il browser ci dà la posizione sullo schermo (funziona anche con il 3D veloce) */
+function misAnchors(items) {
+  const sc = document.getElementById('roomScene'); if (!sc) return;
+  let host = sc.querySelector(':scope > .misanchors');
+  if (!items) { if (host) host.remove(); misSegs = []; return; }
+  misSegs = misLinesPlan(items);
+  if (!host) { host = document.createElement('div'); host.className = 'misanchors'; sc.appendChild(host); }
+  const pt = (x, y, z) => `<div class="misanc" style="transform:translate3d(${x}px,${-y}px,${z}px)"></div>`;
+  host.innerHTML = misSegs.map(g => pt(g.x0, g.y, g.z) + pt(g.x1, g.y, g.z) + pt(g.x0, g.ext != null ? g.ext : g.y, g.z) + pt(g.x1, g.ext != null ? g.ext : g.y, g.z)).join('');
+}
+function misDrawLines(box, layer) {
+  const host = document.querySelector('#roomScene > .misanchors'); if (!host) return;
+  const r0 = box.getBoundingClientRect(), an = host.children; let key = '';
+  const P = [...an].map(a => { const r = a.getBoundingClientRect(); const p = [r.left - r0.left, r.top - r0.top]; key += Math.round(p[0]) + ',' + Math.round(p[1]) + ';'; return p; });
+  if (key === misLast) return; misLast = key;
+  const col = { t1: '#1d1d20', t2: '#c0102a', t3: '#1f5fbf', gap: '#888' };
+  let svg = '', html = '';
+  misSegs.forEach((g, i) => {
+    const [a, b, ea, eb] = [P[i * 4], P[i * 4 + 1], P[i * 4 + 2], P[i * 4 + 3]], c = col[g.t], dash = g.t === 'gap' ? ' stroke-dasharray="5 4"' : '';
+    if (g.ext != null) svg += `<line x1="${ea[0]}" y1="${ea[1]}" x2="${a[0]}" y2="${a[1]}" stroke="${c}" stroke-width="1" stroke-dasharray="3 3" opacity=".6"/><line x1="${eb[0]}" y1="${eb[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${c}" stroke-width="1" stroke-dasharray="3 3" opacity=".6"/>`;
+    svg += `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${c}" stroke-width="${g.t === 'gap' ? 1.5 : 2}"${dash}/>`;
+    // trattini a 45° alle estremità (come nei disegni tecnici)
+    [a, b].forEach(p => { svg += `<line x1="${p[0] - 5}" y1="${p[1] + 5}" x2="${p[0] + 5}" y2="${p[1] - 5}" stroke="${c}" stroke-width="2"/>`; });
+    const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, px = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const txt = misFmt(g.len) + ' cm';
+    if (px > 18) html += `<div class="misdim ${g.t}" style="left:${mx}px;top:${my}px">${g.t === 'gap' ? 'spazio ' : ''}${txt}</div>`;
+  });
+  layer.innerHTML = `<svg class="mislines">${svg}</svg>${html}`;
 }
