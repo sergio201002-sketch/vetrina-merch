@@ -38,6 +38,7 @@ function route() {
   if (a === 'g2' && clients[id]) { closeG2Full(); document.body.dataset.view = 'gallery2'; renderGallery2(id, sub); return; }
   if (a === 'galleria') { closeGalleryFull(); document.body.dataset.view = 'gallery'; renderGalleryHome(); return; }
   if (a === 'campioni' && clients[id]) { closeGalleryFull(); document.body.dataset.view = 'gallery'; renderGallery(id, sub); return; }
+  if (a === 'pacchetti') { document.body.dataset.view = 'packs'; renderPacks(id); return; }
   if (a === 'ambiente' && scenes[id]) { document.body.dataset.view = 'room'; openRoom(id); return; }
   if (a === 'salamostra' && clients[id]) {
     const rooms = showRooms(id), last = (ui.showRoom || {})[id];
@@ -80,6 +81,7 @@ function leaveConfig() {
   const back = ui.returnTo; ui.returnTo = ''; saveUI();
   if (back && back.startsWith('#/ambiente/') && scenes[back.split('/')[2]]) return go(back);
   if (back && back.startsWith('#/salamostra/') && clients[back.split('/')[2]]) return go(back);
+  if (back && back.startsWith('#/pacchetti/') && scenes[back.split('/')[2]]) return go(back);
   go(ctxClient() ? '#/cliente/' + ctxClient() : '#/');
 }
 
@@ -122,6 +124,8 @@ function renderHome() {
     <div class="cgrid">
       <div class="card ccard" onclick="openFreeCatalog()"><h3><svg class="ic"><use href="#i-panels"/></svg> Catalogo espositori</h3>
         <div class="sub">Prova gli espositori senza cliente${free ? ` · ${free} composizioni libere` : ''}</div></div>
+      <div class="card ccard" onclick="go('#/pacchetti')"><h3><svg class="ic"><use href="#i-box"/></svg> Pacchetti espositori</h3>
+        <div class="sub">Le tue proposte di esposizione pronte da mettere nella sala mostra di un cliente</div></div>
       <div class="card ccard" onclick="openVersions()"><h3><svg class="ic"><use href="#i-history"/></svg> Versioni salvate</h3>
         <div class="sub">Tutto si salva da solo su disco. Qui puoi tornare a una versione precedente.</div></div>
       <div class="card ccard" onclick="openImages()"><h3><svg class="ic"><use href="#i-camera"/></svg> Foto campioni</h3>
