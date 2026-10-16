@@ -342,13 +342,16 @@ function glExportAsk(cid, scope) {
     <div style="padding:8px 18px 18px;display:flex;flex-direction:column;gap:10px">
       <button class="btn" style="justify-content:flex-start;text-align:left;padding:12px 14px" onclick="document.getElementById('glPdfAsk').remove(); glExportPDF('${cid}', '${scope}', false)">
         <b>Solo quello che ha</b><br><span style="font-weight:500;color:var(--mid)">i campioni che sono in sala mostra</span></button>
-      <button class="btn" style="justify-content:flex-start;text-align:left;padding:12px 14px" onclick="document.getElementById('glPdfAsk').remove(); glExportPDF('${cid}', '${scope}', true)">
-        <b>Anche i colori che non ha</b><br><span style="font-weight:500;color:var(--mid)">per ogni serie, tutti gli altri colori nei formati che ha (una volta sola), segnati "non in sala mostra"</span></button>
+      <button class="btn" style="justify-content:flex-start;text-align:left;padding:12px 14px" onclick="document.getElementById('glPdfAsk').remove(); glExportPDF('${cid}', '${scope}', 'mark')">
+        <b>Anche i colori che non ha · segnati</b><br><span style="font-weight:500;color:var(--mid)">gli altri colori delle serie nei formati che ha, in rosso con scritto "non in sala mostra"</span></button>
+      <button class="btn" style="justify-content:flex-start;text-align:left;padding:12px 14px" onclick="document.getElementById('glPdfAsk').remove(); glExportPDF('${cid}', '${scope}', 'plain')">
+        <b>Anche i colori che non ha · tutti normali</b><br><span style="font-weight:500;color:var(--mid)">la serie completa nei formati che ha, senza segni: come un catalogo</span></button>
       <button class="btn" onclick="document.getElementById('glPdfAsk').remove()">Annulla</button>
     </div></div></div>`);
   m = document.getElementById('glPdfAsk'); m.addEventListener('click', e => { if (e.target === m) m.remove(); });
 }
 async function glExportPDF(cid, scope, withMissing) {
+  const mark = withMissing && withMissing !== 'plain';   // 'mark' (o true): mancanti in rosso; 'plain': tutti uguali
   const cl = clients[cid]; if (!cl) return;
   const list = galleryDisplays(cid), allC = list.map(x => x.c);
   const cur = scope && scope !== 'tutti' ? list.find(x => x.c.id === scope) : null;
@@ -381,21 +384,21 @@ async function glExportPDF(cid, scope, withMissing) {
   const cover = items.filter(it => img(it.s)).slice(0, 12);
   let el = document.getElementById('glPrint'); if (!el) { el = document.createElement('div'); el.id = 'glPrint'; document.body.appendChild(el); }
   el.innerHTML = `<section class="cov"><div>
-      <div class="top">Sala mostra · campioni esposti${withMissing ? ' e colori da completare' : ''}</div>
+      <div class="top">${withMissing && !mark ? 'Sala mostra · serie complete' : `Sala mostra · campioni esposti${withMissing ? ' e colori da completare' : ''}`}</div>
       <h1>${esc(cl.name)}</h1>
       <div class="sub">${[cl.city, cur ? cur.c.name + ' · ' + cur.d.name : 'Tutta la sala mostra', today].filter(Boolean).map(esc).join(' · ')}</div>
       <div class="mosaic">${cover.map(it => `<img src="${esc(img(it.s))}" alt="">`).join('')}</div></div>
     <div><div class="kpi"><div><b>${groups.length}</b><span>serie</span></div><div><b>${items.length}</b><span>colori</span></div>
-        <div><b>${new Set(view.flatMap(c => c.slots.filter(k => k && SAMPLE[k]))).size}</b><span>campioni</span></div><div><b>${cur ? 1 : list.length}</b><span>espositori</span></div>${withMissing ? `<div><b style="color:#b0101a">${nMiss}</b><span>colori che non ha</span></div>` : ''}</div>
+        <div><b>${new Set(view.flatMap(c => c.slots.filter(k => k && SAMPLE[k]))).size}</b><span>campioni</span></div><div><b>${cur ? 1 : list.length}</b><span>espositori</span></div>${mark ? `<div><b style="color:#b0101a">${nMiss}</b><span>colori che non ha</span></div>` : ''}</div>
       <div class="brands">${Object.entries(brands).sort((a, b) => b[1] - a[1]).map(([b, n]) => `<b>${esc(b)}</b> ${n} serie`).join(' · ')}</div></div>
   </section>` + groups.map(g => {
     const own = g.items.filter(x => !x.missing), miss = g.items.length - own.length;
     const sizes = [...new Set(own.flatMap(x => x.s.toz ? ['tozzetto'] : (x.sizes || [x.s.z]).map(fmt)))];
     return `<section class="ser${g.items.length > 15 ? ' big' : ''}"><div class="sh"><div class="w"><div class="b">${esc(g.b)}</div><h2>${esc(glTitle(g.s))}</h2></div>
-        <div class="f">${own.length} color${own.length === 1 ? 'e' : 'i'}${miss ? ` · <span style="color:#b0101a">${miss} che non ha</span>` : ''}<br><b>Formati:</b> ${esc(sizes.join(' · '))}</div></div>
+        <div class="f">${mark ? `${own.length} color${own.length === 1 ? 'e' : 'i'}${miss ? ` · <span style="color:#b0101a">${miss} che non ha</span>` : ''}` : `${g.items.length} color${g.items.length === 1 ? 'e' : 'i'}`}<br><b>Formati:</b> ${esc(sizes.join(' · '))}</div></div>
       <div class="grid">${g.items.map(it => {
         const u = img(it.s);
-        return `<div class="it${it.missing ? ' miss' : ''}"><div class="im">${u ? `<img src="${esc(u)}" alt="">` : ''}${it.missing ? '<span class="mt">non in sala mostra</span>' : ''}</div><div class="n">${esc(glTitle(it.s.c))}</div><div class="z">${esc(it.missing ? zOf(it) : glSizes(it))}${it.s.toz ? '' : ' cm'}</div></div>`;
+        return `<div class="it${it.missing && mark ? ' miss' : ''}"><div class="im">${u ? `<img src="${esc(u)}" alt="">` : ''}${it.missing && mark ? '<span class="mt">non in sala mostra</span>' : ''}</div><div class="n">${esc(glTitle(it.s.c))}</div><div class="z">${esc(it.missing ? zOf(it) : glSizes(it))}${it.s.toz ? '' : ' cm'}</div></div>`;
       }).join('')}</div></section>`;
   }).join('') + `<div class="foot">${esc(cl.name)} · ${today}</div>`;
   toast('Preparo il PDF…');
