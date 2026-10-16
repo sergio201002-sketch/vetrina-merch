@@ -458,6 +458,8 @@ body[data-view="config"] .hbtn[data-nav="config"], body[data-view="gallery"] .hb
 .ctabs button .ic { margin-right: 2px; }
 input, select, textarea { accent-color: var(--red); }
 textarea { font-family: inherit; }
+#pickFilters .fsep { display: block; flex-basis: 100%; height: auto; font: 700 10.5px var(--font-body); letter-spacing: .1em; text-transform: uppercase; color: var(--mid); margin: 6px 0 0; }
+#pickFilters button small { opacity: .6; font-weight: 600; }
 /* intestazione: su schermi meno larghi restano le icone dei pulsanti a destra, poi anche quelle del menu */
 @media (max-width: 1180px) { header > .hbtn .lbl, header > .savebadge .lbl { display: none; } header > .hbtn { padding: 7px 9px; } }
 @media (max-width: 860px) { .hnav .hbtn .lbl { display: none; } }
@@ -684,7 +686,7 @@ let scenes = LS.get('vm_scenes_v1', {});     // id -> ambientazione { id, client
 const markDirty = () => { if (window.Sync) Sync.dirty(); };      // salvataggio su disco (salva.js)
 const saveClients = () => { LS.set('vm_clients_v1', clients); markDirty(); };
 const saveScenes = () => { LS.set('vm_scenes_v1', scenes); markDirty(); };
-let selSlot = 0, bookPage = 0, lastBook = {},brandFilter = '', onlyPhoto = false, searchQ = '';
+let selSlot = 0, bookPage = 0, lastBook = {},brandFilter = '', onlyPhoto = false, searchQ = '', surfFilter = '', thickFilter = '';
 
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const saveComps = () => { LS.set('vm_comps_v1', comps); LS.set('vm_current_v1', current); markDirty(); };
@@ -1924,7 +1926,10 @@ function renderPicker(full) {
   if (brandFilter && !brands.includes(brandFilter)) brandFilter = '';
   const q = searchQ.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const used = new Set(c.slots.filter(Boolean));
+  const hasA4 = list.some(s => s.a4);
+  if (!hasA4) { surfFilter = ''; thickFilter = ''; }
   let shown = list.filter(s => (!brandFilter || s.b === brandFilter) && (!onlyPhoto || hasPhoto(s)) &&
+    (!surfFilter || s.r === surfFilter) && (!thickFilter || (thickFilter === '6,5' ? s.t[0] === '6,5' : s.t[0] !== '6,5')) &&
     q.every(w => (s.b + ' ' + s.s + ' ' + s.c + ' ' + s.z + ' ' + s.f.join(' ') + ' ' + s.k.join(' ')).toLowerCase().includes(w)));
   if (full || !document.getElementById('pickList')) {
     pane.innerHTML = `<div class="pickhead">
@@ -1940,7 +1945,12 @@ function renderPicker(full) {
   document.getElementById('pickFilters').innerHTML =
     `<button class="${!brandFilter ? 'on' : ''}" onclick="brandFilter=''; renderPicker(false)">Tutti</button>` +
     brands.map(b => `<button class="${brandFilter === b ? 'on' : ''}" onclick="brandFilter='${esc(b)}'; renderPicker(false)">${esc(b)}</button>`).join('') +
-    `<button class="${onlyPhoto ? 'on' : ''}" onclick="onlyPhoto=!onlyPhoto; renderPicker(false)"><svg class="ic"><use href="#i-camera"/></svg> solo con foto</button>`;
+    `<button class="${onlyPhoto ? 'on' : ''}" onclick="onlyPhoto=!onlyPhoto; renderPicker(false)"><svg class="ic"><use href="#i-camera"/></svg> solo con foto</button>` +
+    // tozzetti A4: superficie (R10 / R11 / lappato) e spessore
+    (hasA4 ? `<span class="fsep">Superficie</span>` + [['', 'Tutte'], ['R10', 'R10'], ['R11', 'R11'], ['lappato', 'Lappato']].map(([v, l]) =>
+        `<button class="${surfFilter === v ? 'on' : ''}" onclick="surfFilter='${v}'; renderPicker(false)">${l} <small>${list.filter(s => !v || s.r === v).length}</small></button>`).join('') +
+      `<span class="fsep">Spessore</span>` + [['', 'Tutti'], ['std', 'Normale'], ['6,5', '6,5 mm']].map(([v, l]) =>
+        `<button class="${thickFilter === v ? 'on' : ''}" onclick="thickFilter='${v}'; renderPicker(false)">${l}</button>`).join('') : '');
   document.getElementById('pickCount').textContent = `${shown.length} campioni compatibili` + (shown.length !== list.length ? ` (su ${list.length})` : '');
   const LIMIT = 5000;                                   // tutti i campioni compatibili
   document.getElementById('pickList').innerHTML = shown.slice(0, LIMIT).map(s => `
