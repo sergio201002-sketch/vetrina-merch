@@ -206,6 +206,7 @@ function renderGallery(cid, sub) {
       <button class="btn" onclick="go('#/galleria')"><svg class="ic"><use href="#i-left"/></svg>Galleria</button>
       <h2><small>Sala mostra · campioni</small>${esc(cl.name)}</h2>
       <button class="btn" onclick="go('#/cliente/${cid}')">Scheda cliente</button>
+      <button class="btn" onclick="glExportPDF('${cid}', '${isAll ? 'tutti' : cur ? cur.c.id : ''}')" title="Catalogo in PDF dei campioni e delle serie, con i formati"><svg class="ic"><use href="#i-download"/></svg> Esporta PDF</button>
       <button class="btn red" onclick="go('#/salamostra/${cid}')"><svg class="ic"><use href="#i-play"/></svg> Entra nella sala mostra</button>
     </div>
     ${list.length ? `<div class="gl-tabs"><button class="gl-tab all ${isAll ? 'on' : ''}" onclick="go('#/campioni/${cid}/tutti')"><span>Tutta la sala mostra<span class="k">${nTot} campioni · ${list.length} espositori</span></span></button>${list.map(x => `<button class="gl-tab ${x === cur ? 'on' : ''}" onclick="go('#/campioni/${cid}/${x.c.id}')">
@@ -291,3 +292,78 @@ function glShow() {
     ${missing ? '<div class="warn">Non presente in sala mostra</div>' : elsewhere ? `<div class="elsew">In sala mostra in un altro espositore: ${esc(elsewhere.name)}</div>` : ''}`;
 }
 function closeGalleryFull() { const m = document.getElementById('glFull'); if (m) m.remove(); }
+
+/* ════ ESPORTA PDF della galleria: copertina + una sezione per serie con la griglia dei campioni (foto, colore, formati).
+   Si apre la stampa del browser: "Salva come PDF" (su iPhone: Condividi → Salva su File). ════ */
+document.head.insertAdjacentHTML('beforeend', `<style>
+#glPrint { display: none; }
+@media print {
+  body.gl-printing > *:not(#glPrint) { display: none !important; }
+  body.gl-printing { background: #fff !important; }
+  #glPrint { display: block !important; }
+  @page { size: A4 portrait; margin: 11mm 11mm 13mm; }
+}
+#glPrint { font-family: Inter, Arial, sans-serif; color: #18181b; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+#glPrint .cov { height: 268mm; display: flex; flex-direction: column; justify-content: space-between; page-break-after: always; break-after: page; }
+#glPrint .cov .top { font: 700 9pt Inter, Arial; letter-spacing: .22em; text-transform: uppercase; color: #b0101a; }
+#glPrint .cov h1 { font: 700 40pt/1.02 'Inter Tight', Inter, Arial; letter-spacing: -.03em; margin: 6mm 0 3mm; }
+#glPrint .cov .sub { font-size: 12pt; color: #555; }
+#glPrint .cov .mosaic { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2.5mm; margin: 10mm 0; }
+#glPrint .cov .mosaic img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 2mm; display: block; }
+#glPrint .cov .kpi { display: flex; gap: 10mm; border-top: .3mm solid #ddd; padding-top: 5mm; }
+#glPrint .cov .kpi b { display: block; font: 700 22pt 'Inter Tight', Inter, Arial; }
+#glPrint .cov .kpi span { font-size: 9pt; color: #666; }
+#glPrint .cov .brands { font-size: 9.5pt; color: #444; margin-top: 4mm; }
+#glPrint .ser { break-inside: avoid-page; page-break-inside: avoid; margin: 0 0 8mm; }
+#glPrint .ser.big { break-inside: auto; page-break-inside: auto; }
+#glPrint .sh { display: flex; align-items: flex-end; gap: 6mm; border-bottom: .4mm solid #18181b; padding-bottom: 2mm; margin-bottom: 3.5mm; break-after: avoid; page-break-after: avoid; }
+#glPrint .sh .w { flex: 1; }
+#glPrint .sh .b { font: 700 7.5pt Inter, Arial; letter-spacing: .18em; text-transform: uppercase; color: #b0101a; }
+#glPrint .sh h2 { font: 700 19pt/1.1 'Inter Tight', Inter, Arial; letter-spacing: -.02em; margin: 1mm 0 0; }
+#glPrint .sh .f { font-size: 8.5pt; color: #444; text-align: right; }
+#glPrint .sh .f b { color: #18181b; }
+#glPrint .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4mm 3.5mm; }
+#glPrint .it { break-inside: avoid; page-break-inside: avoid; }
+#glPrint .it .im { width: 100%; aspect-ratio: 1; border-radius: 1.6mm; overflow: hidden; background: #eee; }
+#glPrint .it img { width: 100%; height: 100%; object-fit: cover; display: block; }
+#glPrint .it .n { font: 600 8.5pt/1.2 Inter, Arial; margin-top: 1.6mm; }
+#glPrint .it .z { font-size: 7.3pt; color: #666; margin-top: .4mm; }
+#glPrint .foot { font-size: 7.5pt; color: #999; margin-top: 6mm; text-align: center; }
+</style>`);
+async function glExportPDF(cid, scope) {
+  const cl = clients[cid]; if (!cl) return;
+  const list = galleryDisplays(cid), allC = list.map(x => x.c);
+  const cur = scope && scope !== 'tutti' ? list.find(x => x.c.id === scope) : null;
+  const view = cur ? [cur.c] : allC;
+  const groups = gallerySeries(view).map(g => glSort(g));
+  if (!groups.length) return toast('Non ci sono campioni da esportare');
+  const items = groups.flatMap(g => g.items), brands = {};
+  groups.forEach(g => { brands[g.b] = (brands[g.b] || 0) + 1; });
+  const img = s => glPhoto(s) || '';
+  const today = new Date().toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+  const cover = items.filter(it => img(it.s)).slice(0, 12);
+  let el = document.getElementById('glPrint'); if (!el) { el = document.createElement('div'); el.id = 'glPrint'; document.body.appendChild(el); }
+  el.innerHTML = `<section class="cov"><div>
+      <div class="top">Sala mostra · campioni esposti</div>
+      <h1>${esc(cl.name)}</h1>
+      <div class="sub">${[cl.city, cur ? cur.c.name + ' · ' + cur.d.name : 'Tutta la sala mostra', today].filter(Boolean).map(esc).join(' · ')}</div>
+      <div class="mosaic">${cover.map(it => `<img src="${esc(img(it.s))}" alt="">`).join('')}</div></div>
+    <div><div class="kpi"><div><b>${groups.length}</b><span>serie</span></div><div><b>${items.length}</b><span>colori</span></div>
+        <div><b>${new Set(view.flatMap(c => c.slots.filter(k => k && SAMPLE[k]))).size}</b><span>campioni</span></div><div><b>${cur ? 1 : list.length}</b><span>espositori</span></div></div>
+      <div class="brands">${Object.entries(brands).sort((a, b) => b[1] - a[1]).map(([b, n]) => `<b>${esc(b)}</b> ${n} serie`).join(' · ')}</div></div>
+  </section>` + groups.map(g => {
+    const sizes = [...new Set(g.items.flatMap(x => x.s.toz ? ['tozzetto'] : (x.sizes || [x.s.z]).map(fmt)))];
+    return `<section class="ser${g.items.length > 15 ? ' big' : ''}"><div class="sh"><div class="w"><div class="b">${esc(g.b)}</div><h2>${esc(glTitle(g.s))}</h2></div>
+        <div class="f">${g.items.length} color${g.items.length === 1 ? 'e' : 'i'}<br><b>Formati:</b> ${esc(sizes.join(' · '))}</div></div>
+      <div class="grid">${g.items.map(it => {
+        const u = img(it.s);
+        return `<div class="it"><div class="im">${u ? `<img src="${esc(u)}" alt="">` : ''}</div><div class="n">${esc(glTitle(it.s.c))}</div><div class="z">${esc(glSizes(it))}${it.s.toz ? '' : ' cm'}</div></div>`;
+      }).join('')}</div></section>`;
+  }).join('') + `<div class="foot">${esc(cl.name)} · ${today}</div>`;
+  toast('Preparo il PDF…');
+  await Promise.all([...el.querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
+  document.body.classList.add('gl-printing');
+  const done = () => { document.body.classList.remove('gl-printing'); window.removeEventListener('afterprint', done); };
+  window.addEventListener('afterprint', done);
+  setTimeout(() => window.print(), 150);
+}
