@@ -30,10 +30,11 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .mc-sw .im { display: block; aspect-ratio: 1; border-radius: 8px; background: #ddd center/cover; margin-bottom: 6px; }
 .mc-sw b { display: block; font-size: 12px; font-weight: 600; }
 .mc-sw small { display: block; color: #8d887f; font-size: 10.5px; margin-top: 2px; }
-.mc-sw .has { position: absolute; top: 10px; right: 10px; width: 12px; height: 12px; border-radius: 50%; background: #2f9e57; box-shadow: 0 0 0 2px #fff, 0 1px 4px rgba(0,0,0,.35); }
-.mc-sw .ln { position: absolute; top: 27px; right: 9px; display: flex; flex-direction: column; gap: 2px; padding: 3px 3px; background: rgba(255,255,255,.92); border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
-.mc-sw:not(:has(.has)) .ln { top: 10px; }
-.mc-sw .ln i { display: block; width: 12px; height: 2px; border-radius: 1px; background: #1d1d20; }
+.mc-sw .im { position: relative; overflow: hidden; }
+.mc-sw .has { position: absolute; bottom: 6px; right: 6px; width: 13px; height: 13px; border-radius: 50%; background: #2f9e57; box-shadow: 0 0 0 2px #fff, 0 1px 4px rgba(0,0,0,.35); }
+.mc-sw .ln { position: absolute; top: 0; right: 0; width: 46%; aspect-ratio: 1; pointer-events: none; }
+.mc-sw .ln svg { width: 100%; height: 100%; display: block; }
+.mc-sw .ln line { stroke: #e0202b; stroke-width: 2.4; stroke-linecap: round; }
 .mc-sw.sel { border-color: var(--red); box-shadow: 0 0 0 2px var(--red); }
 .mc-sw.sel::after { content: ''; position: absolute; left: 10px; top: 10px; width: 20px; height: 20px; border-radius: 50%; background: var(--red) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center/13px no-repeat; }
 .mc-sw.in { opacity: .45; cursor: default; }
@@ -42,8 +43,9 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .mc-foot .lg { flex: 1; display: flex; gap: 14px; flex-wrap: wrap; font-size: 11.5px; color: var(--mid); align-items: center; }
 .mc-foot .lg span { display: inline-flex; gap: 5px; align-items: center; }
 .mc-foot .lg i.d { width: 9px; height: 9px; border-radius: 50%; background: #2f9e57; display: inline-block; }
-.mc-foot .lg i.l { display: inline-flex; flex-direction: column; gap: 2px; }
-.mc-foot .lg i.l b { width: 11px; height: 2px; background: #1d1d20; display: block; }
+.mc-foot .lg i.l { display: inline-block; width: 18px; height: 18px; }
+.mc-foot .lg i.l svg { width: 18px; height: 18px; display: block; }
+.mc-foot .lg i.l line { stroke: #e0202b; stroke-width: 2.4; stroke-linecap: round; }
 .mc-empty { color: var(--mid); padding: 40px 10px; text-align: center; }
 @media (max-width: 760px) {
   .mc-body { grid-template-columns: 1fr; grid-template-rows: 34% 1fr; }
@@ -53,6 +55,8 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 </style>`);
 
 let mc = null;   // { compId, client, series, sel: Set(keys), q }
+/* lineette diagonali nell'angolo (3 = R11 / Tecnica, 1 = marmo opaco) */
+const mcLinesSVG = n => `<svg viewBox="0 0 46 46">${(n === 3 ? [14, 22, 30] : [22]).map(x => `<line x1="${x}" y1="-1" x2="47" y2="${47 - x}"/>`).join('')}</svg>`;
 const mcIsMarble = s => /MARMO|MARBLE|ONYX/i.test(s.s);
 /* lineette: 3 = R11 / Tecnica; 1 = marmo non lappato (Silktech, R9, R10); 0 = niente */
 function mcLines(s) {
@@ -102,7 +106,7 @@ function mcRender(full) {
         <button class="btn" onclick="mcClose()"><svg class="ic"><use href="#i-x"/></svg></button></div>
       <div class="mc-body"><aside class="mc-side"><input id="mcQ" placeholder="Cerca serie…" value="${esc(mc.q)}"><div class="mc-ser" id="mcSer"></div></aside>
         <main class="mc-main" id="mcMain"></main></div>
-      <div class="mc-foot"><div class="lg"><span><i class="d"></i> il cliente ce l'ha già (in altri espositori)</span><span><i class="l"><b></b><b></b><b></b></i> R11 / Tecnica</span><span><i class="l"><b></b></i> marmo opaco (Silktech, R9, R10)</span><span id="mcFree"></span></div>
+      <div class="mc-foot"><div class="lg"><span><i class="d"></i> il cliente ce l'ha già (in altri espositori)</span><span><i class="l">${mcLinesSVG(3)}</i> R11 / Tecnica</span><span><i class="l">${mcLinesSVG(1)}</i> marmo opaco (Silktech, R9, R10)</span><span id="mcFree"></span></div>
         <button class="btn" onclick="mc.sel.clear(); mcRender()">Deseleziona</button>
         <button class="btn red" id="mcGo" onclick="mcInsert()"></button></div>`;
     document.getElementById('mcComp').onchange = e => { mc.compId = e.target.value; mc.sel.clear(); mc.series = null; if (comps[mc.compId].client) mc.client = comps[mc.compId].client; mcRender(true); };
@@ -128,8 +132,7 @@ function mcRender(full) {
         const nm = gr.tint && gr.tint[x.c] ? gr.tint[x.c] : x.c;
         const sub = x.a4 ? x.v : (x.toz ? 'tozzetto' : fmt(x.z)) + (x.f.length ? ' · ' + x.f.join(', ') : '');
         return `<button class="mc-sw${mc.sel.has(x.key) ? ' sel' : ''}${isIn ? ' in' : ''}" data-k="${esc(x.key)}" ${isIn ? 'disabled' : `onclick="mcToggle(this.dataset.k)"`} title="${esc(x.c + ' · ' + sub)}">
-          <span class="im" style="${mi ? `background-image:url('${esc(mi)}')` : ''}"></span>${own.has(mcOwnKey(x)) ? '<span class="has" title="Il cliente ce l\'ha già"></span>' : ''}
-          ${ln ? `<span class="ln" title="${ln === 3 ? 'R11 / Tecnica' : 'marmo opaco'}">${'<i></i>'.repeat(ln)}</span>` : ''}
+          <span class="im" style="${mi ? `background-image:url('${esc(mi)}')` : ''}">${ln ? `<span class="ln" title="${ln === 3 ? 'R11 / Tecnica' : 'marmo opaco'}">${mcLinesSVG(ln)}</span>` : ''}${own.has(mcOwnKey(x)) ? '<span class="has" title="Il cliente ce l\'ha già"></span>' : ''}</span>
           <b>${esc(glTitle(nm))}</b><small>${esc(sub)}</small>${isIn ? '<small class="inn">già in questo espositore</small>' : ''}</button>`;
       }).join('')}</div>`).join('');
   }
@@ -148,8 +151,15 @@ function mcGroups(list) {
   const gr = new Map(); list.filter(x => x.g).forEach(x => { if (!gr.has(x.g)) gr.set(x.g, { name: x.g, items: [], gi: x.gi || 0 }); gr.get(x.g).items.push(x); });
   [...gr.values()].sort((a, b) => a.gi - b.gi).forEach(g => groups.push(g));
   // nel gruppo: prima i colori con la foto, poi per nome e finitura
-  groups.forEach(g => g.items.sort((a, b) => (hasPhoto(b) ? 1 : 0) - (hasPhoto(a) ? 1 : 0) || a.c.localeCompare(b.c) || (a.v || a.z).localeCompare(b.v || b.z)));
+  // nel gruppo: prima i Lappati, poi i Silktech (R10), poi gli altri R10 / R9, per ultimi gli R11; poi con la foto prima, per nome
+  groups.forEach(g => g.items.sort((a, b) => mcFinRank(a) - mcFinRank(b) || (hasPhoto(b) ? 1 : 0) - (hasPhoto(a) ? 1 : 0) || a.c.localeCompare(b.c)
+    || (a.t[0] === '6,5') - (b.t[0] === '6,5') || (a.v || a.z).localeCompare(b.v || b.z)));
   return groups;
+}
+function mcFinRank(s) {
+  const one = f => /\bR11\b|Tecnica/i.test(f) ? 3 : /lappat|lucid|lux/i.test(f) ? 0 : /silktech/i.test(f) ? 1 : 2;
+  const fs = s.a4 ? [s.f[0]] : (s.f || []);
+  return fs.length ? Math.min(...fs.map(one)) : 2;
 }
 function mcToggle(k) { if (mc.sel.has(k)) mc.sel.delete(k); else mc.sel.add(k); mcRender(); }
 function mcSelAll() {
