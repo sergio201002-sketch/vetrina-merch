@@ -16,6 +16,7 @@ window.addEventListener('hashchange', route);
 function fixSampleAlias() {
   const A = window.SAMPLE_ALIAS || {};
   Object.values(comps).forEach(c => (c.slots || []).forEach((k, i) => { if (k && !SAMPLE[k] && A[k]) c.slots[i] = A[k]; }));
+  migrateA4();
   // culla modulare: prima 14 posti per modulo, ora 13/26/40/54/68 (3 moduli = 40): si toglie un posto vuoto in fondo
   Object.values(comps).forEach(c => {
     const d = DISP[c.disp]; if (!d || !d.oldVariants || !c.slots) return;
@@ -399,4 +400,25 @@ function dupScene(id) {
 async function delScene(id) {
   const s = scenes[id]; if (!await ask(`Eliminare l'ambientazione "${s.name}"?`)) return;
   delete scenes[id]; saveScenes(); renderClient(s.client);
+}
+
+/* Tozzetti: i vecchi tozzetti "ricavati" nelle teche, mensole e cassettiere passano al tozzetto A4 ufficiale dello stesso colore
+   (prima Naturale e spessore normale; nel banco 6,5 mm quello da 6,5). Se il colore non ha un tozzetto A4 resta com'era. */
+function migrateA4() {
+  if (typeof TOZ_A4 === 'undefined' || !TOZ_A4.length) return;
+  let n = 0, miss = 0;
+  Object.values(comps).forEach(c => {
+    const d = DISP[c.disp]; if (c.a4 || !d || !c.slots || !usesA4(d, c)) return;
+    const thin = (d.accept.thick || []).includes('6,5');
+    c.slots = c.slots.map(k => {
+      const s = k && SAMPLE[k]; if (!s || !s.toz || s.a4) return k;
+      const same = TOZ_A4.filter(x => x.b === s.b && x.s === s.s && x.c === s.c && x.st !== 'OBSOLETO');
+      const rank = x => (thin ? (x.t[0] === '6,5' ? 0 : 5) : (x.t[0] === '6,5' ? 5 : 0)) + (/^Naturale/.test(x.v) ? 0 : 1) + (/Plus/.test(x.v) ? 0.5 : 0);
+      const best = same.sort((a, b) => rank(a) - rank(b))[0];
+      if (best) { n++; return best.key; }
+      miss++; return k;
+    });
+    c.a4 = 1; c.upd = Date.now();
+  });
+  if (n || miss) { saveComps(); toast(`Tozzetti aggiornati ai codici A4 ufficiali: ${n}` + (miss ? ` · ${miss} senza tozzetto A4 (restano com'erano)` : '')); }
 }

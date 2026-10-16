@@ -579,7 +579,8 @@ textarea { font-family: inherit; }
 <script>/* versione del sito (versione.txt cambia a ogni pubblicazione): i file si riscaricano solo quando cambiano,
    altrimenti il browser usa quelli già scaricati (partenza veloce) */
 window.APPV = (() => { try { const x = new XMLHttpRequest(); x.open('GET', 'versione.txt?' + Date.now(), false); x.send(); if (x.status === 200 && x.responseText.trim()) return x.responseText.trim(); } catch (e) {} return String(Date.now()); })();
-document.write('<script src="data.js?v=' + APPV + '"><\/script>');</script>
+document.write('<script src="data.js?v=' + APPV + '"><\/script>');
+document.write('<script src="tozzetti.js?v=' + APPV + '"><\/script>');</script>
 <script>
 'use strict';
 /* ════════════════════════════════════════════════════════════
@@ -596,6 +597,19 @@ const TOZ = '19,5x29,5 tozzetto';
 const TOZ_SAMPLES = SAMPLES.map(s => ({ b: s.b, s: s.s, c: s.c, z: TOZ, f: s.f.slice(), k: s.k.slice(), t: s.t.slice(),
   key: s.key + '|' + TOZ, ik: s.ik, pkey: s.key, toz: true, from: [s.z] }));
 TOZ_SAMPLES.forEach(s => SAMPLE[s.key] = s);
+/* Tozzetti A4 19,5×29,5 UFFICIALI (tozzetti.js, dal file della selezione A4): codice vero 0000IL…, finitura e spessore.
+   Teche, mensole, cassettiera tozzetti e banco 6,5 mm scelgono solo questi. */
+const TOZ_A4 = (window.TOZ_A4 || []).map(x => {
+  const v = x.fin + (x.t === '6,5' ? ' · 6,5 mm' : '');
+  const s = { b: x.b, s: x.s, c: x.c, z: TOZ, f: [x.fin + (x.t === '6,5' ? ' 6,5 mm' : '')], k: [x.k], t: [x.t], key: 'A4|' + x.k, ik: x.ik,
+    pkey: x.pkey || undefined, toz: true, a4: true, from: [], v: v + (x.st && x.st !== 'ATTIVO' ? ' · ' + x.st.toLowerCase() : ''), st: x.st };
+  if (x.g) { s.g = x.g; s.gi = x.gi; s.dec = 1; }
+  return s;
+});
+TOZ_A4.forEach(s => SAMPLE[s.key] = s);
+/* l'espositore usa i tozzetti A4 ufficiali? (19,5×29,5, non quelli da 20 mm) */
+const usesA4 = (d, c) => !!(d && d.accept.tozzetto && TOZ_A4.length && !(d.accept.thick || []).includes('20')
+  && (() => { const f = c ? faceOf(d, c) : d.face; return f[0] === 19.5 && f[1] === 29.5; })());
 /* vecchi tozzetti "per colore" (composizioni fatte prima): restano leggibili, ma non si propongono più */
 (() => {
   const m = {};
@@ -635,9 +649,9 @@ function accepts(d, s) {
 /* come accepts, ma tiene conto delle scelte della composizione (es. culla con un solo formato) */
 const sameFmt = (a, b) => { const x = parseSize(a), y = parseSize(b); return !!(x && y) && sorted2(x).join('x') === sorted2(y).join('x'); };
 function acceptsIn(c, s) { const d = DISP[c.disp]; return !!d && accepts(d, s) && (!c.fmt || s.toz || sameFmt(s.z, c.fmt)); }
-const compatibleFor = c => compatibleSamples(DISP[c.disp]).filter(s => acceptsIn(c, s));
-function compatibleSamples(d) {
-  return (d.accept.tozzetto ? TOZ_SAMPLES : SAMPLES).filter(s => accepts(d, s));
+const compatibleFor = c => compatibleSamples(DISP[c.disp], c).filter(s => acceptsIn(c, s));
+function compatibleSamples(d, c) {
+  return (usesA4(d, c) ? TOZ_A4 : d.accept.tozzetto ? TOZ_SAMPLES : SAMPLES).filter(s => accepts(d, s));
 }
 function acceptLabel(d, c) {
   const a = d.accept; const out = [];
@@ -726,7 +740,7 @@ function cullaMods(d, n) { const k = (d.variants || []).indexOf(n); return k >= 
    e i campioni vanno nei posti in ordine. Ogni riga = un campione (righe uguali = due pezzi) ── */
 let CODE_IDX = null;
 function codeIndex() {
-  if (!CODE_IDX) { CODE_IDX = {}; SAMPLES.forEach(s => (s.k || []).forEach(k => { (CODE_IDX[k.toUpperCase()] = CODE_IDX[k.toUpperCase()] || []).push(s); })); }
+  if (!CODE_IDX) { CODE_IDX = {}; SAMPLES.concat(TOZ_A4).forEach(s => (s.k || []).forEach(k => { (CODE_IDX[k.toUpperCase()] = CODE_IDX[k.toUpperCase()] || []).push(s); })); }
   return CODE_IDX;
 }
 function parseCodeList(text) {
@@ -865,7 +879,7 @@ function photoTurn(ik, portrait) {
 }
 /* foto del formato preciso (es. il 60×120 della serie) se c'è, altrimenti quella del colore */
 const photoKey = s => (s && s.pkey && IMG[s.pkey]) ? s.pkey : (s && s.key && IMG[s.key]) ? s.key : s.ik;
-const tozFrom = s => s && s.toz && s.from && s.from.length === 1 ? ' da ' + fmt(s.from[0]) : '';   // tozzetto ricavato da…
+const tozFrom = s => s && s.a4 ? ' · ' + s.v : s && s.toz && s.from && s.from.length === 1 ? ' da ' + fmt(s.from[0]) : '';   // tozzetto A4: finitura; altrimenti ricavato da…
 const hasPhoto = s => !!(s && ((s.pkey && IMG[s.pkey]) || (s.key && IMG[s.key]) || IMG[s.ik]));
 /* telefono e tablet: foto medie in WebP (le leggono tutti e pesano poco); PC: foto originali */
 const FOTO_MED = {}; Object.entries(window.FOTO_MED || {}).forEach(([p, m]) => { FOTO_MED[encodeURI(p)] = encodeURI(m); });
@@ -1065,7 +1079,7 @@ function faceHTML(d, c, i, faceW, faceH, tiled, extraCls = '', style = '') {
   return `<div class="face${sel} ${extraCls}" data-slot="${i}" style="${style}">${photoLayer(s, faceW, faceH, tiled)}
     <div class="sheen"></div>
     <span class="slotno">${esc(slotName(d, i, n))}</span>
-    <div class="lbl"><b>${esc(s.s)}</b> ${esc(s.c)} · ${esc(fmt(s.toz ? tozFmt(d, c) : s.z) + tozFrom(s))}${hasPhoto(s) ? '' : ' <span class="nofoto">· senza foto</span>'}</div>
+    <div class="lbl"><b>${esc(s.s)}</b> ${esc(s.c)} · ${esc(fmt(s.toz ? tozFmt(d, c) : s.z) + tozFrom(s))}${s.toz && !s.a4 && usesA4(d, c) ? ' <span class="nofoto">· non è un tozzetto A4</span>' : ''}${hasPhoto(s) ? '' : ' <span class="nofoto">· senza foto</span>'}</div>
   </div>`;
 }
 
@@ -1865,7 +1879,7 @@ function renderStrip() {
     const s = SAMPLE[k];
     return `<div class="chip${i === selSlot ? ' sel' : ''}" onclick="selectSlot(${i}, true)">
       <div class="th${s ? '' : ' empty'}" style="${s ? swatchStyle(s) : ''}"><span class="no">${esc(slotName(d, i, n))}</span></div>
-      <div class="tx">${s ? `<b>${esc(s.s)}</b>${esc(s.c)} · ${esc(fmt(s.toz ? tozFmt(d, c) : s.z) + tozFrom(s))}` : '<span style="color:var(--light)">vuoto — scegli a destra</span>'}</div>
+      <div class="tx">${s ? `<b>${esc(s.s)}</b>${esc(s.c)} · ${esc(fmt(s.toz ? tozFmt(d, c) : s.z) + tozFrom(s))}${s.toz && !s.a4 && usesA4(d, c) ? ' <span class="nofoto">· non è un tozzetto A4</span>' : ''}` : '<span style="color:var(--light)">vuoto — scegli a destra</span>'}</div>
       ${s ? `<button class="x" title="Togli" onclick="event.stopPropagation(); setSlot(${i}, null)"><svg class="ic"><use href="#i-x"/></svg></button>` : ''}
     </div>`;
   }).join('');
@@ -1931,7 +1945,7 @@ function renderPicker(full) {
     <div class="srow${used.has(s.key) ? ' used' : ''}" data-k="${esc(s.key)}">
       <div class="sw" style="${swatchStyle(s)}"></div>
       <div class="info"><div class="brand">${esc(s.b)}</div><div class="ser">${esc(s.s)} <span class="col">${esc(s.c)}</span></div>
-      <div class="meta">${esc(s.toz ? 'tozzetto ' + fmt(tozFmt(d, c)) + ' · da ' + s.from.map(fmt).join(', ') : fmt(s.z))} · ${esc(s.t.map(t => t + ' mm').join('/'))}${s.f.length ? ' · ' + esc(s.f.join(', ')) : ''}</div></div>
+      <div class="meta">${s.a4 ? `<b>${esc(s.v)}</b>${s.t[0] !== '6,5' ? ' · ' + esc(s.t[0] + ' mm') : ''} · cod. ${esc(s.k[0])}` : `${esc(s.toz ? 'tozzetto ' + fmt(tozFmt(d, c)) + ' · da ' + s.from.map(fmt).join(', ') : fmt(s.z))} · ${esc(s.t.map(t => t + ' mm').join('/'))}${s.f.length ? ' · ' + esc(s.f.join(', ')) : ''}`}</div></div>
       <button class="cam${hasPhoto(s) ? ' has' : ''}" title="${hasPhoto(s) ? 'Cambia foto' : 'Carica foto'}" data-ik="${esc(s.ik)}">${hasPhoto(s) ? '<svg class="ic"><use href="#i-check"/></svg>' : '<svg class="ic"><use href="#i-camera"/></svg>'}</button>
     </div>`).join('') + (shown.length > LIMIT ? `<div class="count" style="padding:12px 14px">Altri ${shown.length - LIMIT}: usa la ricerca per restringere.</div>` : '') +
     (!shown.length ? `<div class="count" style="padding:20px 14px">Nessun campione compatibile con questi filtri.</div>` : '') + otherFormatsNote(d, q, shown);
