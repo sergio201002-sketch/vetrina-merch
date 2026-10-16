@@ -12,35 +12,38 @@ document.head.insertAdjacentHTML('beforeend', `<style>
   @page { size: A4 landscape; margin: 9mm 10mm 10mm; }
 }
 #schPrint { font-family: Inter, Arial, sans-serif; color: #18181b; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-#schPrint .top { display: grid; grid-template-columns: 1.15fr 1fr; gap: 6mm; height: 70mm; margin-bottom: 5mm; }
-#schPrint .rn { border-radius: 3mm; overflow: hidden; background: linear-gradient(180deg, #f7f6f3, #ecebe7); display: flex; align-items: center; justify-content: center; }
+#schPrint .sch-page { height: 190mm; display: flex; flex-direction: column; overflow: hidden; }
+#schPrint .top { display: grid; grid-template-columns: 54mm 1fr; gap: 5mm; height: 40mm; margin-bottom: 3.5mm; flex: none; }
+#schPrint .rn { border-radius: 2mm; overflow: hidden; background: linear-gradient(180deg, #f7f6f3, #ecebe7); }
 #schPrint .rn img { width: 100%; height: 100%; object-fit: contain; display: block; }
-#schPrint .info { display: flex; flex-direction: column; gap: 2.2mm; padding: 1mm 0; min-height: 0; }
-#schPrint .info .k { font: 700 7pt Inter, Arial; letter-spacing: .22em; text-transform: uppercase; color: #b0101a; }
-#schPrint .info h1 { font: 700 16pt/1.05 'Inter Tight', Inter, Arial; letter-spacing: -.025em; margin: 1.5mm 0 1mm; }
-#schPrint .info .cm { font-size: 10pt; color: #555; }
-#schPrint .info dl { display: grid; grid-template-columns: 18mm 1fr; gap: .9mm 3mm; margin: 0; font-size: 8pt; border-top: .3mm solid #e2dfd8; padding-top: 2mm; }
+#schPrint .info { display: grid; grid-template-columns: 1.25fr 1fr 1.25fr; gap: 6mm; align-items: start; min-height: 0; }
+#schPrint .info > div { min-height: 0; overflow: hidden; }
+#schPrint .info .k { font: 700 6.5pt Inter, Arial; letter-spacing: .2em; text-transform: uppercase; color: #b0101a; }
+#schPrint .info h1 { font: 700 14pt/1.08 'Inter Tight', Inter, Arial; letter-spacing: -.02em; margin: 1.2mm 0 .6mm; }
+#schPrint .info .cm { font-size: 8.5pt; color: #555; }
+#schPrint .info .big { display: flex; gap: 6mm; margin-top: 2.5mm; }
+#schPrint .info .big b { display: block; font: 700 13pt/1 'Inter Tight', Inter, Arial; }
+#schPrint .info .big span { font-size: 6.8pt; color: #777; }
+#schPrint .info dl { display: grid; grid-template-columns: 15mm 1fr; gap: .9mm 2.5mm; margin: 0; font-size: 7.6pt; border-left: .3mm solid #e2dfd8; padding-left: 4mm; }
 #schPrint .info dt { color: #8a857c; }
 #schPrint .info dd { margin: 0; font-weight: 600; }
-#schPrint .info .big { display: flex; gap: 8mm; }
-#schPrint .info .big b { display: block; font: 700 15pt/1 'Inter Tight', Inter, Arial; }
-#schPrint .info .big span { font-size: 7.5pt; color: #777; }
-#schPrint .info .ser { border-top: .3mm solid #e2dfd8; padding-top: 2mm; font-size: 7.4pt; line-height: 1.55; overflow: hidden; }
-#schPrint .info .ser h5 { margin: 0 0 1mm; font: 700 6.8pt Inter, Arial; letter-spacing: .14em; text-transform: uppercase; color: #8a857c; }
-#schPrint .info .ser span { display: inline-block; background: #f3f1ec; border-radius: 1.2mm; padding: .4mm 1.6mm; margin: 0 1mm 1mm 0; white-space: nowrap; }
+#schPrint .info .ser { border-left: .3mm solid #e2dfd8; padding-left: 4mm; font-size: 7pt; line-height: 1.5; max-height: 40mm; }
+#schPrint .info .ser h5 { margin: 0 0 1mm; font: 700 6.3pt Inter, Arial; letter-spacing: .14em; text-transform: uppercase; color: #8a857c; }
+#schPrint .info .ser span { display: inline-block; background: #f3f1ec; border-radius: 1.1mm; padding: .3mm 1.4mm; margin: 0 .9mm .9mm 0; white-space: nowrap; }
 #schPrint .info .ser span b { color: #b0101a; }
-#schPrint .hd { display: flex; align-items: baseline; gap: 4mm; border-bottom: .45mm solid #18181b; padding-bottom: 1.3mm; margin-bottom: 3.5mm; font: 700 11pt 'Inter Tight', Inter, Arial; }
+#schPrint .hd { display: flex; align-items: baseline; gap: 4mm; border-bottom: .45mm solid #18181b; padding-bottom: 1mm; margin-bottom: 3mm; font: 700 10pt 'Inter Tight', Inter, Arial; flex: none; }
 #schPrint .hd span { font: 500 8pt Inter, Arial; color: #777; }
-#schPrint .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4.5mm 3.5mm; }
-#schPrint .it { break-inside: avoid; page-break-inside: avoid; font-size: 7.6pt; line-height: 1.3; }
-#schPrint .it .im { position: relative; aspect-ratio: 1; border-radius: 1.6mm; overflow: hidden; background: #eee; margin-bottom: 1.4mm; }
+#schPrint .grid { display: grid; gap: var(--gy) var(--gx); align-content: start; }
+#schPrint .it { break-inside: avoid; page-break-inside: avoid; font-size: var(--f); line-height: 1.25; min-width: 0; }
+#schPrint .it > div:not(.im) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#schPrint .it .im { position: relative; aspect-ratio: 1; border-radius: 1.4mm; overflow: hidden; background: #eee; margin-bottom: .9mm; }
 #schPrint .it .im img { width: 100%; height: 100%; object-fit: cover; display: block; }
-#schPrint .it .pos { position: absolute; left: 1.1mm; top: 1.1mm; background: rgba(17,17,17,.85); color: #fff; font: 700 6.3pt Inter, Arial; padding: .35mm 1.2mm; border-radius: .9mm; }
-#schPrint .it .b { font: 700 6.4pt Inter, Arial; letter-spacing: .1em; text-transform: uppercase; color: #b0101a; }
-#schPrint .it .s { font-weight: 700; font-size: 8.4pt; }
+#schPrint .it .pos { position: absolute; left: .8mm; top: .8mm; background: rgba(17,17,17,.85); color: #fff; font: 700 calc(var(--f) * .85) Inter, Arial; padding: .25mm 1mm; border-radius: .8mm; }
+#schPrint .it .b { font: 700 calc(var(--f) * .82) Inter, Arial; letter-spacing: .08em; text-transform: uppercase; color: #b0101a; }
+#schPrint .it .s { font-weight: 700; font-size: calc(var(--f) * 1.08); white-space: normal !important; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 #schPrint .it .z { color: #666; }
 #schPrint .it .cd { font-weight: 700; margin-top: .4mm; letter-spacing: .02em; }
-#schPrint .foot { font-size: 7pt; color: #999; text-align: center; margin-top: 5mm; }
+#schPrint .foot { font-size: 6.5pt; color: #999; text-align: center; margin-top: auto; padding-top: 2mm; flex: none; }
 .sch-wait { position: fixed; inset: 0; z-index: 600; background: rgba(10,10,12,.82); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 15px; }
 </style>`);
 
@@ -111,7 +114,7 @@ async function renderDisplayViews(c, views) {
     const sc = key.shadow.camera; sc.left = sc.bottom = -R * 1.4; sc.right = sc.top = R * 1.4; sc.near = 1; sc.far = R * 6;
     scene.add(key, key.target);
     const fill = new T.DirectionalLight(0xffffff, 0.35); fill.position.set(ctr.x + R, box.max.y + R, ctr.z + R * 1.5); scene.add(fill);
-    const Wpx = 1600, Hpx = 1300;
+    const Wpx = 1080, Hpx = 800;
     const rdr = new T.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     rdr.setPixelRatio(1); rdr.setSize(Wpx, Hpx);
     rdr.shadowMap.enabled = true; rdr.shadowMap.type = T.PCFSoftShadowMap;
@@ -136,6 +139,17 @@ async function renderDisplayViews(c, views) {
   } finally { host.remove(); }
 }
 
+/* colonne e grandezza delle scritte perché TUTTI i prodotti stiano in una pagina (spazio utile ≈ 277 × 130 mm) */
+function schFit(n) {
+  const W = 277, H = 134, gx = 2.6;
+  for (let cols = 6; cols <= 20; cols++) {   // almeno 6 per riga: con pochi prodotti i quadrati non diventano enormi
+    const cw = (W - (cols - 1) * gx) / cols, rows = Math.ceil(n / cols);
+    const f = Math.max(4.4, Math.min(8.6, cw / 4.6));                 // pt
+    const textH = 4.3 * f * 0.3528 * 1.25 + 1.2, gy = Math.max(2, Math.min(4.5, cw * 0.1));
+    if (rows * (cw + textH) + (rows - 1) * gy <= H) return { cols, f, gx, gy };
+  }
+  return { cols: 20, f: 4.4, gx: 2, gy: 2 };
+}
 /* una scheda (render + dati + prodotti) per ogni espositore; più espositori = più schede nello stesso PDF */
 async function exportSchedaPDF(cid) { return exportSchede([cid ? comps[cid] : comp()]); }
 async function exportSchedeCliente(clientId) {
@@ -164,15 +178,15 @@ async function exportSchede(list) {
     pages.push(`<div class="sch-page"${x ? ' style="break-before:page;page-break-before:always"' : ''}><section class="top">
       <div class="rn"><img src="${shot}" alt=""></div>
       <div class="info">
-        <div><div class="k">Scheda espositore${list.length > 1 ? ` · ${x + 1} di ${list.length}` : ''}</div><h1>${esc(d.name)}</h1><div class="cm">${esc(c.name)}</div></div>
-        <div class="big"><div><b>${filled.length}</b><span>campioni su ${n} posti</span></div><div><b>${bySer.size}</b><span>serie</span></div></div>
+        <div><div class="k">Scheda espositore${list.length > 1 ? ` · ${x + 1} di ${list.length}` : ''}</div><h1>${esc(d.name)}</h1><div class="cm">${esc(c.name)}</div>
+        <div class="big"><div><b>${filled.length}</b><span>campioni su ${n} posti</span></div><div><b>${bySer.size}</b><span>serie</span></div></div></div>
         <dl><dt>Codice</dt><dd>${esc(d.code)}</dd>${d.dims ? `<dt>Misure</dt><dd>${esc(d.dims)}</dd>` : ''}
           ${cl ? `<dt>Cliente</dt><dd>${esc(cl.name)}${cl.city ? ' · ' + esc(cl.city) : ''}</dd>` : ''}<dt>Data</dt><dd>${today}</dd></dl>
         <div class="ser"><h5>Serie esposte</h5>${[...bySer.entries()].map(([k, v]) => `<span>${esc(glTitle(k.split('|')[1]))} <b>${v}</b></span>`).join('')}</div>
       </div>
     </section>
     <div class="hd">Prodotti nell'espositore <span>${filled.length} campioni · in ordine di posto</span></div>
-    <div class="grid">${filled.map(([s, i]) => { const u = photo(s);
+    <div class="grid" style="${(g => `grid-template-columns:repeat(${g.cols},minmax(0,1fr));--f:${g.f.toFixed(2)}pt;--gx:${g.gx}mm;--gy:${g.gy.toFixed(1)}mm`)(schFit(filled.length))}">${filled.map(([s, i]) => { const u = photo(s);
       return `<div class="it"><div class="im">${u ? `<img src="${esc(u)}" alt="">` : ''}<span class="pos">${esc(slotName(d, i, n))}</span></div>
         <div class="b">${esc(s.b)}</div><div class="s">${esc(glTitle(s.s))} ${esc(glTitle(s.c))}</div>
         <div class="z">${esc(s.toz ? fmt(tozFmt(d, c)) : fmt(s.z) + ' cm')}${fin(s) ? ' · ' + esc(fin(s)) : ''}</div>
