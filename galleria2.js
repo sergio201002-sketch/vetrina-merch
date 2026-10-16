@@ -335,10 +335,7 @@ function g2Print(cid) {
     rows.map(s => `<div class="it"><img src="${esc(glPhoto(s) || '')}" alt=""><div><div style="font:700 10px Inter;color:#b0101a;letter-spacing:.1em;text-transform:uppercase">${esc(s.b)}</div>
       <div style="font:600 18px 'Inter Tight',Inter,sans-serif">${esc(glTitle(s.s))} · ${esc(glTitle(s.c))}</div>
       <div style="color:#444;margin-top:2mm">${esc(fmt(s.z))} cm · ${esc((s.f || []).join(', '))}</div><div style="color:#444">Codici: ${esc((s.k || []).join(' · '))}</div></div></div>`).join('');
-  document.body.classList.add('g2-printing');
-  const done = () => { document.body.classList.remove('g2-printing'); window.removeEventListener('afterprint', done); };
-  window.addEventListener('afterprint', done);
-  Promise.all([...el.querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; }))).then(() => setTimeout(() => window.print(), 100));
+  Promise.all([...el.querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; }))).then(() => printWhenReady('g2-printing', 'La proposta è pronta'));
 }
 
 /* ════ Dettagli: colori di una serie divisi per tipo (usati dalla pagina Dettagli) ════ */

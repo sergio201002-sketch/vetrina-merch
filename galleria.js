@@ -403,8 +403,5 @@ async function glExportPDF(cid, scope, withMissing) {
   }).join('') + `<div class="foot">${esc(cl.name)} · ${today}</div>`;
   toast('Preparo il PDF…');
   await Promise.all([...el.querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
-  document.body.classList.add('gl-printing');
-  const done = () => { document.body.classList.remove('gl-printing'); window.removeEventListener('afterprint', done); };
-  window.addEventListener('afterprint', done);
-  setTimeout(() => window.print(), 150);
+  printWhenReady('gl-printing', 'Il PDF della galleria è pronto');
 }

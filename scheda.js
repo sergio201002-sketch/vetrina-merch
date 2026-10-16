@@ -198,8 +198,5 @@ async function exportSchede(list) {
   el.innerHTML = pages.join('');
   await Promise.all([...el.querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
   wait.remove();
-  document.body.classList.add('sch-printing');
-  const done = () => { document.body.classList.remove('sch-printing'); window.removeEventListener('afterprint', done); };
-  window.addEventListener('afterprint', done);
-  setTimeout(() => window.print(), 150);
+  printWhenReady('sch-printing', list.length > 1 ? `Le ${list.length} schede sono pronte` : 'La scheda è pronta');
 }
