@@ -23,13 +23,17 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .mc-ser .k { font-size: 11.5px; color: #555; white-space: nowrap; }
 .mc-ser .k i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #2f9e57; margin-right: 3px; }
 .mc-main { overflow-y: auto; padding: 14px 18px 30px; min-height: 0; background: #fbfaf8; }
-.mc-main h4 { margin: 18px 0 8px; font: 700 12.5px var(--font-body); display: flex; gap: 8px; align-items: center; }
+/* gruppi uno dopo l'altro, separati da una righina verticale con il nome sopra: si va a capo solo a riga piena */
+.mc-grps { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px 0; margin-top: 12px; }
+.mc-grp { display: flex; flex-direction: column; padding: 0 12px; border-left: 1.5px solid #ddd8cf; max-width: 100%; }
+.mc-grp:first-child { padding-left: 0; border-left: 0; }
+.mc-main h4 { margin: 0 0 6px; font: 700 11.5px var(--font-body); display: flex; gap: 6px; align-items: center; white-space: nowrap; text-transform: uppercase; letter-spacing: .06em; color: #444; }
 .mc-main h4 span { font-weight: 500; color: var(--mid); }
-.mc-sws { display: flex; flex-wrap: wrap; gap: 10px; }
-.mc-sw { position: relative; width: 112px; border-radius: 12px; background: #fff; border: 1px solid #ece9e2; padding: 6px 6px 8px; font-size: 11.5px; line-height: 1.25; cursor: pointer; text-align: left; }
-.mc-sw .im { display: block; aspect-ratio: 1; border-radius: 8px; background: #ddd center/cover; margin-bottom: 6px; }
-.mc-sw b { display: block; font-size: 12px; font-weight: 600; }
-.mc-sw small { display: block; color: #8d887f; font-size: 10.5px; margin-top: 2px; }
+.mc-sws { display: flex; flex-wrap: wrap; gap: 8px; }
+.mc-sw { position: relative; width: 98px; border-radius: 10px; background: #fff; border: 1px solid #ece9e2; padding: 5px 5px 6px; font-size: 11px; line-height: 1.2; cursor: pointer; text-align: left; }
+.mc-sw .im { display: block; aspect-ratio: 1; border-radius: 7px; background: #ddd center/cover; margin-bottom: 5px; }
+.mc-sw b { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 11.5px; font-weight: 600; }
+.mc-sw small { display: block; color: #8d887f; font-size: 10px; margin-top: 1px; }
 .mc-sw .im { position: relative; overflow: hidden; }
 .mc-sw .has { position: absolute; bottom: 6px; right: 6px; width: 13px; height: 13px; border-radius: 50%; background: #2f9e57; box-shadow: 0 0 0 2px #fff, 0 1px 4px rgba(0,0,0,.35); }
 .mc-sw .ln { position: absolute; top: 0; right: 0; width: 46%; aspect-ratio: 1; pointer-events: none; }
@@ -50,7 +54,8 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 @media (max-width: 760px) {
   .mc-body { grid-template-columns: 1fr; grid-template-rows: 34% 1fr; }
   .mc-side { border-right: 0; border-bottom: 1px solid var(--border); }
-  .mc-sw { width: calc((100vw - 24px - 36px - 20px) / 3); }
+  .mc-sw { width: calc((100vw - 24px - 36px - 24px) / 4); }
+  .mc-grp { padding: 0 8px; }
 }
 </style>`);
 
@@ -127,14 +132,14 @@ function mcRender(full) {
     main.innerHTML = `<div style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap"><div style="flex:1"><div style="font:700 10.5px var(--font-body);letter-spacing:.14em;text-transform:uppercase;color:#b0101a">${esc(b)}</div>
         <div style="font:700 24px var(--font-display);letter-spacing:-.03em">${esc(glTitle(s))}</div></div>
         <button class="btn" onclick="mcSelAll()">Seleziona tutti quelli che non ha</button></div>` +
-      mcGroups(list).map(gr => `<h4>${esc(glTitle(gr.name))} <span>${gr.items.length}</span></h4><div class="mc-sws">${gr.items.map(x => {
+      '<div class="mc-grps">' + mcGroups(list).map(gr => `<div class="mc-grp"><h4>${esc(glTitle(gr.name))} <span>${gr.items.length}</span></h4><div class="mc-sws">${gr.items.map(x => {
         const u = IMG[photoKey(x)], mi = u && ((window.FOTO_MINI || {})[u] || u), ln = mcLines(x), isIn = inComp.has(x.key);
-        const nm = gr.tint && gr.tint[x.c] ? gr.tint[x.c] : x.c;
+        const gw = x.g ? x.g.toLowerCase().split(' ') : [], nm = gr.tint && gr.tint[x.c] ? gr.tint[x.c] : gw.length ? (x.c.split(' ').filter(w => !gw.includes(w.toLowerCase())).join(' ') || x.c) : x.c;   // nelle grafiche il nome senza la grafica
         const sub = x.a4 ? x.v : (x.toz ? 'tozzetto' : fmt(x.z)) + (x.f.length ? ' · ' + x.f.join(', ') : '');
         return `<button class="mc-sw${mc.sel.has(x.key) ? ' sel' : ''}${isIn ? ' in' : ''}" data-k="${esc(x.key)}" ${isIn ? 'disabled' : `onclick="mcToggle(this.dataset.k)"`} title="${esc(x.c + ' · ' + sub)}">
           <span class="im" style="${mi ? `background-image:url('${esc(mi)}')` : ''}">${ln ? `<span class="ln" title="${ln === 3 ? 'R11 / Tecnica' : 'marmo opaco'}">${mcLinesSVG(ln)}</span>` : ''}${own.has(mcOwnKey(x)) ? '<span class="has" title="Il cliente ce l\'ha già"></span>' : ''}</span>
           <b>${esc(glTitle(nm))}</b><small>${esc(sub)}</small>${isIn ? '<small class="inn">già in questo espositore</small>' : ''}</button>`;
-      }).join('')}</div>`).join('');
+      }).join('')}</div></div>`).join('') + '</div>';
   }
   document.getElementById('mcFree').innerHTML = `<b style="color:#1d1d20">${free}</b> posti liberi in ${esc(c.name)}`;
   const go = document.getElementById('mcGo'); go.disabled = !mc.sel.size || !free;
