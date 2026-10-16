@@ -201,7 +201,8 @@ function espHTML(cid, cc) {
   const free = Object.values(comps).filter(c => !c.client && c.slots.some(Boolean) && DISP[c.disp]);
   return `
     <div class="vhead"><h2 style="font-size:17px">Espositori del cliente</h2>
-      <span style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" onclick="pasteIntoComps(visibleComps('${cid}'), null, () => renderClient('${cid}'))" title="Incolla un elenco di codici e scegli in quali espositori metterli"><svg class="ic"><use href="#i-paste"/></svg> Incolla codici</button>
+      <span style="display:flex;gap:6px;flex-wrap:wrap">${cc.some(x => x.slots.some(Boolean)) ? `<button class="btn" onclick="exportSchedeCliente('${cid}')" title="Un PDF con la scheda di ogni espositore: render, dati e prodotti"><svg class="ic"><use href="#i-download"/></svg> Schede PDF di tutti</button>` : ''}
+      <button class="btn" onclick="pasteIntoComps(visibleComps('${cid}'), null, () => renderClient('${cid}'))" title="Incolla un elenco di codici e scegli in quali espositori metterli"><svg class="ic"><use href="#i-paste"/></svg> Incolla codici</button>
       <button class="btn red" onclick="addingDisp=!addingDisp; renderClient('${cid}')">${addingDisp ? 'Chiudi' : '<svg class="ic"><use href="#i-plus"/></svg> Aggiungi espositore'}</button></span></div>
     ${addingDisp ? `<div class="card" style="margin-bottom:12px">${dispPickerHTML(`addCompTo('${cid}', '%ID%')`)}</div>` : ''}
     ${cc.length ? `<div style="display:flex;flex-direction:column;gap:8px">${cc.map(c => compCardHTML(c, cid)).join('')}</div>`
@@ -220,6 +221,7 @@ function compCardHTML(c, cid) {
       <div class="sws">${shown.map(k => `<span style="${swatchStyle(SAMPLE[k])}" title="${esc(SAMPLE[k].s + ' ' + SAMPLE[k].c)}"></span>`).join('')}${f > shown.length ? `<span style="display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--mid)">+${f - shown.length}</span>` : ''}</div></div>
     <div class="acts">
       <button class="btn dark" onclick="openComp('${c.id}')">Apri</button>
+      ${f ? `<button class="btn" onclick="exportSchedaPDF('${c.id}')" title="Scheda PDF di questo espositore"><svg class="ic"><use href="#i-download"/></svg> Scheda PDF</button>` : ''}
       <button class="btn" onclick="renameCompUI('${c.id}','${cid}')" title="Rinomina"><svg class="ic"><use href="#i-pencil"/></svg></button>
       <button class="btn" onclick="dupCompFor('${c.id}','${cid}')" title="Duplica"><svg class="ic"><use href="#i-copy"/></svg></button>
       <button class="btn" onclick="delCompFor('${c.id}','${cid}')" title="Elimina"><svg class="ic"><use href="#i-trash"/></svg></button></div></div>`;

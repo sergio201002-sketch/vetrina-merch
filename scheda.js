@@ -136,27 +136,35 @@ async function renderDisplayViews(c, views) {
   } finally { host.remove(); }
 }
 
-async function exportSchedaPDF(cid) {
-  const c = cid ? comps[cid] : comp(); if (!c) return;
-  const d = DISP[c.disp], cl = c.client && clients[c.client], n = c.slots.length;
-  const filled = c.slots.map((k, i) => [k && SAMPLE[k], i]).filter(([s]) => s);
-  if (!filled.length) return toast('Questo espositore è vuoto: metti prima i campioni');
-  const wait = document.createElement('div'); wait.className = 'sch-wait'; wait.textContent = 'Preparo il render dell\'espositore…'; document.body.appendChild(wait);
-  // un solo render: girevoli dal lato A (le piastrelle guardano di lato), gli altri davanti-sinistra
-  const view = d.mode === 'swing' ? [-58, 14] : [-28, 13];
-  let shot;
-  try { [shot] = await renderDisplayViews(c, [view]); }
-  catch (e) { wait.remove(); say('Non riesco a fare il render (serve internet per il motore 3D). Riprova.'); return; }
-  wait.textContent = 'Preparo la scheda…';
+/* una scheda (render + dati + prodotti) per ogni espositore; più espositori = più schede nello stesso PDF */
+async function exportSchedaPDF(cid) { return exportSchede([cid ? comps[cid] : comp()]); }
+async function exportSchedeCliente(clientId) {
+  const list = visibleComps(clientId).filter(c => c.slots.some(k => k && SAMPLE[k]));
+  if (!list.length) return toast('Nessun espositore con campioni da esportare');
+  return exportSchede(list);
+}
+async function exportSchede(list) {
+  list = list.filter(c => c && DISP[c.disp] && c.slots.some(k => k && SAMPLE[k]));
+  if (!list.length) return toast('Questo espositore è vuoto: metti prima i campioni');
+  const wait = document.createElement('div'); wait.className = 'sch-wait'; document.body.appendChild(wait);
   const today = new Date().toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
-  const bySer = new Map(); filled.forEach(([s]) => { const k = s.b + '|' + s.s; bySer.set(k, (bySer.get(k) || 0) + 1); });
   const photo = s => { const u = IMG[photoKey(s)]; return u ? ((window.FOTO_GAL || {})[u] || FOTO_MED[u] || u) : ''; };
   const fin = s => s.a4 ? s.v : (s.f[0] || '').replace(/\s*Rett\.?$/, '');
-  let el = document.getElementById('schPrint'); if (!el) { el = document.createElement('div'); el.id = 'schPrint'; document.body.appendChild(el); }
-  el.innerHTML = `<section class="top">
+  const pages = [];
+  for (let x = 0; x < list.length; x++) {
+    const c = list[x], d = DISP[c.disp], cl = c.client && clients[c.client], n = c.slots.length;
+    const filled = c.slots.map((k, i) => [k && SAMPLE[k], i]).filter(([s]) => s);
+    wait.textContent = list.length > 1 ? `Preparo il render ${x + 1} di ${list.length}: ${c.name}…` : 'Preparo il render dell\'espositore…';
+    // un solo render: girevoli dal lato A (le piastrelle guardano di lato), gli altri davanti-sinistra
+    const view = d.mode === 'swing' ? [-58, 14] : [-28, 13];
+    let shot = '';
+    try { [shot] = await renderDisplayViews(c, [view]); }
+    catch (e) { wait.remove(); say('Non riesco a fare il render (serve internet per il motore 3D). Riprova.'); return; }
+    const bySer = new Map(); filled.forEach(([s]) => { const k = s.b + '|' + s.s; bySer.set(k, (bySer.get(k) || 0) + 1); });
+    pages.push(`<div class="sch-page"${x ? ' style="break-before:page;page-break-before:always"' : ''}><section class="top">
       <div class="rn"><img src="${shot}" alt=""></div>
       <div class="info">
-        <div><div class="k">Scheda espositore</div><h1>${esc(d.name)}</h1><div class="cm">${esc(c.name)}</div></div>
+        <div><div class="k">Scheda espositore${list.length > 1 ? ` · ${x + 1} di ${list.length}` : ''}</div><h1>${esc(d.name)}</h1><div class="cm">${esc(c.name)}</div></div>
         <div class="big"><div><b>${filled.length}</b><span>campioni su ${n} posti</span></div><div><b>${bySer.size}</b><span>serie</span></div></div>
         <dl><dt>Codice</dt><dd>${esc(d.code)}</dd>${d.dims ? `<dt>Misure</dt><dd>${esc(d.dims)}</dd>` : ''}
           ${cl ? `<dt>Cliente</dt><dd>${esc(cl.name)}${cl.city ? ' · ' + esc(cl.city) : ''}</dd>` : ''}<dt>Data</dt><dd>${today}</dd></dl>
@@ -169,7 +177,11 @@ async function exportSchedaPDF(cid) {
         <div class="b">${esc(s.b)}</div><div class="s">${esc(glTitle(s.s))} ${esc(glTitle(s.c))}</div>
         <div class="z">${esc(s.toz ? fmt(tozFmt(d, c)) : fmt(s.z) + ' cm')}${fin(s) ? ' · ' + esc(fin(s)) : ''}</div>
         <div class="cd">${esc((s.k || []).join(' / '))}</div></div>`; }).join('')}</div>
-    <div class="foot">${esc(d.name)} · ${esc(c.name)}${cl ? ' · ' + esc(cl.name) : ''} · ${today}</div>`;
+    <div class="foot">${esc(d.name)} · ${esc(c.name)}${cl ? ' · ' + esc(cl.name) : ''} · ${today}</div></div>`);
+  }
+  wait.textContent = 'Preparo il PDF…';
+  let el = document.getElementById('schPrint'); if (!el) { el = document.createElement('div'); el.id = 'schPrint'; document.body.appendChild(el); }
+  el.innerHTML = pages.join('');
   await Promise.all([...el.querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
   wait.remove();
   document.body.classList.add('sch-printing');
