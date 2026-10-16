@@ -600,8 +600,10 @@ TOZ_SAMPLES.forEach(s => SAMPLE[s.key] = s);
 /* Tozzetti A4 19,5×29,5 UFFICIALI (tozzetti.js, dal file della selezione A4): codice vero 0000IL…, finitura e spessore.
    Teche, mensole, cassettiera tozzetti e banco 6,5 mm scelgono solo questi. */
 const TOZ_A4 = (window.TOZ_A4 || []).map(x => {
-  const v = x.fin + (x.t === '6,5' ? ' · 6,5 mm' : '');
-  const s = { b: x.b, s: x.s, c: x.c, z: TOZ, f: [x.fin + (x.t === '6,5' ? ' 6,5 mm' : '')], k: [x.k], t: [x.t], key: 'A4|' + x.k, ik: x.ik,
+  // superficie: Silktech Plus e Tecnica = R11; Silktech e Naturale = R10; Full Lappato / Lappato / Lappato Antique = lappato
+  const r = /Silktech Plus|Tecnica/.test(x.fin) ? 'R11' : /Silktech|Naturale/.test(x.fin) ? 'R10' : /Lappato/.test(x.fin) ? 'lappato' : '';
+  const v = x.fin + (r && r !== 'lappato' ? ' ' + r : '') + (x.t === '6,5' ? ' · 6,5 mm' : '');
+  const s = { b: x.b, s: x.s, c: x.c, z: TOZ, f: [x.fin + (r && r !== 'lappato' ? ' ' + r : '') + (x.t === '6,5' ? ' 6,5 mm' : '')], r, k: [x.k], t: [x.t], key: 'A4|' + x.k, ik: x.ik,
     pkey: x.pkey || undefined, toz: true, a4: true, from: [], v: v + (x.st && x.st !== 'ATTIVO' ? ' · ' + x.st.toLowerCase() : ''), st: x.st };
   if (x.g) { s.g = x.g; s.gi = x.gi; s.dec = 1; }
   return s;
