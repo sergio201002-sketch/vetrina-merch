@@ -51,6 +51,23 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .mc-foot .lg i.l svg { width: 18px; height: 18px; display: block; }
 .mc-foot .lg i.l line { stroke: #e0202b; stroke-width: 2.4; stroke-linecap: round; }
 .mc-empty { color: var(--mid); padding: 40px 10px; text-align: center; }
+.mc-pickw { position: relative; align-self: flex-end; }
+.mc-pickw > .btn { white-space: nowrap; }
+.mc-pickw > .btn.on { background: var(--red); border-color: var(--red); color: #fff; }
+.mc-pick { position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; width: 340px; max-height: 60vh; display: flex; flex-direction: column; background: #fff; border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 18px 50px rgba(0,0,0,.22); }
+.mc-pick .pt { display: flex; gap: 6px; flex-wrap: wrap; padding: 10px 10px 6px; }
+.mc-pick .pt .btn { padding: 5px 9px; font-size: 11.5px; }
+.mc-pick input[type=search] { margin: 0 10px 6px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 9px; font: inherit; font-size: 13px; }
+.mc-pick .pl { overflow-y: auto; padding: 0 6px 8px; }
+.mc-pick label { display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: 8px; cursor: pointer; font-size: 13px; flex-direction: row; color: inherit; font-weight: 500; }
+.mc-pick label:hover { background: #f6f4f0; }
+.mc-pick label span { flex: 1; }
+.mc-pick label small { color: var(--mid); font-size: 11px; }
+.mc-cnt { display: flex; gap: 6px; flex-wrap: wrap; }
+.mc-cnt span { background: #f3f1ec; border-radius: 999px; padding: 5px 10px; font-size: 12px; color: #444; white-space: nowrap; }
+.mc-cnt span b { color: #1d1d20; }
+.mc-cnt span.hl { background: #fdecee; color: #8e1016; }
+.mc-ser .k .in { color: var(--red); font-weight: 700; margin-left: 4px; }
 @media (max-width: 760px) {
   .mc-body { grid-template-columns: 1fr; grid-template-rows: 34% 1fr; }
   .mc-side { border-right: 0; border-bottom: 1px solid var(--border); }
@@ -81,7 +98,7 @@ const mcOwnKey = s => s.b + '|' + s.s + '|' + glCid(s);
 
 function openMettiCampioni() {
   const c = comp(); if (!c) return;
-  mc = { compId: c.id, client: c.client || ui.mcClient || '', series: null, sel: new Set(), q: '' };
+  mc = { compId: c.id, client: c.client || ui.mcClient || '', series: null, sel: new Set(), q: '', added: 0, pickOpen: false, pq: '' };
   let m = document.getElementById('mcDlg'); if (m) m.remove();
   document.body.insertAdjacentHTML('beforeend', `<div class="modal open" id="mcDlg"><div class="mbox"><div id="mcIn" style="display:flex;flex-direction:column;height:100%"></div></div></div>`);
   m = document.getElementById('mcDlg'); m.addEventListener('click', e => { if (e.target === m) mcClose(); });
@@ -107,6 +124,7 @@ function mcRender(full) {
   if (full) {
     box.innerHTML = `<div class="mc-top"><h3><svg class="ic"><use href="#i-grid"/></svg> Metti campioni</h3>
         <label>Espositore<select id="mcComp">${choices.map(x => `<option value="${x.id}" ${x.id === c.id ? 'selected' : ''}>${esc(x.name)} · ${esc(DISP[x.disp].name)}</option>`).join('')}</select></label>
+        <div class="mc-pickw"><button class="btn" id="mcPickBtn" onclick="mc.pickOpen = !mc.pickOpen; mcRender()"></button><div class="mc-pick" id="mcPick" hidden></div></div>
         <label>Confronta con il cliente<select id="mcCl" ${c.client ? 'disabled' : ''}><option value="">— nessuno —</option>${Object.values(clients).sort((a, b) => a.name.localeCompare(b.name)).map(x => `<option value="${x.id}" ${x.id === mc.client ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>
         <button class="btn" onclick="mcClose()"><svg class="ic"><use href="#i-x"/></svg></button></div>
       <div class="mc-body"><aside class="mc-side"><input id="mcQ" placeholder="Cerca serie…" value="${esc(mc.q)}"><div class="mc-ser" id="mcSer"></div></aside>
@@ -119,10 +137,26 @@ function mcRender(full) {
     document.getElementById('mcQ').addEventListener('input', e => { mc.q = e.target.value; mcRender(); });
   }
   // serie
-  const q = normTxt(mc.q).trim(), sers = mcSeriesList().filter(x => !q || normTxt(x.s + ' ' + x.b).includes(q));
+  const picked = mcPicked(), allSers = mcSeriesList();
+  const q = normTxt(mc.q).trim(), sers = allSers.filter(x => (!picked.size || picked.has(x.b + '|' + x.s)) && (!q || normTxt(x.s + ' ' + x.b).includes(q)));
+  const inBySer = {}; c.slots.forEach(k => { const x = k && SAMPLE[k]; if (x) inBySer[x.b + '|' + x.s] = (inBySer[x.b + '|' + x.s] || 0) + 1; });
+  // tendina "Serie da campionare"
+  const pb = document.getElementById('mcPickBtn');
+  pb.className = 'btn' + (picked.size ? ' on' : '');
+  pb.innerHTML = `<svg class="ic"><use href="#i-select"/></svg> Serie da campionare${picked.size ? ` (${picked.size})` : ''} <svg class="ic"><use href="#i-cdown"/></svg>`;
+  const pk = document.getElementById('mcPick'); pk.hidden = !mc.pickOpen;
+  if (mc.pickOpen) {
+    const pq = normTxt(mc.pq).trim();
+    pk.innerHTML = `<div class="pt"><button class="btn" onclick="mcPickSet('own')">Quelle che ha il cliente</button><button class="btn" onclick="mcPickSet('all')">Tutte</button><button class="btn" onclick="mcPickSet('none')">Nessuna</button><button class="btn dark" onclick="mc.pickOpen = false; mcRender()">Fatto</button></div>
+      <input type="search" id="mcPq" placeholder="Cerca…" value="${esc(mc.pq)}">
+      <div class="pl">${allSers.filter(x => !pq || normTxt(x.s + ' ' + x.b).includes(pq)).map(x => `<label><input type="checkbox" ${picked.has(x.b + '|' + x.s) ? 'checked' : ''} data-k="${esc(x.b + '|' + x.s)}" onchange="mcPickToggle(this.dataset.k)">
+        <span>${esc(glTitle(x.s))} <small>${esc(x.b)}</small></span><small>${x.has.size ? '● ' + x.has.size + '/' : ''}${x.n.size}</small></label>`).join('')}</div>`;
+    const pin = document.getElementById('mcPq');
+    pin.addEventListener('input', e => { mc.pq = e.target.value; const pos = e.target.selectionStart; mcRender(); const n = document.getElementById('mcPq'); if (n) { n.focus(); n.setSelectionRange(pos, pos); } });
+  }
   if (!mc.series || !sers.some(x => x.b + '|' + x.s === mc.series)) mc.series = sers[0] ? sers[0].b + '|' + sers[0].s : null;
   document.getElementById('mcSer').innerHTML = sers.map(x => `<button class="${mc.series === x.b + '|' + x.s ? 'on' : ''}" data-k="${esc(x.b + '|' + x.s)}" onclick="mc.series = this.dataset.k; mcRender(); document.getElementById('mcMain').scrollTop = 0">
-      <span class="n">${esc(glTitle(x.s))}<small>${esc(x.b)}</small></span><span class="k">${x.has.size ? `<i></i>${x.has.size}/` : ''}${x.n.size}</span></button>`).join('') || '<div class="mc-empty">Nessuna serie.</div>';
+      <span class="n">${esc(glTitle(x.s))}<small>${esc(x.b)}</small></span><span class="k">${x.has.size ? `<i></i>${x.has.size}/` : ''}${x.n.size}${inBySer[x.b + '|' + x.s] ? `<span class="in" title="già in questo espositore">▣ ${inBySer[x.b + '|' + x.s]}</span>` : ''}</span></button>`).join('') || '<div class="mc-empty">Nessuna serie.</div>';
   // colori della serie, per tipo
   const main = document.getElementById('mcMain');
   if (!mc.series) main.innerHTML = '<div class="mc-empty">Questo espositore non accetta campioni.</div>';
@@ -141,7 +175,9 @@ function mcRender(full) {
           <b>${esc(glTitle(nm))}</b><small>${esc(sub)}</small>${isIn ? '<small class="inn">già in questo espositore</small>' : ''}</button>`;
       }).join('')}</div></div>`).join('') + '</div>';
   }
-  document.getElementById('mcFree').innerHTML = `<b style="color:#1d1d20">${free}</b> posti liberi in ${esc(c.name)}`;
+  const filled = c.slots.length - free;
+  document.getElementById('mcFree').innerHTML = `<span class="mc-cnt"><span class="${mc.sel.size ? 'hl' : ''}">Selezionati <b>${mc.sel.size}</b></span><span>Messi ora <b>${mc.added}</b></span>
+    <span>Nell'espositore <b>${filled}</b> / ${c.slots.length}</span><span>Posti liberi <b>${free}</b></span></span>`;
   const go = document.getElementById('mcGo'); go.disabled = !mc.sel.size || !free;
   go.innerHTML = `<svg class="ic"><use href="#i-plus"/></svg> Inserisci ${mc.sel.size ? `(${Math.min(mc.sel.size, free)})` : ''}`;
 }
@@ -166,6 +202,14 @@ function mcFinRank(s) {
   const fs = s.a4 ? [s.f[0]] : (s.f || []);
   return fs.length ? Math.min(...fs.map(one)) : 2;
 }
+const mcPicked = () => new Set(((ui.mcPick || {})[mc.compId]) || []);
+function mcSetPicked(set) { ui.mcPick = Object.assign({}, ui.mcPick, { [mc.compId]: [...set] }); saveUI(); }
+function mcPickToggle(k) { const p = mcPicked(); if (p.has(k)) p.delete(k); else p.add(k); mcSetPicked(p); mcRender(); }
+function mcPickSet(mode) {
+  const all = mcSeriesList();
+  mcSetPicked(new Set(mode === 'all' ? all.map(x => x.b + '|' + x.s) : mode === 'own' ? all.filter(x => x.has.size).map(x => x.b + '|' + x.s) : []));
+  mcRender();
+}
 function mcToggle(k) { if (mc.sel.has(k)) mc.sel.delete(k); else mc.sel.add(k); mcRender(); }
 function mcSelAll() {
   const [b, s] = mc.series.split('|'), own = mcOwned(mc.client), inComp = new Set(mcTarget().slots.filter(Boolean));
@@ -179,6 +223,7 @@ function mcInsert() {
   c.upd = Date.now(); saveComps();
   const left = keys.length - n;
   mc.sel = new Set(keys.slice(n));
+  mc.added += n;
   toast(`Inseriti ${n} campioni in ${c.name}` + (left ? ` · ${left} non ci stanno (posti finiti)` : ''));
   mcRender();
 }
