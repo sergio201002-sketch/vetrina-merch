@@ -206,7 +206,7 @@ function renderGallery(cid, sub) {
       <button class="btn" onclick="go('#/galleria')"><svg class="ic"><use href="#i-left"/></svg>Galleria</button>
       <h2><small>Sala mostra · campioni</small>${esc(cl.name)}</h2>
       <button class="btn" onclick="go('#/cliente/${cid}')">Scheda cliente</button>
-      <button class="btn" onclick="glExportPDF('${cid}', '${isAll ? 'tutti' : cur ? cur.c.id : ''}')" title="Catalogo in PDF dei campioni e delle serie, con i formati"><svg class="ic"><use href="#i-download"/></svg> Esporta PDF</button>
+      <button class="btn" onclick="glExportAsk('${cid}', '${isAll ? 'tutti' : cur ? cur.c.id : ''}')" title="Catalogo in PDF dei campioni e delle serie, con i formati"><svg class="ic"><use href="#i-download"/></svg> Esporta PDF</button>
       <button class="btn red" onclick="go('#/salamostra/${cid}')"><svg class="ic"><use href="#i-play"/></svg> Entra nella sala mostra</button>
     </div>
     ${list.length ? `<div class="gl-tabs"><button class="gl-tab all ${isAll ? 'on' : ''}" onclick="go('#/campioni/${cid}/tutti')"><span>Tutta la sala mostra<span class="k">${nTot} campioni · ${list.length} espositori</span></span></button>${list.map(x => `<button class="gl-tab ${x === cur ? 'on' : ''}" onclick="go('#/campioni/${cid}/${x.c.id}')">
@@ -328,36 +328,59 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 #glPrint .it img { width: 100%; height: 100%; object-fit: cover; display: block; }
 #glPrint .it .n { font: 600 8.5pt/1.2 Inter, Arial; margin-top: 1.6mm; }
 #glPrint .it .z { font-size: 7.3pt; color: #666; margin-top: .4mm; }
+#glPrint .it .im { position: relative; }
+#glPrint .it.miss .im { box-shadow: 0 0 0 .5mm rgba(214,40,50,.75); }
+#glPrint .it.miss .n { color: #8e1016; }
+#glPrint .it .mt { position: absolute; left: 1.2mm; bottom: 1.2mm; background: #b0101a; color: #fff; font: 700 6pt Inter, Arial; padding: .5mm 1.4mm; border-radius: 1mm; letter-spacing: .03em; }
 #glPrint .foot { font-size: 7.5pt; color: #999; margin-top: 6mm; text-align: center; }
 </style>`);
-async function glExportPDF(cid, scope) {
+/* prima di esportare: solo quello che ha, o anche i colori che non ha delle stesse serie */
+function glExportAsk(cid, scope) {
+  let m = document.getElementById('glPdfAsk'); if (m) m.remove();
+  document.body.insertAdjacentHTML('beforeend', `<div class="modal open" id="glPdfAsk"><div class="mbox" style="max-width:440px;width:calc(100vw - 32px)">
+    <div class="mhead"><h3><svg class="ic"><use href="#i-download"/></svg> Esporta PDF</h3></div>
+    <div style="padding:8px 18px 18px;display:flex;flex-direction:column;gap:10px">
+      <button class="btn" style="justify-content:flex-start;text-align:left;padding:12px 14px" onclick="document.getElementById('glPdfAsk').remove(); glExportPDF('${cid}', '${scope}', false)">
+        <b>Solo quello che ha</b><br><span style="font-weight:500;color:var(--mid)">i campioni che sono in sala mostra</span></button>
+      <button class="btn" style="justify-content:flex-start;text-align:left;padding:12px 14px" onclick="document.getElementById('glPdfAsk').remove(); glExportPDF('${cid}', '${scope}', true)">
+        <b>Anche i colori che non ha</b><br><span style="font-weight:500;color:var(--mid)">delle stesse serie, segnati "non in sala mostra"</span></button>
+      <button class="btn" onclick="document.getElementById('glPdfAsk').remove()">Annulla</button>
+    </div></div></div>`);
+  m = document.getElementById('glPdfAsk'); m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+}
+async function glExportPDF(cid, scope, withMissing) {
   const cl = clients[cid]; if (!cl) return;
   const list = galleryDisplays(cid), allC = list.map(x => x.c);
   const cur = scope && scope !== 'tutti' ? list.find(x => x.c.id === scope) : null;
   const view = cur ? [cur.c] : allC;
-  const groups = gallerySeries(view).map(g => glSort(g));
+  const groups = gallerySeries(view).map(g => withMissing ? addMissingColors(g, allC) : glSort(g));
   if (!groups.length) return toast('Non ci sono campioni da esportare');
-  const items = groups.flatMap(g => g.items), brands = {};
+  // colori che non ha: tutti i formati del listino di quel colore
+  const zOf = s => [...new Set(SAMPLES.filter(x => x.b === s.b && x.s === s.s && !x.toz && glCid(x) === glCid(s)).map(x => x.z))]
+    .sort((a, b) => { const A = parseSize(a), B = parseSize(b); return A[0] * A[1] - B[0] * B[1]; }).map(fmt).join(' / ');
+  const nMiss = groups.reduce((n, g) => n + g.items.filter(x => x.missing).length, 0);
+  const items = groups.flatMap(g => g.items.filter(x => !x.missing)), brands = {};
   groups.forEach(g => { brands[g.b] = (brands[g.b] || 0) + 1; });
   const img = s => glPhoto(s) || '';
   const today = new Date().toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
   const cover = items.filter(it => img(it.s)).slice(0, 12);
   let el = document.getElementById('glPrint'); if (!el) { el = document.createElement('div'); el.id = 'glPrint'; document.body.appendChild(el); }
   el.innerHTML = `<section class="cov"><div>
-      <div class="top">Sala mostra · campioni esposti</div>
+      <div class="top">Sala mostra · campioni esposti${withMissing ? ' e colori da completare' : ''}</div>
       <h1>${esc(cl.name)}</h1>
       <div class="sub">${[cl.city, cur ? cur.c.name + ' · ' + cur.d.name : 'Tutta la sala mostra', today].filter(Boolean).map(esc).join(' · ')}</div>
       <div class="mosaic">${cover.map(it => `<img src="${esc(img(it.s))}" alt="">`).join('')}</div></div>
     <div><div class="kpi"><div><b>${groups.length}</b><span>serie</span></div><div><b>${items.length}</b><span>colori</span></div>
-        <div><b>${new Set(view.flatMap(c => c.slots.filter(k => k && SAMPLE[k]))).size}</b><span>campioni</span></div><div><b>${cur ? 1 : list.length}</b><span>espositori</span></div></div>
+        <div><b>${new Set(view.flatMap(c => c.slots.filter(k => k && SAMPLE[k]))).size}</b><span>campioni</span></div><div><b>${cur ? 1 : list.length}</b><span>espositori</span></div>${withMissing ? `<div><b style="color:#b0101a">${nMiss}</b><span>colori che non ha</span></div>` : ''}</div>
       <div class="brands">${Object.entries(brands).sort((a, b) => b[1] - a[1]).map(([b, n]) => `<b>${esc(b)}</b> ${n} serie`).join(' · ')}</div></div>
   </section>` + groups.map(g => {
-    const sizes = [...new Set(g.items.flatMap(x => x.s.toz ? ['tozzetto'] : (x.sizes || [x.s.z]).map(fmt)))];
+    const own = g.items.filter(x => !x.missing), miss = g.items.length - own.length;
+    const sizes = [...new Set(own.flatMap(x => x.s.toz ? ['tozzetto'] : (x.sizes || [x.s.z]).map(fmt)))];
     return `<section class="ser${g.items.length > 15 ? ' big' : ''}"><div class="sh"><div class="w"><div class="b">${esc(g.b)}</div><h2>${esc(glTitle(g.s))}</h2></div>
-        <div class="f">${g.items.length} color${g.items.length === 1 ? 'e' : 'i'}<br><b>Formati:</b> ${esc(sizes.join(' · '))}</div></div>
+        <div class="f">${own.length} color${own.length === 1 ? 'e' : 'i'}${miss ? ` · <span style="color:#b0101a">${miss} che non ha</span>` : ''}<br><b>Formati:</b> ${esc(sizes.join(' · '))}</div></div>
       <div class="grid">${g.items.map(it => {
         const u = img(it.s);
-        return `<div class="it"><div class="im">${u ? `<img src="${esc(u)}" alt="">` : ''}</div><div class="n">${esc(glTitle(it.s.c))}</div><div class="z">${esc(glSizes(it))}${it.s.toz ? '' : ' cm'}</div></div>`;
+        return `<div class="it${it.missing ? ' miss' : ''}"><div class="im">${u ? `<img src="${esc(u)}" alt="">` : ''}${it.missing ? '<span class="mt">non in sala mostra</span>' : ''}</div><div class="n">${esc(glTitle(it.s.c))}</div><div class="z">${esc(it.missing ? zOf(it.s) : glSizes(it))}${it.s.toz ? '' : ' cm'}</div></div>`;
       }).join('')}</div></section>`;
   }).join('') + `<div class="foot">${esc(cl.name)} · ${today}</div>`;
   toast('Preparo il PDF…');

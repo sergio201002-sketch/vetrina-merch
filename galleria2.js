@@ -174,7 +174,7 @@ function renderGallery2(cid, sub) {
       <button class="btn" onclick="go('#/galleria2')"><svg class="ic"><use href="#i-left"/></svg>Galleria+</button>
       <h2><small>Galleria+ · sala mostra</small>${esc(cl.name)}</h2>
       <button class="btn ${pres ? 'dark' : ''}" onclick="ui.g2Pres = !ui.g2Pres; saveUI(); renderGallery2('${cid}', '${g2.scope}')" title="Per il banco: solo foto, serie e colori">${pres ? '<svg class="ic"><use href="#i-check"/></svg> ' : ''}<svg class="ic"><use href="#i-monitor"/></svg> Presentazione</button>
-      <button class="btn g2-only" onclick="glExportPDF('${cid}', '${g2.scope}')" title="Catalogo in PDF dei campioni e delle serie, con i formati"><svg class="ic"><use href="#i-download"/></svg> Esporta PDF</button>
+      <button class="btn g2-only" onclick="glExportAsk('${cid}', '${g2.scope}')" title="Catalogo in PDF dei campioni e delle serie, con i formati"><svg class="ic"><use href="#i-download"/></svg> Esporta PDF</button>
       <button class="btn red" onclick="go('#/salamostra/${cid}')"><svg class="ic"><use href="#i-play"/></svg> Sala mostra</button>
     </div>
     ${pres ? '' : g2DetailsHTML(cid, allC, allSeries, nKeys, list.length, byBrand)}
