@@ -653,6 +653,13 @@ function accepts(d, s) {
 /* come accepts, ma tiene conto delle scelte della composizione (es. culla con un solo formato) */
 const sameFmt = (a, b) => { const x = parseSize(a), y = parseSize(b); return !!(x && y) && sorted2(x).join('x') === sorted2(y).join('x'); };
 function acceptsIn(c, s) { const d = DISP[c.disp]; return !!d && accepts(d, s) && (!c.fmt || s.toz || sameFmt(s.z, c.fmt)); }
+/* superficie di un campione dalla finitura: R9 / R10 / R11 (sigla) oppure Lappato (Full Lappato, Lappato, Lappato Antique) */
+function surfOf(s) {
+  if (s._surf) return s._surf;
+  const out = new Set();
+  (s.f || []).forEach(f => { const m = f.match(/\bR(9|10|11)\b/); if (m) out.add('R' + m[1]); else if (/lappat/i.test(f)) out.add('Lappato'); });
+  return (s._surf = [...out]);
+}
 const compatibleFor = c => compatibleSamples(DISP[c.disp], c).filter(s => acceptsIn(c, s));
 function compatibleSamples(d, c) {
   return (usesA4(d, c) ? TOZ_A4 : d.accept.tozzetto ? TOZ_SAMPLES : SAMPLES).filter(s => accepts(d, s));
@@ -1926,10 +1933,13 @@ function renderPicker(full) {
   if (brandFilter && !brands.includes(brandFilter)) brandFilter = '';
   const q = searchQ.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const used = new Set(c.slots.filter(Boolean));
-  const hasA4 = list.some(s => s.a4);
-  if (!hasA4) { surfFilter = ''; thickFilter = ''; }
+  // filtri sempre presenti: superficie (R9 / R10 / R11 / Lappato, dalla finitura) e spessore
+  const surfs = ['R9', 'R10', 'R11', 'Lappato'].filter(v => list.some(s => surfOf(s).includes(v)));
+  const thicks = [...new Set(list.flatMap(s => s.t))].sort((a, b) => parseFloat(a.replace(',', '.')) - parseFloat(b.replace(',', '.')));
+  if (surfFilter && !surfs.includes(surfFilter)) surfFilter = '';
+  if (thickFilter && !thicks.includes(thickFilter)) thickFilter = '';
   let shown = list.filter(s => (!brandFilter || s.b === brandFilter) && (!onlyPhoto || hasPhoto(s)) &&
-    (!surfFilter || s.r === surfFilter) && (!thickFilter || (thickFilter === '6,5' ? s.t[0] === '6,5' : s.t[0] !== '6,5')) &&
+    (!surfFilter || surfOf(s).includes(surfFilter)) && (!thickFilter || s.t.includes(thickFilter)) &&
     q.every(w => (s.b + ' ' + s.s + ' ' + s.c + ' ' + s.z + ' ' + s.f.join(' ') + ' ' + s.k.join(' ')).toLowerCase().includes(w)));
   if (full || !document.getElementById('pickList')) {
     pane.innerHTML = `<div class="pickhead">
@@ -1947,10 +1957,10 @@ function renderPicker(full) {
     brands.map(b => `<button class="${brandFilter === b ? 'on' : ''}" onclick="brandFilter='${esc(b)}'; renderPicker(false)">${esc(b)}</button>`).join('') +
     `<button class="${onlyPhoto ? 'on' : ''}" onclick="onlyPhoto=!onlyPhoto; renderPicker(false)"><svg class="ic"><use href="#i-camera"/></svg> solo con foto</button>` +
     // tozzetti A4: superficie (R10 / R11 / lappato) e spessore
-    (hasA4 ? `<span class="fsep">Superficie</span>` + [['', 'Tutte'], ['R10', 'R10'], ['R11', 'R11'], ['lappato', 'Lappato']].map(([v, l]) =>
-        `<button class="${surfFilter === v ? 'on' : ''}" onclick="surfFilter='${v}'; renderPicker(false)">${l} <small>${list.filter(s => !v || s.r === v).length}</small></button>`).join('') +
-      `<span class="fsep">Spessore</span>` + [['', 'Tutti'], ['std', 'Normale'], ['6,5', '6,5 mm']].map(([v, l]) =>
-        `<button class="${thickFilter === v ? 'on' : ''}" onclick="thickFilter='${v}'; renderPicker(false)">${l}</button>`).join('') : '');
+    (surfs.length ? `<span class="fsep">Superficie</span>` + [['', 'Tutte']].concat(surfs.map(v => [v, v])).map(([v, l]) =>
+        `<button class="${surfFilter === v ? 'on' : ''}" onclick="surfFilter='${v}'; renderPicker(false)">${l} <small>${list.filter(s => !v || surfOf(s).includes(v)).length}</small></button>`).join('') : '') +
+    (thicks.length > 1 ? `<span class="fsep">Spessore</span>` + [['', 'Tutti']].concat(thicks.map(v => [v, v + ' mm'])).map(([v, l]) =>
+        `<button class="${thickFilter === v ? 'on' : ''}" onclick="thickFilter='${v}'; renderPicker(false)">${l} <small>${list.filter(s => !v || s.t.includes(v)).length}</small></button>`).join('') : '');
   document.getElementById('pickCount').textContent = `${shown.length} campioni compatibili` + (shown.length !== list.length ? ` (su ${list.length})` : '');
   const LIMIT = 5000;                                   // tutti i campioni compatibili
   document.getElementById('pickList').innerHTML = shown.slice(0, LIMIT).map(s => `
