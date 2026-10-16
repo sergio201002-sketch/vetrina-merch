@@ -510,6 +510,7 @@ textarea { font-family: inherit; }
       <button class="tb" onclick="pasteCodes()" title="Incolla un elenco di codici e scegli in quali espositori metterli"><svg class="ic"><use href="#i-paste"/></svg> Incolla codici</button>
       <button class="tb" onclick="autoFill()" title="Riempie gli slot vuoti con campioni che hanno la foto">Riempi con foto</button>
       <button class="tb" onclick="clearComp()">Svuota</button>
+      <button class="tb" onclick="exportSchedaPDF()" title="Scheda PDF: render dell'espositore e tutti i prodotti che contiene"><svg class="ic"><use href="#i-download"/></svg> Scheda PDF</button>
       <button class="tb" onclick="copyCodes()" title="Copia l'elenco dei codici per l'ordine"><svg class="ic"><use href="#i-copy"/></svg> Copia codici ordine</button>
       <button class="tb" onclick="compToPackDialog()" title="Salva una copia di questo espositore in un pacchetto (le tue proposte per i prossimi clienti)"><svg class="ic"><use href="#i-box"/></svg> Aggiungi a pacchetto</button>
       <button class="tb on" onclick="compPlaceDialog()" title="Copia questo espositore nella sala mostra di un cliente a scelta"><svg class="ic"><use href="#i-store"/></svg> Metti in sala mostra</button>
@@ -2206,6 +2207,6 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 </script>
 <script>/* sempre l'ultima versione del programma (niente copie vecchie rimaste nel browser) */
-['salva.js', 'clienti.js', 'ambiente.js', 'espositori3d.js', 'campioni.js', 'render.js', 'galleria.js', 'roomgl.js', 'galleria2.js', 'misure.js', 'pacchetti.js', 'metticampioni.js'].forEach(f => document.write('<script src="' + f + '?v=' + APPV + '"><\/script>'));</script>
+['salva.js', 'clienti.js', 'ambiente.js', 'espositori3d.js', 'campioni.js', 'render.js', 'galleria.js', 'roomgl.js', 'galleria2.js', 'misure.js', 'pacchetti.js', 'metticampioni.js', 'scheda.js'].forEach(f => document.write('<script src="' + f + '?v=' + APPV + '"><\/script>'));</script>
 </body>
 </html>
