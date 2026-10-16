@@ -102,6 +102,8 @@ function openMettiCampioni() {
   let m = document.getElementById('mcDlg'); if (m) m.remove();
   document.body.insertAdjacentHTML('beforeend', `<div class="modal open" id="mcDlg"><div class="mbox"><div id="mcIn" style="display:flex;flex-direction:column;height:100%"></div></div></div>`);
   m = document.getElementById('mcDlg'); m.addEventListener('click', e => { if (e.target === m) mcClose(); });
+  // tendina delle serie: si chiude anche toccando fuori
+  m.addEventListener('pointerdown', e => { if (mc && mc.pickOpen && !e.target.closest('.mc-pickw')) { mc.pickOpen = false; mcRender(); } });
   mcRender(true);
 }
 function mcClose() { const m = document.getElementById('mcDlg'); if (m) m.remove(); renderAll(); renderList(); }
@@ -144,19 +146,23 @@ function mcRender(full) {
   const pb = document.getElementById('mcPickBtn');
   pb.className = 'btn' + (picked.size ? ' on' : '');
   pb.innerHTML = `<svg class="ic"><use href="#i-select"/></svg> Serie da campionare${picked.size ? ` (${picked.size})` : ''} <svg class="ic"><use href="#i-cdown"/></svg>`;
-  const pk = document.getElementById('mcPick'); pk.hidden = !mc.pickOpen;
+  const pk = document.getElementById('mcPick'), oldPl = pk.querySelector('.pl'), keepTop = oldPl ? oldPl.scrollTop : 0;
+  pk.hidden = !mc.pickOpen; pk.style.display = mc.pickOpen ? '' : 'none';   // (lo stile flex vince su hidden)
   if (mc.pickOpen) {
     const pq = normTxt(mc.pq).trim();
     pk.innerHTML = `<div class="pt"><button class="btn" onclick="mcPickSet('own')">Quelle che ha il cliente</button><button class="btn" onclick="mcPickSet('all')">Tutte</button><button class="btn" onclick="mcPickSet('none')">Nessuna</button><button class="btn dark" onclick="mc.pickOpen = false; mcRender()">Fatto</button></div>
       <input type="search" id="mcPq" placeholder="Cerca…" value="${esc(mc.pq)}">
       <div class="pl">${allSers.filter(x => !pq || normTxt(x.s + ' ' + x.b).includes(pq)).map(x => `<label><input type="checkbox" ${picked.has(x.b + '|' + x.s) ? 'checked' : ''} data-k="${esc(x.b + '|' + x.s)}" onchange="mcPickToggle(this.dataset.k)">
         <span>${esc(glTitle(x.s))} <small>${esc(x.b)}</small></span><small>${x.has.size ? '● ' + x.has.size + '/' : ''}${x.n.size}</small></label>`).join('')}</div>`;
+    pk.querySelector('.pl').scrollTop = keepTop;   // resta dove sei, non torna in cima
     const pin = document.getElementById('mcPq');
     pin.addEventListener('input', e => { mc.pq = e.target.value; const pos = e.target.selectionStart; mcRender(); const n = document.getElementById('mcPq'); if (n) { n.focus(); n.setSelectionRange(pos, pos); } });
   }
   if (!mc.series || !sers.some(x => x.b + '|' + x.s === mc.series)) mc.series = sers[0] ? sers[0].b + '|' + sers[0].s : null;
-  document.getElementById('mcSer').innerHTML = sers.map(x => `<button class="${mc.series === x.b + '|' + x.s ? 'on' : ''}" data-k="${esc(x.b + '|' + x.s)}" onclick="mc.series = this.dataset.k; mcRender(); document.getElementById('mcMain').scrollTop = 0">
+  const serEl = document.getElementById('mcSer'), serTop = serEl.scrollTop;
+  serEl.innerHTML = sers.map(x => `<button class="${mc.series === x.b + '|' + x.s ? 'on' : ''}" data-k="${esc(x.b + '|' + x.s)}" onclick="mc.series = this.dataset.k; mcRender(); document.getElementById('mcMain').scrollTop = 0">
       <span class="n">${esc(glTitle(x.s))}<small>${esc(x.b)}</small></span><span class="k">${x.has.size ? `<i></i>${x.has.size}/` : ''}${x.n.size}${inBySer[x.b + '|' + x.s] ? `<span class="in" title="già in questo espositore">▣ ${inBySer[x.b + '|' + x.s]}</span>` : ''}</span></button>`).join('') || '<div class="mc-empty">Nessuna serie.</div>';
+  serEl.scrollTop = serTop;
   // colori della serie, per tipo
   const main = document.getElementById('mcMain');
   if (!mc.series) main.innerHTML = '<div class="mc-empty">Questo espositore non accetta campioni.</div>';
