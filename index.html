@@ -602,6 +602,15 @@ const TOZ = '19,5x29,5 tozzetto';
 const TOZ_SAMPLES = SAMPLES.map(s => ({ b: s.b, s: s.s, c: s.c, z: TOZ, f: s.f.slice(), k: s.k.slice(), t: s.t.slice(),
   key: s.key + '|' + TOZ, ik: s.ik, pkey: s.key, toz: true, from: [s.z] }));
 TOZ_SAMPLES.forEach(s => SAMPLE[s.key] = s);
+/* Varianti per finitura: un campione con più finiture e un codice per finitura (es. 60×120 Silktech R10 / Silktech Plus R11)
+   si divide in un campione per finitura, con il suo codice: si sceglie la finitura giusta e si vedono le lineette (R11…).
+   Il campione "intero" resta valido per le composizioni già fatte. */
+const FIN_VAR = {};
+SAMPLES.forEach(s => {
+  if (s.f.length < 2 || s.k.length !== s.f.length) return;
+  FIN_VAR[s.key] = s.f.map((f, i) => { const v = Object.assign({}, s, { f: [f], k: [s.k[i]], key: s.key + '#' + s.k[i], base: s.key, pkey: s.key, fv: true }); SAMPLE[v.key] = v; return v; });
+});
+const expandFin = list => list.flatMap(s => FIN_VAR[s.key] || [s]);
 /* Tozzetti A4 19,5×29,5 UFFICIALI (tozzetti.js, dal file della selezione A4): codice vero 0000IL…, finitura e spessore.
    Teche, mensole, cassettiera tozzetti e banco 6,5 mm scelgono solo questi. */
 const TOZ_A4 = (window.TOZ_A4 || []).map(x => {
@@ -665,7 +674,7 @@ function surfOf(s) {
 }
 const compatibleFor = c => compatibleSamples(DISP[c.disp], c).filter(s => acceptsIn(c, s));
 function compatibleSamples(d, c) {
-  return (usesA4(d, c) ? TOZ_A4 : d.accept.tozzetto ? TOZ_SAMPLES : SAMPLES).filter(s => accepts(d, s));
+  return (usesA4(d, c) ? TOZ_A4 : d.accept.tozzetto ? TOZ_SAMPLES : expandFin(SAMPLES)).filter(s => accepts(d, s));
 }
 function acceptLabel(d, c) {
   const a = d.accept; const out = [];
@@ -783,7 +792,7 @@ function cullaMods(d, n) { const k = (d.variants || []).indexOf(n); return k >= 
    e i campioni vanno nei posti in ordine. Ogni riga = un campione (righe uguali = due pezzi) ── */
 let CODE_IDX = null;
 function codeIndex() {
-  if (!CODE_IDX) { CODE_IDX = {}; SAMPLES.concat(TOZ_A4).forEach(s => (s.k || []).forEach(k => { (CODE_IDX[k.toUpperCase()] = CODE_IDX[k.toUpperCase()] || []).push(s); })); }
+  if (!CODE_IDX) { CODE_IDX = {}; expandFin(SAMPLES).concat(TOZ_A4).forEach(s => (s.k || []).forEach(k => { (CODE_IDX[k.toUpperCase()] = CODE_IDX[k.toUpperCase()] || []).push(s); })); }
   return CODE_IDX;
 }
 function parseCodeList(text) {
@@ -1960,6 +1969,9 @@ function otherFormatsNote(d, q, shown) {
 function renderPicker(full) {
   const d = disp(), c = comp(), n = c.slots.length;
   const pane = document.getElementById('pane');
+  // resta dove sei: posizione della lista e cursore nella ricerca
+  const keepTop = pane ? pane.scrollTop : 0, keepY = window.scrollY, ae = document.activeElement;
+  const caret = ae && ae.id === 'pickSearch' ? ae.selectionStart : -1;
   let list = compatibleFor(c);
   const brands = [...new Set(list.map(s => s.b))];
   if (brandFilter && !brands.includes(brandFilter)) brandFilter = '';
@@ -2003,6 +2015,9 @@ function renderPicker(full) {
       <button class="cam${hasPhoto(s) ? ' has' : ''}" title="${hasPhoto(s) ? 'Cambia foto' : 'Carica foto'}" data-ik="${esc(s.ik)}">${hasPhoto(s) ? '<svg class="ic"><use href="#i-check"/></svg>' : '<svg class="ic"><use href="#i-camera"/></svg>'}</button>
     </div>`).join('') + (shown.length > LIMIT ? `<div class="count" style="padding:12px 14px">Altri ${shown.length - LIMIT}: usa la ricerca per restringere.</div>` : '') +
     (!shown.length ? `<div class="count" style="padding:20px 14px">Nessun campione compatibile con questi filtri.</div>` : '') + otherFormatsNote(d, q, shown);
+  if (pane) pane.scrollTop = keepTop;
+  if (Math.abs(window.scrollY - keepY) > 2) window.scrollTo(0, keepY);
+  if (caret >= 0) { const si = document.getElementById('pickSearch'); if (si && document.activeElement !== si) { si.focus({ preventScroll: true }); si.setSelectionRange(caret, caret); } }
 }
 document.getElementById('pane').addEventListener('click', e => {
   const cam = e.target.closest('.cam');

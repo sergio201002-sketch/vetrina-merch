@@ -164,7 +164,7 @@ function mcRender(full) {
       <span class="n">${esc(glTitle(x.s))}<small>${esc(x.b)}</small></span><span class="k">${x.has.size ? `<i></i>${x.has.size}/` : ''}${x.n.size}${inBySer[x.b + '|' + x.s] ? `<span class="in" title="già in questo espositore">▣ ${inBySer[x.b + '|' + x.s]}</span>` : ''}</span></button>`).join('') || '<div class="mc-empty">Nessuna serie.</div>';
   serEl.scrollTop = serTop;
   // colori della serie, per tipo
-  const main = document.getElementById('mcMain');
+  const main = document.getElementById('mcMain'), mainTop = main.scrollTop;
   if (!mc.series) main.innerHTML = '<div class="mc-empty">Questo espositore non accetta campioni.</div>';
   else {
     const [b, s] = mc.series.split('|'), own = mcOwned(mc.client), inComp = new Set(c.slots.filter(Boolean));
@@ -175,13 +175,14 @@ function mcRender(full) {
       '<div class="mc-grps">' + mcGroups(list).map(gr => `<div class="mc-grp"><h4>${esc(glTitle(gr.name))} <span>${gr.items.length}</span></h4><div class="mc-sws">${gr.items.map(x => {
         const u = IMG[photoKey(x)], mi = u && ((window.FOTO_MINI || {})[u] || u), ln = mcLines(x), isIn = inComp.has(x.key);
         const gw = x.g ? x.g.toLowerCase().split(' ') : [], nm = gr.tint && gr.tint[x.c] ? gr.tint[x.c] : gw.length ? (x.c.split(' ').filter(w => !gw.includes(w.toLowerCase())).join(' ') || x.c) : x.c;   // nelle grafiche il nome senza la grafica
-        const sub = x.a4 ? x.v : (x.toz ? 'tozzetto' : fmt(x.z)) + (x.f.length ? ' · ' + x.f.join(', ') : '');
+        const sub = x.a4 ? x.v : (x.toz ? 'tozzetto' : fmt(x.z)) + (x.f.length ? ' · ' + x.f.join(', ').replace(/\s*Rett\.?/g, '') : '');
         return `<button class="mc-sw${mc.sel.has(x.key) ? ' sel' : ''}${isIn ? ' in' : ''}" data-k="${esc(x.key)}" ${isIn ? 'disabled' : `onclick="mcToggle(this.dataset.k)"`} title="${esc(x.c + ' · ' + sub)}">
           <span class="im" style="${mi ? `background-image:url('${esc(mi)}')` : ''}">${ln ? `<span class="ln" title="${ln === 3 ? 'R11 / Tecnica' : 'marmo opaco'}">${mcLinesSVG(ln)}</span>` : ''}${own.has(mcOwnKey(x)) ? '<span class="has" title="Il cliente ce l\'ha già"></span>' : ''}</span>
           <b>${esc(glTitle(nm))}</b><small>${esc(sub)}</small>${isIn ? '<small class="inn">già in questo espositore</small>' : ''}</button>`;
       }).join('')}</div></div>`).join('') + '</div>';
   }
   const filled = c.slots.length - free;
+  main.scrollTop = mainTop;
   document.getElementById('mcFree').innerHTML = `<span class="mc-cnt"><span class="${mc.sel.size ? 'hl' : ''}">Selezionati <b>${mc.sel.size}</b></span><span>Messi ora <b>${mc.added}</b></span>
     <span>Nell'espositore <b>${filled}</b> / ${c.slots.length}</span><span>Posti liberi <b>${free}</b></span></span>`;
   const go = document.getElementById('mcGo'); go.disabled = !mc.sel.size || !free;
@@ -219,7 +220,12 @@ function mcPickSet(mode) {
 function mcToggle(k) { if (mc.sel.has(k)) mc.sel.delete(k); else mc.sel.add(k); mcRender(); }
 function mcSelAll() {
   const [b, s] = mc.series.split('|'), own = mcOwned(mc.client), inComp = new Set(mcTarget().slots.filter(Boolean));
-  mcList().filter(x => x.b === b && x.s === s && !own.has(mcOwnKey(x)) && !inComp.has(x.key)).forEach(x => mc.sel.add(x.key));
+  // un solo campione per colore: la finitura preferita (Lappato > Silktech > R10 > R11), spessore normale prima del 6,5
+  const pick = new Map();
+  mcList().filter(x => x.b === b && x.s === s && !own.has(mcOwnKey(x)) && !inComp.has(x.key))
+    .sort((x, y) => mcFinRank(x) - mcFinRank(y) || (x.t[0] === '6,5') - (y.t[0] === '6,5'))
+    .forEach(x => { if (!pick.has(mcOwnKey(x))) pick.set(mcOwnKey(x), x); });
+  pick.forEach(x => mc.sel.add(x.key));
   mcRender();
 }
 function mcInsert() {
