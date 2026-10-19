@@ -86,6 +86,7 @@ function openSampleBoard() {
       <div class="mhead"><h3><svg class="ic"><use href="#i-grid"/></svg> Sistema i campioni</h3>
         <div class="cs-size">Grandezza <button class="btn" onclick="csZoom(-1)" title="Quadratini più piccoli: ne vedi di più">−</button><button class="btn" onclick="csZoom(1)" title="Quadratini più grandi">+</button></div>
         <button class="btn" id="csFinBtn" onclick="ui.csFin = !ui.csFin; saveUI(); renderSampleBoard()" title="Mostra la finitura di ogni campione (lineette R11 / marmo opaco) e tocca per cambiarla"></button>
+        <button class="btn" onclick="room && room.client && openCodesByFormat(room.client)" title="Tutti i codici divisi per formato, per ordinarli"><svg class="ic"><use href="#i-clipboard"/></svg> Codici per formato</button>
         <button class="btn" onclick="roomPaste()" title="Incolla un elenco di codici in uno o più espositori"><svg class="ic"><use href="#i-paste"/></svg> Incolla codici</button>
         <button class="btn dark" onclick="closeSampleBoard()">Fatto</button></div>
       <div class="cs-hint">Trascina per spostare o scambiare (telefono: tieni premuto e trascina) · tocca un posto per inserire, cambiare o togliere: dopo ogni campione passa da solo al posto accanto (partendo dall'ultimo a destra va verso sinistra, <svg class="ic"><use href="#i-swap"/></svg> cambia verso) · Invio nella ricerca mette il campione se ne è rimasto uno solo · <svg class="ic"><use href="#i-select"/></svg> Seleziona: scegli più campioni e spostali insieme o toglili · con − e + vedi più o meno quadratini.</div>

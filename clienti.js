@@ -201,7 +201,8 @@ function espHTML(cid, cc) {
   const free = Object.values(comps).filter(c => !c.client && c.slots.some(Boolean) && DISP[c.disp]);
   return `
     <div class="vhead"><h2 style="font-size:17px">Espositori del cliente</h2>
-      <span style="display:flex;gap:6px;flex-wrap:wrap">${cc.some(x => x.slots.some(Boolean)) ? `<button class="btn" onclick="exportSchedeCliente('${cid}')" title="Un PDF con la scheda di ogni espositore: render, dati e prodotti"><svg class="ic"><use href="#i-download"/></svg> Schede PDF di tutti</button>` : ''}
+      <span style="display:flex;gap:6px;flex-wrap:wrap">${cc.some(x => x.slots.some(Boolean)) ? `<button class="btn" onclick="openCodesByFormat('${cid}')" title="Tutti i codici divisi per formato, per ordinarli"><svg class="ic"><use href="#i-clipboard"/></svg> Codici per formato</button>` : ''}
+      ${cc.some(x => x.slots.some(Boolean)) ? `<button class="btn" onclick="exportSchedeCliente('${cid}')" title="Un PDF con la scheda di ogni espositore: render, dati e prodotti"><svg class="ic"><use href="#i-download"/></svg> Schede PDF di tutti</button>` : ''}
       <button class="btn" onclick="pasteIntoComps(visibleComps('${cid}'), null, () => renderClient('${cid}'))" title="Incolla un elenco di codici e scegli in quali espositori metterli"><svg class="ic"><use href="#i-paste"/></svg> Incolla codici</button>
       <button class="btn red" onclick="addingDisp=!addingDisp; renderClient('${cid}')">${addingDisp ? 'Chiudi' : '<svg class="ic"><use href="#i-plus"/></svg> Aggiungi espositore'}</button></span></div>
     ${addingDisp ? `<div class="card" style="margin-bottom:12px">${dispPickerHTML(`addCompTo('${cid}', '%ID%')`)}</div>` : ''}
@@ -423,4 +424,79 @@ function migrateA4() {
     c.a4 = 1; c.upd = Date.now();
   });
   if (n || miss) { saveComps(); toast(`Tozzetti aggiornati ai codici A4 ufficiali: ${n}` + (miss ? ` · ${miss} senza tozzetto A4 (restano com'erano)` : '')); }
+}
+
+/* ════ CODICI PER FORMATO (per ordinare): tutti i campioni degli espositori scelti, divisi per formato,
+   con codice, serie, colore, finitura, pezzi ed espositori. Copia (tutto o un formato) ed Excel. ════ */
+let cfSel = null;
+function cfComps(cid) { return visibleComps(cid).filter(c => c.slots.some(k => k && SAMPLE[k])); }
+function cfData(cid) {
+  const list = cfComps(cid).filter(c => !cfSel || cfSel.has(c.id)), groups = new Map();
+  list.forEach(c => c.slots.forEach(k => {
+    const s = k && SAMPLE[k]; if (!s) return;
+    const fz = s.toz ? 'Tozzetti 19,5×29,5' : fmt(s.z), g = groups.get(fz) || groups.set(fz, new Map()).get(fz);
+    const multi = (s.k || []).length > 1 && !s.a4;
+    const fin = s.a4 ? s.v : (s.f || []).map(f => f.replace(/\s*Rett\.?$/, '')).join(' / ');
+    const rk = s.key, r = g.get(rk) || { code: (s.k || []).join(' / '), s: glTitle(s.s), c: glTitle(s.c), b: s.b, fin: multi ? 'finitura da scegliere: ' + fin : fin, n: 0, where: new Set(), multi };
+    r.n++; r.where.add(c.name); g.set(rk, r);
+  }));
+  const area = z => { const p = parseSize(z.replace('×', 'x')); return p ? p[0] * p[1] : 0; };
+  return [...groups.entries()].sort((a, b) => (a[0].startsWith('Tozzetti') ? 1 : 0) - (b[0].startsWith('Tozzetti') ? 1 : 0) || area(a[0]) - area(b[0]))
+    .map(([z, m]) => ({ z, rows: [...m.values()].sort((a, b) => a.b.localeCompare(b.b) || a.s.localeCompare(b.s) || a.c.localeCompare(b.c)) }));
+}
+function openCodesByFormat(cid) {
+  cfSel = null;
+  let m = document.getElementById('cfDlg'); if (m) m.remove();
+  document.body.insertAdjacentHTML('beforeend', `<div class="modal open" id="cfDlg" style="z-index:270"><div class="mbox" style="max-width:860px;width:calc(100vw - 24px);max-height:calc(100vh - 24px);display:flex;flex-direction:column">
+    <div class="mhead"><h3><svg class="ic"><use href="#i-clipboard"/></svg> Codici per formato · ${esc(clients[cid].name)}</h3>
+      <button class="btn" onclick="cfCopy('${cid}')"><svg class="ic"><use href="#i-copy"/></svg> Copia tutto</button>
+      <button class="btn" onclick="cfCSV('${cid}')"><svg class="ic"><use href="#i-download"/></svg> Excel</button>
+      <button class="btn dark" onclick="document.getElementById('cfDlg').remove()">Chiudi</button></div>
+    <div id="cfBody" style="overflow:auto;padding:12px 18px 18px"></div></div></div>`);
+  m = document.getElementById('cfDlg'); m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+  cfRender(cid);
+}
+function cfRender(cid) {
+  const all = cfComps(cid), data = cfData(cid), tot = data.reduce((n, g) => n + g.rows.reduce((a, r) => a + r.n, 0), 0);
+  document.getElementById('cfBody').innerHTML = `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+      <span style="font-size:12px;font-weight:700;color:var(--mid);margin-right:4px">ESPOSITORI</span>
+      <button class="g2-chip ${!cfSel ? 'on' : ''}" onclick="cfSel = null; cfRender('${cid}')">Tutti</button>
+      ${all.map(c => `<button class="g2-chip ${cfSel && cfSel.has(c.id) ? 'on' : ''}" onclick="cfToggle('${cid}','${c.id}')">${esc(c.name)}</button>`).join('')}</div>
+    <div style="font-size:13px;color:var(--mid);margin-bottom:10px"><b style="color:#1d1d20">${tot}</b> pezzi in <b style="color:#1d1d20">${data.length}</b> formati</div>
+    ${data.map((g, gi) => `<div style="margin-bottom:18px">
+      <div style="display:flex;align-items:center;gap:10px;border-bottom:2px solid #1d1d20;padding-bottom:4px;margin-bottom:6px">
+        <b style="font:700 16px var(--font-display);flex:1">${esc(g.z)}</b><span style="font-size:12px;color:var(--mid)">${g.rows.reduce((a, r) => a + r.n, 0)} pezzi · ${g.rows.length} codici</span>
+        <button class="btn" onclick="cfCopy('${cid}', ${gi})"><svg class="ic"><use href="#i-copy"/></svg> Copia ${esc(g.z)}</button></div>
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+        <tr style="color:var(--mid);text-align:left"><th style="padding:4px 6px">Codice</th><th style="padding:4px 6px">Serie · colore</th><th style="padding:4px 6px">Finitura</th><th style="padding:4px 6px;text-align:right">Pezzi</th><th style="padding:4px 6px">Espositori</th></tr>
+        ${g.rows.map(r => `<tr style="border-top:1px solid #eee"><td style="padding:5px 6px;font-weight:700;white-space:nowrap">${esc(r.code)}</td>
+          <td style="padding:5px 6px">${esc(r.s)} <b>${esc(r.c)}</b><br><small style="color:var(--mid)">${esc(r.b)}</small></td>
+          <td style="padding:5px 6px;${r.multi ? 'color:#b07400' : ''}">${esc(r.fin)}</td><td style="padding:5px 6px;text-align:right;font-weight:700">${r.n}</td>
+          <td style="padding:5px 6px;color:var(--mid);font-size:11.5px">${esc([...r.where].join(', '))}</td></tr>`).join('')}
+      </table></div>`).join('') || '<div class="empty-note">Nessun campione negli espositori scelti.</div>'}`;
+}
+function cfToggle(cid, id) {
+  const all = cfComps(cid).map(c => c.id); if (!cfSel) cfSel = new Set();
+  if (cfSel.has(id)) cfSel.delete(id); else cfSel.add(id);
+  if (!cfSel.size || cfSel.size === all.length) cfSel = null;
+  cfRender(cid);
+}
+function cfText(cid, gi) {
+  const data = cfData(cid), pick = gi == null ? data : [data[gi]];
+  return [`Codici per formato — ${clients[cid].name}`, ''].concat(pick.flatMap(g => [`${g.z} (${g.rows.reduce((a, r) => a + r.n, 0)} pezzi)`,
+    ...g.rows.map(r => `${r.code}\t${r.s} ${r.c}\t${r.fin}\t${r.n} pz`), ''])).join('\n');
+}
+async function cfCopy(cid, gi) {
+  const txt = cfText(cid, gi);
+  try { await navigator.clipboard.writeText(txt); toast(gi == null ? 'Codici copiati' : 'Codici del formato copiati'); }
+  catch (e) { ask('Copia il testo:', { text: txt, readOnly: true, alert: true }); }
+}
+function cfCSV(cid) {
+  const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+  const rows = [['Formato', 'Codice', 'Marca', 'Serie', 'Colore', 'Finitura', 'Pezzi', 'Espositori']];
+  cfData(cid).forEach(g => g.rows.forEach(r => rows.push([g.z, r.code, r.b, r.s, r.c, r.fin, r.n, [...r.where].join(', ')])));
+  const csv = '﻿' + rows.map(r => r.map(q).join(';')).join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'codici-per-formato-' + clients[cid].name.replace(/[^\w\-]+/g, '_') + '-' + new Date().toISOString().slice(0, 10) + '.csv'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
 }
