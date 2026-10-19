@@ -37,8 +37,8 @@ function route() {
   if (a === 'cliente' && clients[id]) { document.body.dataset.view = 'client'; renderClient(id); return; }
   if (a === 'galleria2') { closeGalleryFull(); closeG2Full(); document.body.dataset.view = 'gallery2'; renderGallery2Home(); return; }
   if (a === 'g2' && clients[id]) { closeG2Full(); document.body.dataset.view = 'gallery2'; renderGallery2(id, sub); return; }
-  if (a === 'galleria') { closeGalleryFull(); document.body.dataset.view = 'gallery'; renderGalleryHome(); return; }
-  if (a === 'campioni' && clients[id]) { closeGalleryFull(); document.body.dataset.view = 'gallery'; renderGallery(id, sub); return; }
+  if (a === 'galleria') return go('#/galleria2');   // la vecchia Galleria è stata sostituita dalla Galleria+
+  if (a === 'campioni' && clients[id]) return go('#/g2/' + id + (sub && sub !== 'tutti' ? '/' + sub : ''));
   if (a === 'pacchetti') { document.body.dataset.view = 'packs'; renderPacks(id); return; }
   if (a === 'ambiente' && scenes[id]) { document.body.dataset.view = 'room'; openRoom(id); return; }
   if (a === 'salamostra' && clients[id]) {
@@ -338,7 +338,7 @@ function showroomHTML(cid) {
     <div class="stats" style="margin:10px 0 16px"><div><b>${rooms.length}</b>${rooms.length === 1 ? 'stanza' : 'stanze'}</div><div><b>${nEsp}</b>espositori</div><div><b>${tot}</b>campioni esposti</div></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
       <button class="btn red" style="font-size:14px;padding:10px 16px" onclick="go('#/salamostra/${cid}')"><svg class="ic"><use href="#i-play"/></svg> Entra nella sala mostra</button>
-      <button class="btn dark" style="font-size:14px;padding:10px 16px" onclick="go('#/campioni/${cid}')"><svg class="ic"><use href="#i-image"/></svg> Galleria campioni</button>
+      <button class="btn dark" style="font-size:14px;padding:10px 16px" onclick="go('#/g2/${cid}')"><svg class="ic"><use href="#i-sparkles"/></svg> Galleria+</button>
       <button class="btn" onclick="addShowRoom('${cid}')"><svg class="ic"><use href="#i-plus"/></svg> Aggiungi una stanza</button>
       <button class="btn" onclick="pasteShowroom('${cid}')" title="Incolla un elenco di codici e scegli in quali espositori della sala mostra metterli"><svg class="ic"><use href="#i-paste"/></svg> Incolla codici</button></div>
     <div class="roomlist">${rooms.map(r => `<div class="roomrow">
