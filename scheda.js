@@ -38,8 +38,8 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 #schPrint .it .im { position: relative; aspect-ratio: 1; border-radius: 1.6mm; overflow: hidden; background: #ddd; }
 #schPrint .it .im img { width: 100%; height: 100%; object-fit: cover; display: block; }
 #schPrint .it .pos { position: absolute; left: 1mm; top: 1mm; background: rgba(17,17,17,.85); color: #fff; font: 700 calc(var(--f) * .9) Inter, Arial; padding: .3mm 1.1mm; border-radius: .8mm; }
-#schPrint .it .cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 4mm 1.4mm 1.2mm; color: #fff;
-  background: linear-gradient(to top, rgba(0,0,0,.82), rgba(0,0,0,.62) 60%, rgba(0,0,0,0)); }
+#schPrint .it .cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 2.4mm 1.3mm 1mm; color: #fff;
+  background: linear-gradient(to top, rgba(0,0,0,.72), rgba(0,0,0,.5) 55%, rgba(0,0,0,0)); }
 #schPrint .it .cap > div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #schPrint .it .b { font: 700 calc(var(--f) * .78) Inter, Arial; letter-spacing: .08em; text-transform: uppercase; color: #ffb3b8; }
 #schPrint .it .s { font-weight: 700; font-size: calc(var(--f) * 1.08); white-space: normal !important; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
@@ -188,9 +188,8 @@ async function exportSchede(list) {
     <div class="hd">Prodotti nell'espositore <span>${filled.length} campioni · in ordine di posto</span></div>
     <div class="grid" style="${(g => `grid-template-columns:repeat(${g.cols},minmax(0,1fr));--f:${g.f.toFixed(2)}pt;--gx:${g.gx}mm;--gy:${g.gy.toFixed(1)}mm`)(schFit(filled.length))}">${filled.map(([s, i]) => { const u = photo(s);
       return `<div class="it"><div class="im">${u ? `<img src="${esc(u)}" alt="">` : ''}<span class="pos">${esc(slotName(d, i, n))}</span>
-        <div class="cap"><div class="b">${esc(s.b)}</div><div class="s">${esc(glTitle(s.s))} ${esc(glTitle(s.c))}</div>
-        <div class="z">${esc(s.toz ? fmt(tozFmt(d, c)) : fmt(s.z) + ' cm')}${fin(s) ? ' · ' + esc(fin(s)) : ''}</div>
-        <div class="cd">${esc((s.k || []).join(' / '))}</div></div></div></div>`; }).join('')}</div>
+        <div class="cap"><div class="s">${esc(glTitle(s.s))} ${esc(glTitle(s.c))}</div>
+        <div class="z">${esc(s.toz ? fmt(tozFmt(d, c)) : fmt(s.z) + ' cm')}${fin(s) ? ' · ' + esc(fin(s)) : ''}</div></div></div></div>`; }).join('')}</div>
     <div class="foot">${esc(d.name)} · ${esc(c.name)}${cl ? ' · ' + esc(cl.name) : ''} · ${today}</div></div>`);
   }
   wait.textContent = 'Preparo il PDF…';
