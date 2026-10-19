@@ -301,9 +301,8 @@ document.head.insertAdjacentHTML('beforeend', `<style>
   body.gl-printing > *:not(#glPrint) { display: none !important; }
   body.gl-printing { background: #fff !important; }
   #glPrint { display: block !important; }
-  @page { size: A4 portrait; margin: 11mm 11mm 13mm; }
 }
-#glPrint { font-family: Inter, Arial, sans-serif; color: #18181b; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+#glPrint { padding: 0 11mm; font-family: Inter, Arial, sans-serif; color: #18181b; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 #glPrint .cov { height: 268mm; display: flex; flex-direction: column; justify-content: space-between; page-break-after: always; break-after: page; }
 #glPrint .cov .top { font: 700 9pt Inter, Arial; letter-spacing: .22em; text-transform: uppercase; color: #b0101a; }
 #glPrint .cov h1 { font: 700 40pt/1.02 'Inter Tight', Inter, Arial; letter-spacing: -.03em; margin: 6mm 0 3mm; }
@@ -383,7 +382,7 @@ async function glExportPDF(cid, scope, withMissing) {
   const today = new Date().toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
   const cover = items.filter(it => img(it.s)).slice(0, 12);
   let el = document.getElementById('glPrint'); if (!el) { el = document.createElement('div'); el.id = 'glPrint'; document.body.appendChild(el); }
-  el.innerHTML = `<section class="cov"><div>
+  el.innerHTML = printPages(`<section class="cov"><div>
       <div class="top">${withMissing && !mark ? 'Sala mostra · serie complete' : `Sala mostra · campioni esposti${withMissing ? ' e colori da completare' : ''}`}</div>
       <h1>${esc(cl.name)}</h1>
       <div class="sub">${[cl.city, cur ? cur.c.name + ' · ' + cur.d.name : 'Tutta la sala mostra', today].filter(Boolean).map(esc).join(' · ')}</div>
@@ -400,8 +399,8 @@ async function glExportPDF(cid, scope, withMissing) {
         const u = img(it.s);
         return `<div class="it${it.missing && mark ? ' miss' : ''}"><div class="im">${u ? `<img src="${esc(u)}" alt="">` : ''}${it.missing && mark ? '<span class="mt">non in sala mostra</span>' : ''}</div><div class="n">${esc(glTitle(it.s.c))}</div><div class="z">${esc(it.missing ? zOf(it) : glSizes(it))}${it.s.toz ? '' : ' cm'}</div></div>`;
       }).join('')}</div></section>`;
-  }).join('') + `<div class="foot">${esc(cl.name)} · ${today}</div>`;
+  }).join('') + `<div class="foot">${esc(cl.name)} · ${today}</div>`, 11, 13);
   toast('Preparo il PDF…');
   await Promise.all([...el.querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
-  printWhenReady('gl-printing', 'Il PDF della galleria è pronto');
+  printWhenReady('gl-printing', 'Il PDF della galleria è pronto', 'A4 portrait');
 }

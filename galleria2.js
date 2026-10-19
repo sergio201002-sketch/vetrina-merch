@@ -116,7 +116,7 @@ body[data-view="gallery2"] #viewGallery2 { display: block; }
 }
 /* stampa della proposta */
 @media print { body.g2-printing > *:not(#g2Print) { display: none !important; } #g2Print { display: block !important; } }
-#g2Print { display: none; font-family: Inter, Arial, sans-serif; color: #111; padding: 10mm; }
+#g2Print { display: none; font-family: Inter, Arial, sans-serif; color: #111; padding: 0 10mm; }
 #g2Print h1 { font: 700 26px var(--font-display); letter-spacing: -.02em; margin: 0 0 4px; }
 #g2Print .it { display: grid; grid-template-columns: 34mm 1fr; gap: 5mm; padding: 4mm 0; border-bottom: 1px solid #ddd; break-inside: avoid; }
 #g2Print .it img { width: 34mm; height: 34mm; object-fit: cover; border-radius: 3mm; }
@@ -331,11 +331,11 @@ function g2PutIn(cid) {
 function g2Print(cid) {
   const cl = clients[cid], rows = g2Prop(cid).map(k => SAMPLE[k]).filter(Boolean);
   let el = document.getElementById('g2Print'); if (!el) { el = document.createElement('div'); el.id = 'g2Print'; document.body.appendChild(el); }
-  el.innerHTML = `<h1>Proposta di integrazione</h1><div style="color:#555;margin-bottom:6mm">${esc(cl.name)}${cl.city ? ' · ' + esc(cl.city) : ''} · ${new Date().toLocaleDateString('it-IT')}</div>` +
+  el.innerHTML = printPages(`<h1>Proposta di integrazione</h1><div style="color:#555;margin-bottom:6mm">${esc(cl.name)}${cl.city ? ' · ' + esc(cl.city) : ''} · ${new Date().toLocaleDateString('it-IT')}</div>` +
     rows.map(s => `<div class="it"><img src="${esc(glPhoto(s) || '')}" alt=""><div><div style="font:700 10px Inter;color:#b0101a;letter-spacing:.1em;text-transform:uppercase">${esc(s.b)}</div>
       <div style="font:600 18px 'Inter Tight',Inter,sans-serif">${esc(glTitle(s.s))} · ${esc(glTitle(s.c))}</div>
-      <div style="color:#444;margin-top:2mm">${esc(fmt(s.z))} cm · ${esc((s.f || []).join(', '))}</div><div style="color:#444">Codici: ${esc((s.k || []).join(' · '))}</div></div></div>`).join('');
-  Promise.all([...el.querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; }))).then(() => printWhenReady('g2-printing', 'La proposta è pronta'));
+      <div style="color:#444;margin-top:2mm">${esc(fmt(s.z))} cm · ${esc((s.f || []).join(', '))}</div><div style="color:#444">Codici: ${esc((s.k || []).join(' · '))}</div></div></div>`).join(''), 10, 10);
+  Promise.all([...el.querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; }))).then(() => printWhenReady('g2-printing', 'La proposta è pronta', 'A4 portrait'));
 }
 
 /* ════ Dettagli: colori di una serie divisi per tipo (usati dalla pagina Dettagli) ════ */

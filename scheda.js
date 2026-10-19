@@ -9,10 +9,9 @@ document.head.insertAdjacentHTML('beforeend', `<style>
   body.sch-printing > *:not(#schPrint) { display: none !important; }
   body.sch-printing { background: #fff !important; }
   #schPrint { display: block !important; }
-  @page { size: A4 landscape; margin: 9mm 10mm 10mm; }
 }
 #schPrint { font-family: Inter, Arial, sans-serif; color: #18181b; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-#schPrint .sch-page { height: 190mm; display: flex; flex-direction: column; overflow: hidden; }
+#schPrint .sch-page { height: 209mm; padding: 9mm 10mm 8mm; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; }
 #schPrint .top { display: grid; grid-template-columns: 46mm 1fr; gap: 5mm; height: 34mm; margin-bottom: 3mm; flex: none; }
 #schPrint .rn { border-radius: 2mm; overflow: hidden; background: linear-gradient(180deg, #f7f6f3, #ecebe7); }
 #schPrint .rn img { width: 100%; height: 100%; object-fit: contain; display: block; }
@@ -197,5 +196,5 @@ async function exportSchede(list) {
   el.innerHTML = pages.join('');
   await Promise.all([...el.querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
   wait.remove();
-  printWhenReady('sch-printing', list.length > 1 ? `Le ${list.length} schede sono pronte` : 'La scheda è pronta');
+  printWhenReady('sch-printing', list.length > 1 ? `Le ${list.length} schede sono pronte` : 'La scheda è pronta', 'A4 landscape');
 }

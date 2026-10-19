@@ -705,8 +705,14 @@ const saveUI = () => LS.set('vm_ui_v1', ui);
 /* ════ STAMPA / PDF ════ prepara il documento con la classe cls e apre la stampa ("Salva come PDF" / Condividi).
    Sul telefono (Safari e Chrome mobile) la stampa parte solo da un tocco: quando il documento è pronto compare
    il pulsante "Apri il PDF". Sul PC si apre da sola. */
-function printWhenReady(cls, title) {
+/* contenuto che scorre su più pagine: spazio vuoto in alto e in basso ripetuto su ogni foglio (i margini veri sono a zero) */
+const printPages = (html, top, bottom) => `<table class="pp" style="width:100%;border-collapse:collapse"><thead><tr><td style="padding:0"><div style="height:${top}mm"></div></td></tr></thead>
+  <tbody><tr><td style="padding:0">${html}</td></tr></tbody><tfoot><tr><td style="padding:0"><div style="height:${bottom}mm"></div></td></tr></tfoot></table>`;
+function printWhenReady(cls, title, size) {
   const go = () => {
+    // margini del foglio a zero: il browser non ha spazio per stampare indirizzo del sito, data e titolo
+    let ps = document.getElementById('printPage'); if (!ps) { ps = document.createElement('style'); ps.id = 'printPage'; document.head.appendChild(ps); }
+    ps.textContent = `@media print { @page { size: ${size || 'A4 portrait'}; margin: 0; } }`;
     document.body.classList.add(cls);
     const done = () => { document.body.classList.remove(cls); window.removeEventListener('afterprint', done); };
     window.addEventListener('afterprint', done);
