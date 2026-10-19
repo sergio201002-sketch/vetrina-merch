@@ -85,6 +85,7 @@ function openSampleBoard() {
     document.body.insertAdjacentHTML('beforeend', `<div class="modal cs-modal" id="csModal"><div class="mbox">
       <div class="mhead"><h3><svg class="ic"><use href="#i-grid"/></svg> Sistema i campioni</h3>
         <div class="cs-size">Grandezza <button class="btn" onclick="csZoom(-1)" title="Quadratini più piccoli: ne vedi di più">−</button><button class="btn" onclick="csZoom(1)" title="Quadratini più grandi">+</button></div>
+        <button class="btn" id="csFinBtn" onclick="ui.csFin = !ui.csFin; saveUI(); renderSampleBoard()" title="Mostra la finitura di ogni campione (lineette R11 / marmo opaco) e tocca per cambiarla"></button>
         <button class="btn" onclick="roomPaste()" title="Incolla un elenco di codici in uno o più espositori"><svg class="ic"><use href="#i-paste"/></svg> Incolla codici</button>
         <button class="btn dark" onclick="closeSampleBoard()">Fatto</button></div>
       <div class="cs-hint">Trascina per spostare o scambiare (telefono: tieni premuto e trascina) · tocca un posto per inserire, cambiare o togliere: dopo ogni campione passa da solo al posto accanto (partendo dall'ultimo a destra va verso sinistra, <svg class="ic"><use href="#i-swap"/></svg> cambia verso) · Invio nella ricerca mette il campione se ne è rimasto uno solo · <svg class="ic"><use href="#i-select"/></svg> Seleziona: scegli più campioni e spostali insieme o toglili · con − e + vedi più o meno quadratini.</div>
@@ -117,8 +118,10 @@ function slotTile(cid, i, d, c, label, cut) {
   const s = SAMPLE[c.slots[i]], p = esc(label || slotName(d, i, c.slots.length)), at = csPickAt && csPickAt.cid === cid && csPickAt.i === i ? ' at' : '', k = (cut ? ' cut' : '') + at;
   const sel = csSel.indexOf(cid + ':' + i), ck = sel >= 0 ? `<span class="ck">${sel + 1}</span>` : '';
   if (!s) return `<div class="cslot empty${k}" data-c="${cid}" data-i="${i}"><span class="p">${p}</span></div>`;
-  return `<div class="cslot${k}${sel >= 0 ? ' picked' : ''}" data-c="${cid}" data-i="${i}" style="${swatchStyle(s)}"><span class="p">${p}</span>${ck}
-    <span class="n"><b>${esc(s.s)}</b>${esc(s.c)}${s.toz ? '' : ' · ' + esc(fmt(s.z))}</span></div>`;
+  const fin = ui.csFin ? csFinInfo(s) : null;
+  return `<div class="cslot${k}${sel >= 0 ? ' picked' : ''}${fin ? ' fin' : ''}" data-c="${cid}" data-i="${i}" style="${swatchStyle(s)}"><span class="p">${p}</span>${ck}
+    ${fin && fin.ln ? `<span class="fl">${mcLinesSVG(fin.ln)}</span>` : ''}${fin && fin.unset ? '<span class="fq" title="Finitura non scelta: tocca per sceglierla">?</span>' : ''}
+    <span class="n"><b>${esc(s.s)}</b>${esc(s.c)}${s.toz ? '' : ' · ' + esc(fmt(s.z))}${fin && fin.label ? `<i class="fn">${esc(fin.label)}</i>` : ''}</span></div>`;
 }
 /* girevoli uguali attaccati, ognuno con i suoi campioni: nel pannello diventano un espositore unico
    (un lato A lungo e un lato B lungo, da sinistra a destra); "Vedi separati" li rimette uno per uno */
@@ -179,6 +182,8 @@ function renderSampleBoard() {
   }).join('') : `<div class="empty-note">In questa sala mostra non ci sono ancora espositori con posti per i campioni.</div>`;
   body.scrollTop = top;
   body.classList.toggle('cs-selmode', csSelMode);
+  const fb = document.getElementById('csFinBtn');
+  if (fb) { fb.className = 'btn' + (ui.csFin ? ' on' : ''); fb.innerHTML = `${ui.csFin ? '<svg class="ic"><use href="#i-check"/></svg> ' : ''}Visualizza finitura`; }
   renderSelBar();
 }
 
@@ -264,6 +269,8 @@ function bindBoardDrag(body) {
     } else if (!d.moved && e.type === 'pointerup' && csSelMode) {   // selezione: tocco = scegli / togli, oppure posto di arrivo
       if (csArm) csMoveGroup(d.el.dataset.c, +d.el.dataset.i);
       else csToggleSel(d.el);
+    } else if (!d.moved && e.type === 'pointerup' && ui.csFin && SAMPLE[comps[d.el.dataset.c].slots[+d.el.dataset.i]]) {   // finitura
+      csFinPick(d.el.dataset.c, +d.el.dataset.i);
     } else if (!d.moved && e.type === 'pointerup') {   // tocco = scegli il campione
       const g = csGridPos(d.el.dataset.c, +d.el.dataset.i);
       if (g) { if (g.col === g.rowLen - 1 && g.rowLen > 1) csDir = -1; else if (g.col === 0) csDir = 1; }   // dall'ultimo a destra si va verso sinistra, dal primo verso destra
@@ -414,4 +421,58 @@ function setBoardSlot(key) {
   const next = key ? csNextSlot(csPickAt.cid, csPickAt.i) : null;
   if (next) { openSlotPicker(next.cid, next.i); toast('Inserito · ora il posto ' + next.label); }
   else { document.getElementById('csPick').hidden = true; csPickAt = null; toast(key ? 'Campione inserito' : 'Posto svuotato'); }
+}
+
+/* ── finitura dei campioni (pulsante "Visualizza finitura") ── */
+document.head.insertAdjacentHTML('beforeend', `<style>
+.cslot .fl { position: absolute; top: 0; right: 0; width: 42%; aspect-ratio: 1; pointer-events: none; }
+.cslot .fl svg { width: 100%; height: 100%; display: block; }
+.cslot .fl line { stroke: #e0202b; stroke-width: 2.6; stroke-linecap: round; }
+.cslot .fq { position: absolute; top: 4px; right: 4px; width: 18px; height: 18px; border-radius: 50%; background: #f5b400; color: #1d1d20; font: 800 12px/18px var(--font-body); text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.35); pointer-events: none; }
+.cslot .n .fn { display: block; font-style: normal; font-weight: 700; color: #ffd6d9; }
+.csf-list { display: flex; flex-direction: column; gap: 8px; padding: 6px 18px 18px; }
+.csf-list button { display: grid; grid-template-columns: 56px 1fr; gap: 12px; align-items: center; text-align: left; border: 1px solid var(--border); background: #fff; border-radius: 12px; padding: 6px; cursor: pointer; font: inherit; }
+.csf-list button:hover { background: #f8f7f4; }
+.csf-list button.on { border-color: var(--red); box-shadow: 0 0 0 2px var(--red); }
+.csf-list .im { position: relative; width: 56px; height: 56px; border-radius: 8px; background: #ddd center/cover; overflow: hidden; }
+.csf-list .im span { position: absolute; top: 0; right: 0; width: 46%; aspect-ratio: 1; }
+.csf-list .im svg { width: 100%; height: 100%; display: block; }
+.csf-list .im line { stroke: #e0202b; stroke-width: 2.4; stroke-linecap: round; }
+.csf-list b { display: block; font-size: 14px; }
+.csf-list small { color: var(--mid); font-size: 12px; }
+</style>`);
+/* finitura del campione: etichetta, lineette, e se è un campione "intero" (più finiture insieme, finitura non scelta) */
+function csFinInfo(s) {
+  if (!s) return null;
+  if (s.a4) return { label: s.v, ln: mcLines(s) };
+  const fin = (s.f || []).map(f => f.replace(/\s*Rett\.?$/, ''));
+  if (FIN_VAR[s.key]) return { label: 'finitura da scegliere', ln: 0, unset: true };
+  return { label: fin.join(' / '), ln: mcLines(s) };
+}
+/* le finiture che esistono per quel prodotto, colore e formato */
+function csFinOptions(s) {
+  if (s.a4) return TOZ_A4.filter(x => x.b === s.b && x.s === s.s && x.c === s.c && (x.g || '') === (s.g || ''));
+  const base = s.base || s.key;
+  return FIN_VAR[base] || [s];
+}
+function csFinPick(cid, i) {
+  const c = comps[cid], s = SAMPLE[c.slots[i]]; if (!s) return;
+  const opts = csFinOptions(s).slice().sort((a, b) => mcFinRank(a) - mcFinRank(b) || (a.t[0] === '6,5') - (b.t[0] === '6,5'));
+  let m = document.getElementById('csfDlg'); if (m) m.remove();
+  const label = x => x.a4 ? x.v : (x.f || []).map(f => f.replace(/\s*Rett\.?$/, '')).join(' / ');
+  document.body.insertAdjacentHTML('beforeend', `<div class="modal open" id="csfDlg" style="z-index:260"><div class="mbox" style="max-width:420px;width:calc(100vw - 32px)">
+    <div class="mhead"><h3>Finitura · ${esc(glTitle(s.s))} ${esc(glTitle(s.c))}</h3></div>
+    <div style="padding:0 18px;color:var(--mid);font-size:12.5px">${esc(s.toz ? 'tozzetto 19,5×29,5' : fmt(s.z) + ' cm')} · ${opts.length > 1 ? 'scegli la finitura' : 'c\'è una sola finitura'}</div>
+    <div class="csf-list">${opts.map(x => { const u = IMG[photoKey(x)], mi = u && ((window.FOTO_MINI || {})[u] || u), ln = mcLines(x);
+      return `<button class="${x.key === s.key ? 'on' : ''}" data-k="${esc(x.key)}"><span class="im" style="${mi ? `background-image:url('${esc(mi)}')` : ''}">${ln ? `<span>${mcLinesSVG(ln)}</span>` : ''}</span>
+        <span><b>${esc(label(x))}</b><small>${x.t && x.t[0] ? esc(x.t[0]) + ' mm · ' : ''}cod. ${esc((x.k || []).join(' / '))}</small></span></button>`; }).join('')}</div>
+    <div class="askbtns" style="padding:0 18px 16px;margin-top:0"><button class="btn" id="csfOther">Cambia campione</button><button class="btn dark" id="csfClose">Chiudi</button></div></div></div>`);
+  m = document.getElementById('csfDlg');
+  m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+  m.querySelector('#csfClose').onclick = () => m.remove();
+  m.querySelector('#csfOther').onclick = () => { m.remove(); openSlotPicker(cid, i); };
+  m.querySelectorAll('.csf-list button').forEach(b => b.onclick = () => {
+    c.slots[i] = b.dataset.k; c.upd = Date.now(); saveComps(); m.remove(); renderSampleBoard();
+    toast('Finitura cambiata: ' + label(SAMPLE[b.dataset.k]));
+  });
 }
