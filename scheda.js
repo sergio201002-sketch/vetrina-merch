@@ -57,9 +57,12 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 #schPrint .rh .big b { display: block; font: 700 12pt/1 'Inter Tight', Inter, Arial; }
 #schPrint .rh .big span { font-size: 6pt; color: #777; }
 #schPrint .real .it { position: relative; overflow: visible; }
-#schPrint .real .it .im { aspect-ratio: auto; height: 100%; border-radius: 1.6mm 0 0 1.6mm; background: #d9d6d0; }
-#schPrint .real .it .im::after { content: ''; position: absolute; inset: 0; pointer-events: none;
-  background: linear-gradient(to right, rgba(0,0,0,0) 52%, rgba(0,0,0,.10) 72%, rgba(0,0,0,.26) 88%, rgba(0,0,0,.46) 100%); }
+/* mattonelle sovrapposte: ognuna continua 2 mm sotto la successiva, così negli angoli smussati si vede il bordo scuro di quella sotto (niente bianco) */
+#schPrint .real .it .im { aspect-ratio: auto; height: 100%; width: calc(100% + 2mm); border-radius: 1.6mm 0 0 1.6mm; background: none; }
+#schPrint .real .it .im.np { background: #d9d6d0; }
+#schPrint .real .it.end .im { width: 100%; }
+#schPrint .real .it .im::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: var(--sh); }
+#schPrint .real .it.end .im::after { background: linear-gradient(to right, rgba(0,0,0,0) 52%, rgba(0,0,0,.10) 72%, rgba(0,0,0,.26) 88%, rgba(0,0,0,.46) 100%); }
 #schPrint .real .it .cap { position: absolute; left: 0; right: 0; top: calc(100% + .9mm); padding: 0 .6mm; background: none; color: #18181b; font-size: var(--f); line-height: 1.15; }
 #schPrint .real .it .cap > div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #schPrint .real .it .cap .s { font-weight: 700; font-size: var(--f); white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
@@ -72,7 +75,7 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 #schPrint .ph { position: absolute; inset: 0; background: center / cover no-repeat; }
 #schPrint .rn { position: relative; }
 #schPrint .ph.rnph { background-size: contain; }
-#schPrint .real .it .im.turn .ph { inset: auto; left: 50%; top: 50%; width: var(--ch); height: var(--cw); transform: translate(-50%, -50%) rotate(90deg); }
+#schPrint .real .it .im.turn .ph { inset: auto; left: 50%; top: 50%; width: var(--ch); height: calc(var(--cw) + 2mm); transform: translate(-50%, -50%) rotate(90deg); }
 .sch-wait { position: fixed; inset: 0; z-index: 600; background: rgba(10,10,12,.82); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 15px; }
 </style>`);
 
@@ -240,13 +243,17 @@ async function exportSchede(list, layout) {
     const bySer = new Map(); filled.forEach(([s]) => { const k = s.b + '|' + s.s; bySer.set(k, (bySer.get(k) || 0) + 1); });
     if (real) {
       const face = faceOf(d, c), a = face[1] / face[0], G = schFitReal(filled.length, a), brk = x ? 'break-before:page;page-break-before:always;' : '';
-      pages.push(`<div class="sch-page real" style="${brk}"><div class="rg" style="grid-template-columns:repeat(${G.c},${G.cw.toFixed(2)}mm);grid-auto-rows:${G.ch.toFixed(2)}mm;column-gap:${G.gx}mm;row-gap:${G.gy.toFixed(2)}mm;--f:${G.f.toFixed(2)}pt;--cw:${G.cw.toFixed(2)}mm;--ch:${G.ch.toFixed(2)}mm">
+      // ombra a destra fino al bordo visibile; i 2 mm che finiscono sotto la mattonella dopo restano scuri
+      const st = p => (p * G.cw / (G.cw + 2)).toFixed(1) + '%';
+      const sh = `linear-gradient(to right, rgba(0,0,0,0) ${st(52)}, rgba(0,0,0,.10) ${st(72)}, rgba(0,0,0,.26) ${st(88)}, rgba(0,0,0,.46) ${st(100)}, rgba(0,0,0,.46) 100%)`;
+      pages.push(`<div class="sch-page real" style="${brk}"><div class="rg" style="grid-template-columns:repeat(${G.c},${G.cw.toFixed(2)}mm);grid-auto-rows:${G.ch.toFixed(2)}mm;column-gap:${G.gx}mm;row-gap:${G.gy.toFixed(2)}mm;--f:${G.f.toFixed(2)}pt;--cw:${G.cw.toFixed(2)}mm;--ch:${G.ch.toFixed(2)}mm;--sh:${sh}">
         <div class="rh" style="grid-column:1 / span ${G.hc};grid-row:1 / span ${G.hr}">
           <div class="rn"><span class="ph rnph" style="background-image:url('${shot}')"></span></div>
           <div><div class="k">Scheda espositore${list.length > 1 ? ` · ${x + 1} di ${list.length}` : ''}</div><h1>${esc(d.name)}</h1><div class="cm">${esc(c.name)}${cl ? ' · ' + esc(cl.name) : ''}</div>
             <div class="big"><div><b>${filled.length}</b><span>campioni su ${n} posti</span></div><div><b>${bySer.size}</b><span>serie</span></div></div></div></div>
-        ${filled.map(([s, i]) => { const u = photo(s), turn = u && a > 1.05 && glLandscape(s);
-          return `<div class="it"><div class="im${turn ? ' turn' : ''}">${u ? `<span class="ph" style="background-image:url('${esc(u)}')"></span>` : ''}</div>
+        ${filled.map(([s, i], j) => { const u = photo(s), turn = u && a > 1.05 && glLandscape(s);
+          const end = (G.hc + j) % G.c === G.c - 1 || j === filled.length - 1;   // ultima della riga: non va sotto a nessuna
+          return `<div class="it${end ? ' end' : ''}"><div class="im${turn ? ' turn' : ''}${u ? '' : ' np'}">${u ? `<span class="ph" style="background-image:url('${esc(u)}')"></span>` : ''}</div>
             <div class="cap"><div class="s"><span class="p">${esc(slotName(d, i, n))}</span> ${esc(glTitle(s.s))} ${esc(glTitle(s.c))}</div>
             <div class="z">${esc(s.toz ? fmt(tozFmt(d, c)) : fmt(s.z))}${fin(s) ? ' · ' + esc(fin(s)) : ''}</div><div class="cd">${esc((s.k || []).join(' / '))}</div></div></div>`; }).join('')}
       </div></div>`);
