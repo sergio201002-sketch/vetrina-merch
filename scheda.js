@@ -56,7 +56,16 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 #schPrint .rh .big { display: flex; gap: 5mm; margin-top: 2mm; }
 #schPrint .rh .big b { display: block; font: 700 12pt/1 'Inter Tight', Inter, Arial; }
 #schPrint .rh .big span { font-size: 6pt; color: #777; }
-#schPrint .real .it .im { aspect-ratio: auto; height: 100%; border-radius: 0; }
+#schPrint .real .it { position: relative; overflow: visible; }
+#schPrint .real .it .im { aspect-ratio: auto; height: 100%; border-radius: 1.6mm 0 0 1.6mm; background: #d9d6d0; }
+#schPrint .real .it .im::after { content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(to right, rgba(0,0,0,0) 52%, rgba(0,0,0,.10) 72%, rgba(0,0,0,.26) 88%, rgba(0,0,0,.46) 100%); }
+#schPrint .real .it .cap { position: absolute; left: 0; right: 0; top: calc(100% + .9mm); padding: 0 .6mm; background: none; color: #18181b; font-size: var(--f); line-height: 1.15; }
+#schPrint .real .it .cap > div { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#schPrint .real .it .cap .s { font-weight: 700; font-size: var(--f); white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+#schPrint .real .it .cap .p { color: #b0101a; }
+#schPrint .real .it .cap .z { color: #666; }
+#schPrint .real .it .cap .cd { font-weight: 700; letter-spacing: .02em; }
 #schPrint .rh { padding-right: 3mm; }
 #schPrint .real .it { height: 100%; }
 #schPrint .real .it .im.turn img { position: absolute; left: 50%; top: 50%; width: var(--ch); height: var(--cw); transform: translate(-50%, -50%) rotate(90deg); object-fit: cover; }
@@ -193,17 +202,18 @@ function schLayoutAsk(cb) {
    righe distribuite su tutta l'altezza del foglio; la fascia con i dati prende i posti che avanzano nella prima riga
    (teca da 42: 8 per riga, fascia su 6 posti + 2 tozzetti, poi 5 righe da 8). Spazio utile 190 × 276 mm. */
 function schFitReal(n, a) {
-  const W = 190, H = 276, gx = 0.6, gyMin = 3, hdrMin = 84;
+  const W = 190, H = 276, gx = 0, hdrMin = 84;
   for (let c = 1; c <= 30; c++) {
     const cw = (W - (c - 1) * gx) / c, ch = cw * a;
-    const hcMin = Math.min(c, Math.max(1, Math.ceil((hdrMin + gx) / (cw + gx))));
-    const rows = Math.ceil((n + hcMin) / c);
-    if (rows * ch + (rows - 1) * gyMin > H) continue;
-    const hc = Math.min(c, rows * c - n);                         // la prima riga: fascia + i tozzetti che ci stanno
-    const gy = rows > 1 ? Math.min(14, (H - rows * ch) / (rows - 1)) : 0;   // righe distribuite su tutta l'altezza
-    return { c, cw, ch, hc, hr: 1, gx, gy, f: Math.max(4.2, Math.min(9, cw / 5.4)) };
+    const f = Math.max(4, Math.min(6.6, cw / 5.4)), textH = 4 * f * 0.3528 * 1.15 + 1.1;   // fino a 4 righe di scritte sotto la mattonella
+    const hcMin = Math.min(c, Math.max(1, Math.ceil(hdrMin / cw)));
+    const rows = Math.ceil((n + hcMin) / c), gyMin = textH + 0.8;
+    if (rows * ch + (rows - 1) * gyMin + textH > H) continue;
+    const hc = Math.min(c, rows * c - n);                                               // la prima riga: fascia + i tozzetti che ci stanno
+    const gy = rows > 1 ? Math.max(gyMin, Math.min(18, (H - textH - rows * ch) / (rows - 1))) : gyMin;   // righe su tutta l'altezza
+    return { c, cw, ch, hc, hr: 1, gx, gy, f };
   }
-  return { c: 30, cw: 5.7, ch: 5.7 * a, hc: 20, hr: 1, gx: 0.6, gy: 1, f: 4 };
+  return { c: 30, cw: 6.3, ch: 6.3 * a, hc: 20, hr: 1, gx: 0, gy: 6, f: 4 };
 }
 async function exportSchede(list, layout) {
   const real = layout === 'reale';
@@ -232,9 +242,9 @@ async function exportSchede(list, layout) {
           <div><div class="k">Scheda espositore${list.length > 1 ? ` · ${x + 1} di ${list.length}` : ''}</div><h1>${esc(d.name)}</h1><div class="cm">${esc(c.name)}${cl ? ' · ' + esc(cl.name) : ''}</div>
             <div class="big"><div><b>${filled.length}</b><span>campioni su ${n} posti</span></div><div><b>${bySer.size}</b><span>serie</span></div></div></div></div>
         ${filled.map(([s, i]) => { const u = photo(s), turn = u && a > 1.05 && glLandscape(s);
-          return `<div class="it"><div class="im${turn ? ' turn' : ''}">${u ? `<img src="${esc(u)}" alt="">` : ''}<span class="pos">${esc(slotName(d, i, n))}</span>
-            <div class="cap"><div class="s">${esc(glTitle(s.s))} ${esc(glTitle(s.c))}</div>
-            <div class="z">${esc(s.toz ? fmt(tozFmt(d, c)) : fmt(s.z) + ' cm')}${fin(s) ? ' · ' + esc(fin(s)) : ''}</div></div></div></div>`; }).join('')}
+          return `<div class="it"><div class="im${turn ? ' turn' : ''}">${u ? `<img src="${esc(u)}" alt="">` : ''}</div>
+            <div class="cap"><div class="s"><span class="p">${esc(slotName(d, i, n))}</span> ${esc(glTitle(s.s))} ${esc(glTitle(s.c))}</div>
+            <div class="z">${esc(s.toz ? fmt(tozFmt(d, c)) : fmt(s.z))}${fin(s) ? ' · ' + esc(fin(s)) : ''}</div><div class="cd">${esc((s.k || []).join(' / '))}</div></div></div>`; }).join('')}
       </div></div>`);
       continue;
     }
