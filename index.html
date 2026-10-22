@@ -399,6 +399,11 @@ body[data-view="room"] #viewRoom, body[data-view="show"] #viewRoom { display: fl
   .mobhead { display: flex !important; }
   header h1 { font-size: 15px; }
   header .hbtn .lbl { display: none; }
+  /* telefono: l'intestazione deve stare nella larghezza dello schermo (altrimenti la pagina si allarga e scorre di lato) */
+  header { gap: 4px !important; padding: 0 8px; overflow-x: auto; scrollbar-width: none; }
+  header .hnav { gap: 2px; }
+  header .hbtn, header > .hbtn { padding: 7px 6px; }
+  header .hbtn .n { display: none; }
   .savebadge .lbl { display: none; }
   .savebadge { padding: 7px 9px; }
   main { height: auto; }

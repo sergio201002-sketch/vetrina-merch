@@ -69,6 +69,10 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 #schPrint .rh { padding-right: 3mm; }
 #schPrint .real .it { height: 100%; }
 #schPrint .real .it .im.turn img { position: absolute; left: 50%; top: 50%; width: var(--ch); height: var(--cw); transform: translate(-50%, -50%) rotate(90deg); object-fit: cover; }
+#schPrint .ph { position: absolute; inset: 0; background: center / cover no-repeat; }
+#schPrint .rn { position: relative; }
+#schPrint .ph.rnph { background-size: contain; }
+#schPrint .real .it .im.turn .ph { inset: auto; left: 50%; top: 50%; width: var(--ch); height: var(--cw); transform: translate(-50%, -50%) rotate(90deg); }
 .sch-wait { position: fixed; inset: 0; z-index: 600; background: rgba(10,10,12,.82); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 15px; }
 </style>`);
 
@@ -238,18 +242,18 @@ async function exportSchede(list, layout) {
       const face = faceOf(d, c), a = face[1] / face[0], G = schFitReal(filled.length, a), brk = x ? 'break-before:page;page-break-before:always;' : '';
       pages.push(`<div class="sch-page real" style="${brk}"><div class="rg" style="grid-template-columns:repeat(${G.c},${G.cw.toFixed(2)}mm);grid-auto-rows:${G.ch.toFixed(2)}mm;column-gap:${G.gx}mm;row-gap:${G.gy.toFixed(2)}mm;--f:${G.f.toFixed(2)}pt;--cw:${G.cw.toFixed(2)}mm;--ch:${G.ch.toFixed(2)}mm">
         <div class="rh" style="grid-column:1 / span ${G.hc};grid-row:1 / span ${G.hr}">
-          <div class="rn"><img src="${shot}" alt=""></div>
+          <div class="rn"><span class="ph rnph" style="background-image:url('${shot}')"></span></div>
           <div><div class="k">Scheda espositore${list.length > 1 ? ` · ${x + 1} di ${list.length}` : ''}</div><h1>${esc(d.name)}</h1><div class="cm">${esc(c.name)}${cl ? ' · ' + esc(cl.name) : ''}</div>
             <div class="big"><div><b>${filled.length}</b><span>campioni su ${n} posti</span></div><div><b>${bySer.size}</b><span>serie</span></div></div></div></div>
         ${filled.map(([s, i]) => { const u = photo(s), turn = u && a > 1.05 && glLandscape(s);
-          return `<div class="it"><div class="im${turn ? ' turn' : ''}">${u ? `<img src="${esc(u)}" alt="">` : ''}</div>
+          return `<div class="it"><div class="im${turn ? ' turn' : ''}">${u ? `<span class="ph" style="background-image:url('${esc(u)}')"></span>` : ''}</div>
             <div class="cap"><div class="s"><span class="p">${esc(slotName(d, i, n))}</span> ${esc(glTitle(s.s))} ${esc(glTitle(s.c))}</div>
             <div class="z">${esc(s.toz ? fmt(tozFmt(d, c)) : fmt(s.z))}${fin(s) ? ' · ' + esc(fin(s)) : ''}</div><div class="cd">${esc((s.k || []).join(' / '))}</div></div></div>`; }).join('')}
       </div></div>`);
       continue;
     }
     pages.push(`<div class="sch-page"${x ? ' style="break-before:page;page-break-before:always"' : ''}><section class="top">
-      <div class="rn"><img src="${shot}" alt=""></div>
+      <div class="rn"><span class="ph rnph" style="background-image:url('${shot}')"></span></div>
       <div class="info">
         <div><div class="k">Scheda espositore${list.length > 1 ? ` · ${x + 1} di ${list.length}` : ''}</div><h1>${esc(d.name)}</h1><div class="cm">${esc(c.name)}</div>
         <div class="big"><div><b>${filled.length}</b><span>campioni su ${n} posti</span></div><div><b>${bySer.size}</b><span>serie</span></div></div></div>
@@ -260,7 +264,7 @@ async function exportSchede(list, layout) {
     </section>
     <div class="hd">Prodotti nell'espositore <span>${filled.length} campioni · in ordine di posto</span></div>
     <div class="grid" style="${(g => `grid-template-columns:repeat(${g.cols},minmax(0,1fr));--f:${g.f.toFixed(2)}pt;--gx:${g.gx}mm;--gy:${g.gy.toFixed(1)}mm`)(schFit(filled.length))}">${filled.map(([s, i]) => { const u = photo(s);
-      return `<div class="it"><div class="im">${u ? `<img src="${esc(u)}" alt="">` : ''}<span class="pos">${esc(slotName(d, i, n))}</span>
+      return `<div class="it"><div class="im">${u ? `<span class="ph" style="background-image:url('${esc(u)}')"></span>` : ''}<span class="pos">${esc(slotName(d, i, n))}</span>
         <div class="cap"><div class="s">${esc(glTitle(s.s))} ${esc(glTitle(s.c))}</div>
         <div class="z">${esc(s.toz ? fmt(tozFmt(d, c)) : fmt(s.z) + ' cm')}${fin(s) ? ' · ' + esc(fin(s)) : ''}</div></div></div></div>`; }).join('')}</div>
     <div class="foot">${esc(d.name)} · ${esc(c.name)}${cl ? ' · ' + esc(cl.name) : ''} · ${today}</div></div>`);
@@ -268,7 +272,70 @@ async function exportSchede(list, layout) {
   wait.textContent = 'Preparo il PDF…';
   let el = document.getElementById('schPrint'); if (!el) { el = document.createElement('div'); el.id = 'schPrint'; document.body.appendChild(el); }
   el.innerHTML = pages.join('');
-  await Promise.all([...el.querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
+  const urls = [...el.querySelectorAll('.ph')].map(x => (x.style.backgroundImage.match(/url\(["']?([^"')]+)/) || [])[1]).filter(Boolean);
+  await Promise.all([...new Set(urls)].map(u => new Promise(r => { const im = new Image(); im.onload = im.onerror = r; im.src = u; })));
+  const name = (list.length > 1 ? 'schede-' + ((list[0].client && clients[list[0].client] && clients[list[0].client].name) || 'espositori') : 'scheda-' + list[0].name) + '.pdf';
+  const ok = await schMakePDF(el, real, name.replace(/[^\w\-.]+/g, '_'), wait, list.length > 1 ? `Le ${list.length} schede sono pronte` : 'La scheda è pronta');
+  if (!ok) { wait.remove(); printWhenReady('sch-printing', list.length > 1 ? `Le ${list.length} schede sono pronte` : 'La scheda è pronta', real ? 'A4 portrait' : 'A4 landscape'); }
+}
+/* crea il file PDF: ogni scheda diventa una pagina (immagine fedele della pagina), senza passare dalla stampa del browser */
+const PDF_LIBS = ['https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'];
+function loadPdfLibs() {
+  return Promise.all(PDF_LIBS.map(src => (window.html2canvas && /html2canvas/.test(src)) || (window.jspdf && /jspdf/.test(src)) ? 0
+    : new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = src; sc.onload = res; sc.onerror = rej; document.head.appendChild(sc); })));
+}
+async function schMakePDF(el, real, name, wait, title) {
+  try { await loadPdfLibs(); } catch (e) { return false; }
+  if (!window.html2canvas || !window.jspdf) return false;
+  const pw = real ? 210 : 297, ph = real ? 297 : 210;
+  // la pagina deve essere visibile (fuori schermo) per essere fotografata
+  el.style.cssText = `display:block;position:absolute;left:-20000px;top:0;width:${pw}mm;background:#fff`;
+  // foto girate: html2canvas non disegna gli sfondi ruotati con CSS, quindi le giro prima su un canvas
+  const rot = {};
+  await Promise.all([...el.querySelectorAll('.im.turn .ph')].map(async x => {
+    const u = (x.style.backgroundImage.match(/url\(["']?([^"')]+)/) || [])[1]; if (!u) return;
+    rot[u] = rot[u] || new Promise(r => { const im = new Image(); im.onerror = () => r(''); im.onload = () => {
+      const k = Math.min(1, 900 / Math.max(im.naturalWidth, im.naturalHeight)), w = Math.round(im.naturalWidth * k), h = Math.round(im.naturalHeight * k);
+      const cv = document.createElement('canvas'); cv.width = h; cv.height = w;
+      const g = cv.getContext('2d'); g.translate(h, 0); g.rotate(Math.PI / 2); g.drawImage(im, 0, 0, w, h);
+      r(cv.toDataURL('image/jpeg', 0.9)); }; im.src = u; });
+    const d = await rot[u]; if (!d) return;
+    x.style.backgroundImage = `url('${d}')`; x.parentElement.classList.remove('turn');
+  }));
+  const pagesEl = [...el.querySelectorAll('.sch-page')];
+  const pdf = new window.jspdf.jsPDF({ orientation: real ? 'portrait' : 'landscape', unit: 'mm', format: 'a4', compress: true });
+  const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
+  try {
+    for (let i = 0; i < pagesEl.length; i++) {
+      wait.textContent = `Creo il PDF… pagina ${i + 1} di ${pagesEl.length}`;
+      const pg = pagesEl[i]; pg.style.breakBefore = 'auto'; pg.style.width = pw + 'mm';
+      const cv = await window.html2canvas(pg, { scale: mobile ? 2 : 2.6, backgroundColor: '#ffffff', useCORS: true, logging: false });
+      if (i) pdf.addPage('a4', real ? 'portrait' : 'landscape');
+      const hmm = Math.min(ph, cv.height / cv.width * pw);
+      pdf.addImage(cv.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, pw, hmm, undefined, 'FAST');
+    }
+  } catch (e) { el.style.cssText = ''; return false; }
+  el.style.cssText = '';
+  const blob = pdf.output('blob'), url = URL.createObjectURL(blob);
   wait.remove();
-  printWhenReady('sch-printing', list.length > 1 ? `Le ${list.length} schede sono pronte` : 'La scheda è pronta', real ? 'A4 portrait' : 'A4 landscape');
+  const download = () => { const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); };
+  if (!mobile) { download(); toast('PDF scaricato: ' + name); return true; }
+  // telefono: condividi (Salva su File, WhatsApp…) con un tocco
+  const file = new File([blob], name, { type: 'application/pdf' });
+  const o = document.createElement('div');
+  o.style.cssText = 'position:fixed;inset:0;z-index:700;background:rgba(10,10,12,.82);display:flex;align-items:center;justify-content:center;padding:20px';
+  o.innerHTML = `<div style="background:#fff;border-radius:18px;padding:22px 20px;max-width:360px;width:100%;text-align:center;font-family:var(--font-body)">
+      <div style="font:700 18px var(--font-display);margin-bottom:6px">${esc(title)}</div>
+      <div style="font-size:13px;color:#666;margin-bottom:16px">Tocca <b>Condividi PDF</b> e scegli <b>Salva su File</b> o WhatsApp.</div>
+      <button class="btn red" id="pdfShare" style="width:100%;padding:13px;font-size:15px;justify-content:center"><svg class="ic"><use href="#i-download"/></svg> Condividi PDF</button>
+      <button class="btn" id="pdfOpen" style="width:100%;margin-top:8px;justify-content:center">Apri il PDF</button>
+      <button class="btn" id="pdfNo" style="width:100%;margin-top:8px;justify-content:center">Chiudi</button></div>`;
+  document.body.appendChild(o);
+  o.querySelector('#pdfShare').onclick = async () => {
+    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: name }); o.remove(); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+    download();
+  };
+  o.querySelector('#pdfOpen').onclick = () => { window.open(url, '_blank') || download(); };
+  o.querySelector('#pdfNo').onclick = () => o.remove();
+  return true;
 }
