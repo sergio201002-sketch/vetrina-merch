@@ -45,6 +45,20 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 #schPrint .it .z { color: rgba(255,255,255,.85); }
 #schPrint .it .cd { font-weight: 700; letter-spacing: .02em; }
 #schPrint .foot { font-size: 6.5pt; color: #999; text-align: center; margin-top: auto; padding-top: 2mm; flex: none; }
+#schPrint .sch-page.real { width: 210mm; height: 296mm; padding: 10mm; }
+#schPrint .rg { display: grid; align-content: start; }
+#schPrint .rh { display: flex; gap: 3mm; align-items: stretch; min-width: 0; overflow: hidden; }
+#schPrint .rh .rn { width: 30mm; flex: none; border-radius: 2mm; overflow: hidden; background: linear-gradient(180deg, #f7f6f3, #ecebe7); }
+#schPrint .rh .rn img { width: 100%; height: 100%; object-fit: contain; display: block; }
+#schPrint .rh .k { font: 700 6pt Inter, Arial; letter-spacing: .18em; text-transform: uppercase; color: #b0101a; }
+#schPrint .rh h1 { font: 700 13pt/1.08 'Inter Tight', Inter, Arial; letter-spacing: -.02em; margin: 1mm 0 .5mm; }
+#schPrint .rh .cm { font-size: 7.5pt; color: #555; }
+#schPrint .rh .big { display: flex; gap: 5mm; margin-top: 2mm; }
+#schPrint .rh .big b { display: block; font: 700 12pt/1 'Inter Tight', Inter, Arial; }
+#schPrint .rh .big span { font-size: 6pt; color: #777; }
+#schPrint .real .it .im { aspect-ratio: auto; height: 100%; }
+#schPrint .real .it { height: 100%; }
+#schPrint .real .it .im.turn img { position: absolute; left: 50%; top: 50%; width: var(--ch); height: var(--cw); transform: translate(-50%, -50%) rotate(90deg); object-fit: cover; }
 .sch-wait { position: fixed; inset: 0; z-index: 600; background: rgba(10,10,12,.82); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 15px; }
 </style>`);
 
@@ -150,13 +164,44 @@ function schFit(n) {
   return { cols: 20, f: 4.6, gx: 2, gy: 2 };
 }
 /* una scheda (render + dati + prodotti) per ogni espositore; più espositori = più schede nello stesso PDF */
-async function exportSchedaPDF(cid) { return exportSchede([cid ? comps[cid] : comp()]); }
+async function exportSchedaPDF(cid) { const c = cid ? comps[cid] : comp(); schLayoutAsk(lay => exportSchede([c], lay)); }
 async function exportSchedeCliente(clientId) {
   const list = visibleComps(clientId).filter(c => c.slots.some(k => k && SAMPLE[k]));
   if (!list.length) return toast('Nessun espositore con campioni da esportare');
-  return exportSchede(list);
+  schLayoutAsk(lay => exportSchede(list, lay));
 }
-async function exportSchede(list) {
+/* scelta del layout: Quadrati (A4 orizzontale) o Formato reale (A4 verticale, riquadri con le proporzioni del campione) */
+function schLayoutAsk(cb) {
+  let m = document.getElementById('schAsk'); if (m) m.remove();
+  const cur = ui.schLayout || 'quadrati';
+  const opt = (v, t, d, pic) => `<button class="btn${cur === v ? ' on' : ''}" data-v="${v}" style="display:grid;grid-template-columns:54px 1fr;gap:12px;align-items:center;text-align:left;padding:12px;justify-content:stretch">${pic}<span><b style="font-size:14px">${t}</b><br><span style="font-weight:500;color:var(--mid);font-size:12px">${d}</span></span></button>`;
+  const picQ = `<svg viewBox="0 0 54 40" width="54" height="40"><rect x="1" y="1" width="52" height="38" rx="3" fill="#fff" stroke="#bbb"/><rect x="4" y="4" width="12" height="9" fill="#999"/>${[0, 1, 2, 3, 4, 5].map(i => `<rect x="${4 + i * 8}" y="17" width="7" height="7" fill="#c9c4bb"/><rect x="${4 + i * 8}" y="27" width="7" height="7" fill="#c9c4bb"/>`).join('')}</svg>`;
+  const picR = `<svg viewBox="0 0 40 54" width="40" height="54" style="margin:0 7px"><rect x="1" y="1" width="38" height="52" rx="3" fill="#fff" stroke="#bbb"/><rect x="4" y="4" width="18" height="9" fill="#999"/>${[0, 1].map(i => `<rect x="${24 + i * 7}" y="4" width="6" height="9" fill="#c9c4bb"/>`).join('')}${[0, 1, 2, 3].map(r => [0, 1, 2, 3, 4].map(i => `<rect x="${4 + i * 6.6}" y="${16 + r * 9.4}" width="5.8" height="8.6" fill="#c9c4bb"/>`).join('')).join('')}</svg>`;
+  document.body.insertAdjacentHTML('beforeend', `<div class="modal open" id="schAsk" style="z-index:280"><div class="mbox" style="max-width:440px;width:calc(100vw - 32px)">
+    <div class="mhead"><h3><svg class="ic"><use href="#i-download"/></svg> Scheda PDF · layout</h3></div>
+    <div style="padding:6px 18px 18px;display:flex;flex-direction:column;gap:10px">
+      ${opt('quadrati', 'Quadrati', 'A4 orizzontale: render e dati in alto, prodotti in quadrati', picQ)}
+      ${opt('reale', 'Formato reale', 'A4 verticale: riquadri con le proporzioni del campione (es. tozzetti 19,5×29,5), anche accanto ai dati', picR)}
+      <button class="btn" id="schAskNo">Annulla</button></div></div></div>`);
+  m = document.getElementById('schAsk');
+  m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+  m.querySelector('#schAskNo').onclick = () => m.remove();
+  m.querySelectorAll('button[data-v]').forEach(b => b.onclick = () => { ui.schLayout = b.dataset.v; saveUI(); m.remove(); cb(b.dataset.v); });
+}
+/* Formato reale: riquadri con le proporzioni del campione, i più grandi possibile; la fascia con i dati occupa
+   le prime celle in alto a sinistra e i campioni riempiono anche lo spazio accanto (spazio utile 190 × 276 mm) */
+function schFitReal(n, a) {
+  const W = 190, H = 276, g = 2.2, hw = 92, hh = 30;
+  for (let c = 1; c <= 30; c++) {
+    const cw = (W - (c - 1) * g) / c, ch = cw * a;
+    const hc = Math.min(c, Math.ceil((hw + g) / (cw + g))), hr = Math.max(1, Math.ceil((hh + g) / (ch + g)));
+    const rows = Math.ceil((n + hc * hr) / c);
+    if (rows * ch + (rows - 1) * g <= H) return { c, cw, ch, hc, hr, g, f: Math.max(4.2, Math.min(9, cw / 5.4)) };
+  }
+  return { c: 30, cw: 5, ch: 5 * a, hc: 20, hr: 6, g: 1, f: 4 };
+}
+async function exportSchede(list, layout) {
+  const real = layout === 'reale';
   list = list.filter(c => c && DISP[c.disp] && c.slots.some(k => k && SAMPLE[k]));
   if (!list.length) return toast('Questo espositore è vuoto: metti prima i campioni');
   const wait = document.createElement('div'); wait.className = 'sch-wait'; document.body.appendChild(wait);
@@ -174,6 +219,20 @@ async function exportSchede(list) {
     try { [shot] = await renderDisplayViews(c, [view]); }
     catch (e) { wait.remove(); say('Non riesco a fare il render (serve internet per il motore 3D). Riprova.'); return; }
     const bySer = new Map(); filled.forEach(([s]) => { const k = s.b + '|' + s.s; bySer.set(k, (bySer.get(k) || 0) + 1); });
+    if (real) {
+      const face = faceOf(d, c), a = face[1] / face[0], G = schFitReal(filled.length, a), brk = x ? 'break-before:page;page-break-before:always;' : '';
+      pages.push(`<div class="sch-page real" style="${brk}"><div class="rg" style="grid-template-columns:repeat(${G.c},${G.cw.toFixed(2)}mm);grid-auto-rows:${G.ch.toFixed(2)}mm;gap:${G.g}mm;--f:${G.f.toFixed(2)}pt;--cw:${G.cw.toFixed(2)}mm;--ch:${G.ch.toFixed(2)}mm">
+        <div class="rh" style="grid-column:1 / span ${G.hc};grid-row:1 / span ${G.hr}">
+          <div class="rn"><img src="${shot}" alt=""></div>
+          <div><div class="k">Scheda espositore${list.length > 1 ? ` · ${x + 1} di ${list.length}` : ''}</div><h1>${esc(d.name)}</h1><div class="cm">${esc(c.name)}${cl ? ' · ' + esc(cl.name) : ''}</div>
+            <div class="big"><div><b>${filled.length}</b><span>campioni su ${n} posti</span></div><div><b>${bySer.size}</b><span>serie</span></div></div></div></div>
+        ${filled.map(([s, i]) => { const u = photo(s), turn = u && a > 1.05 && glLandscape(s);
+          return `<div class="it"><div class="im${turn ? ' turn' : ''}">${u ? `<img src="${esc(u)}" alt="">` : ''}<span class="pos">${esc(slotName(d, i, n))}</span>
+            <div class="cap"><div class="s">${esc(glTitle(s.s))} ${esc(glTitle(s.c))}</div>
+            <div class="z">${esc(s.toz ? fmt(tozFmt(d, c)) : fmt(s.z) + ' cm')}${fin(s) ? ' · ' + esc(fin(s)) : ''}</div></div></div></div>`; }).join('')}
+      </div></div>`);
+      continue;
+    }
     pages.push(`<div class="sch-page"${x ? ' style="break-before:page;page-break-before:always"' : ''}><section class="top">
       <div class="rn"><img src="${shot}" alt=""></div>
       <div class="info">
@@ -196,5 +255,5 @@ async function exportSchede(list) {
   el.innerHTML = pages.join('');
   await Promise.all([...el.querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
   wait.remove();
-  printWhenReady('sch-printing', list.length > 1 ? `Le ${list.length} schede sono pronte` : 'La scheda è pronta', 'A4 landscape');
+  printWhenReady('sch-printing', list.length > 1 ? `Le ${list.length} schede sono pronte` : 'La scheda è pronta', real ? 'A4 portrait' : 'A4 landscape');
 }
