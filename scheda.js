@@ -56,7 +56,8 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 #schPrint .rh .big { display: flex; gap: 5mm; margin-top: 2mm; }
 #schPrint .rh .big b { display: block; font: 700 12pt/1 'Inter Tight', Inter, Arial; }
 #schPrint .rh .big span { font-size: 6pt; color: #777; }
-#schPrint .real .it .im { aspect-ratio: auto; height: 100%; }
+#schPrint .real .it .im { aspect-ratio: auto; height: 100%; border-radius: 0; }
+#schPrint .rh { padding-right: 3mm; }
 #schPrint .real .it { height: 100%; }
 #schPrint .real .it .im.turn img { position: absolute; left: 50%; top: 50%; width: var(--ch); height: var(--cw); transform: translate(-50%, -50%) rotate(90deg); object-fit: cover; }
 .sch-wait { position: fixed; inset: 0; z-index: 600; background: rgba(10,10,12,.82); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 15px; }
@@ -188,17 +189,21 @@ function schLayoutAsk(cb) {
   m.querySelector('#schAskNo').onclick = () => m.remove();
   m.querySelectorAll('button[data-v]').forEach(b => b.onclick = () => { ui.schLayout = b.dataset.v; saveUI(); m.remove(); cb(b.dataset.v); });
 }
-/* Formato reale: riquadri con le proporzioni del campione, i più grandi possibile; la fascia con i dati occupa
-   le prime celle in alto a sinistra e i campioni riempiono anche lo spazio accanto (spazio utile 190 × 276 mm) */
+/* Formato reale (come l'esempio della mobile teca): riquadri con le proporzioni del campione, ATTACCATI in orizzontale,
+   righe distribuite su tutta l'altezza del foglio; la fascia con i dati prende i posti che avanzano nella prima riga
+   (teca da 42: 8 per riga, fascia su 6 posti + 2 tozzetti, poi 5 righe da 8). Spazio utile 190 × 276 mm. */
 function schFitReal(n, a) {
-  const W = 190, H = 276, g = 2.2, hw = 92, hh = 30;
+  const W = 190, H = 276, gx = 0.6, gyMin = 3, hdrMin = 84;
   for (let c = 1; c <= 30; c++) {
-    const cw = (W - (c - 1) * g) / c, ch = cw * a;
-    const hc = Math.min(c, Math.ceil((hw + g) / (cw + g))), hr = Math.max(1, Math.ceil((hh + g) / (ch + g)));
-    const rows = Math.ceil((n + hc * hr) / c);
-    if (rows * ch + (rows - 1) * g <= H) return { c, cw, ch, hc, hr, g, f: Math.max(4.2, Math.min(9, cw / 5.4)) };
+    const cw = (W - (c - 1) * gx) / c, ch = cw * a;
+    const hcMin = Math.min(c, Math.max(1, Math.ceil((hdrMin + gx) / (cw + gx))));
+    const rows = Math.ceil((n + hcMin) / c);
+    if (rows * ch + (rows - 1) * gyMin > H) continue;
+    const hc = Math.min(c, rows * c - n);                         // la prima riga: fascia + i tozzetti che ci stanno
+    const gy = rows > 1 ? Math.min(14, (H - rows * ch) / (rows - 1)) : 0;   // righe distribuite su tutta l'altezza
+    return { c, cw, ch, hc, hr: 1, gx, gy, f: Math.max(4.2, Math.min(9, cw / 5.4)) };
   }
-  return { c: 30, cw: 5, ch: 5 * a, hc: 20, hr: 6, g: 1, f: 4 };
+  return { c: 30, cw: 5.7, ch: 5.7 * a, hc: 20, hr: 1, gx: 0.6, gy: 1, f: 4 };
 }
 async function exportSchede(list, layout) {
   const real = layout === 'reale';
@@ -221,7 +226,7 @@ async function exportSchede(list, layout) {
     const bySer = new Map(); filled.forEach(([s]) => { const k = s.b + '|' + s.s; bySer.set(k, (bySer.get(k) || 0) + 1); });
     if (real) {
       const face = faceOf(d, c), a = face[1] / face[0], G = schFitReal(filled.length, a), brk = x ? 'break-before:page;page-break-before:always;' : '';
-      pages.push(`<div class="sch-page real" style="${brk}"><div class="rg" style="grid-template-columns:repeat(${G.c},${G.cw.toFixed(2)}mm);grid-auto-rows:${G.ch.toFixed(2)}mm;gap:${G.g}mm;--f:${G.f.toFixed(2)}pt;--cw:${G.cw.toFixed(2)}mm;--ch:${G.ch.toFixed(2)}mm">
+      pages.push(`<div class="sch-page real" style="${brk}"><div class="rg" style="grid-template-columns:repeat(${G.c},${G.cw.toFixed(2)}mm);grid-auto-rows:${G.ch.toFixed(2)}mm;column-gap:${G.gx}mm;row-gap:${G.gy.toFixed(2)}mm;--f:${G.f.toFixed(2)}pt;--cw:${G.cw.toFixed(2)}mm;--ch:${G.ch.toFixed(2)}mm">
         <div class="rh" style="grid-column:1 / span ${G.hc};grid-row:1 / span ${G.hr}">
           <div class="rn"><img src="${shot}" alt=""></div>
           <div><div class="k">Scheda espositore${list.length > 1 ? ` · ${x + 1} di ${list.length}` : ''}</div><h1>${esc(d.name)}</h1><div class="cm">${esc(c.name)}${cl ? ' · ' + esc(cl.name) : ''}</div>
