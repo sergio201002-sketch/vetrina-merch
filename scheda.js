@@ -83,6 +83,7 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 #schPrint.pdfpass .it .im:not(.np), #schPrint.pdfpass .rn { background: none; }
 #schPrint.pdfpass .real .it .im::after { display: none; }   /* l'ombra è già dentro la foto del PDF */
 #schPrint.pdfpass .real .it .im.np { width: 100%; }        /* senza foto: non deve coprire la mattonella dopo (questo strato sta sopra) */
+#schPrint.notext, #schPrint.notext * { color: transparent !important; }   /* le scritte le mette il PDF come testo */
 #schPrint .real .it .im.turn .ph { inset: auto; left: 50%; top: 50%; width: var(--ch); height: calc(var(--cw) + 2mm); transform: translate(-50%, -50%) rotate(90deg); }
 .sch-wait { position: fixed; inset: 0; z-index: 600; background: rgba(10,10,12,.82); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 15px; }
 </style>`);
@@ -355,6 +356,59 @@ function schClipPath(pdf, x, y, w, h, r) {
   if (tl) pdf.curveTo(x, y + tl - tl * K, x + tl - tl * K, y, x + tl, y);
   pdf.close();
 }
+/* didascalie: il nome al massimo su 2 righe, formato e codice su una riga; se non ci stanno, carattere un po' più piccolo
+   (niente parole tagliate o righe una sopra l'altra; nel PDF il testo resta nitido anche piccolo) */
+function schFitCaps(el) {
+  for (const cap of el.querySelectorAll('.cap')) {
+    const f0 = parseFloat(getComputedStyle(cap).getPropertyValue('--f')); if (!f0) continue;
+    const over = () => [...cap.children].some(d => d.scrollHeight > d.clientHeight + 0.5 || d.scrollWidth > d.clientWidth + 0.5);
+    for (let f = f0; over() && f > f0 * 0.5;) { f *= 0.93; cap.style.setProperty('--f', f.toFixed(2) + 'pt'); }
+  }
+}
+/* legge le scritte della pagina riga per riga (posizione, carattere, colore), solo la parte visibile */
+function schReadText(pg, pr, k) {
+  const out = [], rg = document.createRange(), tw = document.createTreeWalker(pg, NodeFilter.SHOW_TEXT), clips = new Map();
+  const clipOf = el => {   // riquadro visibile: gli antenati con overflow nascosto tagliano
+    if (clips.has(el)) return clips.get(el);
+    const up = el.parentElement && el !== pg ? clipOf(el.parentElement) : [-1e9, -1e9, 1e9, 1e9], cs = getComputedStyle(el);
+    let c = up;
+    if (cs.overflowX !== 'visible' || cs.overflowY !== 'visible') { const b = el.getBoundingClientRect(); c = [Math.max(up[0], b.left), Math.max(up[1], b.top), Math.min(up[2], b.right), Math.min(up[3], b.bottom)]; }
+    clips.set(el, c); return c;
+  };
+  for (let t; (t = tw.nextNode());) {
+    const s = t.nodeValue; if (!s.trim()) continue;
+    const el = t.parentElement, cs = getComputedStyle(el); if (cs.visibility === 'hidden') continue;
+    const m = cs.color.match(/[\d.]+/g) || [0, 0, 0], alpha = m[3] != null ? +m[3] : 1; if (alpha < 0.05) continue;
+    const fs = parseFloat(cs.fontSize), up = cs.textTransform === 'uppercase', [cl, ct, cr, cb] = clipOf(el);
+    const base = { fs: fs * k / 0.352778, bold: (parseInt(cs.fontWeight) || 400) >= 600, col: [+m[0], +m[1], +m[2]], alpha,
+      cs: (parseFloat(cs.letterSpacing) || 0) * k, center: cs.textAlign === 'center' };
+    let cur = null;
+    for (let i = 0; i < s.length; i++) {
+      const ch = s[i];
+      if (/\s/.test(ch)) { if (cur && !cur.s.endsWith(' ')) cur.s += ' '; continue; }
+      rg.setStart(t, i); rg.setEnd(t, i + 1); const b = rg.getBoundingClientRect(); if (!b.width) continue;
+      const cx = b.left + b.width / 2, cy = b.top + b.height / 2;
+      if (cx < cl || cx > cr || cy < ct || cy > cb) continue;   // parte nascosta
+      if (!cur || Math.abs(b.top - cur.top) > b.height / 2) {   // nuova riga
+        cur = Object.assign({ s: '', top: b.top, l: b.left, r: b.right, y: (b.top - pr.top + b.height * 0.8) * k }, base); out.push(cur);
+      }
+      cur.s += up ? ch.toUpperCase() : ch; cur.r = b.right;
+    }
+  }
+  out.forEach(w => { w.s = w.s.trim(); w.x = ((w.center ? (w.l + w.r) / 2 : w.l) - pr.left) * k; });
+  return out.filter(w => w.s);
+}
+function schWriteText(pdf, list) {
+  const gs = {}; let font = '', size = 0, col = '', op = 1;
+  for (const w of list) {
+    const f = w.bold ? 'bold' : 'normal'; if (f !== font) pdf.setFont('helvetica', font = f);
+    if (w.fs !== size) pdf.setFontSize(size = w.fs);
+    if (w.col.join() !== col) { pdf.setTextColor(...w.col); col = w.col.join(); }
+    if (w.alpha !== op) { op = w.alpha; pdf.setGState(gs[op] || (gs[op] = new pdf.GState({ opacity: op }))); }
+    pdf.text(w.s, w.x, w.y, Object.assign(w.center ? { align: 'center' } : {}, w.cs > 0.01 ? { charSpace: w.cs } : {}));
+  }
+  if (op !== 1) pdf.setGState(gs[1] || (gs[1] = new pdf.GState({ opacity: 1 })));
+}
 async function schMakePDF(el, real, name, wait, title) {
   try { await loadPdfLibs(); } catch (e) { return false; }
   if (!window.html2canvas || !window.jspdf) return false;
@@ -362,6 +416,7 @@ async function schMakePDF(el, real, name, wait, title) {
   // la pagina deve essere visibile (fuori schermo) per essere fotografata
   el.style.cssText = `display:block;position:absolute;left:-20000px;top:0;width:${pw}mm`;
   el.classList.add('pdfpass');
+  schFitCaps(el);
   const pagesEl = [...el.querySelectorAll('.sch-page')];
   const pdf = new window.jspdf.jsPDF({ orientation: real ? 'portrait' : 'landscape', unit: 'mm', format: 'a4', compress: true });
   const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
@@ -399,10 +454,15 @@ async function schMakePDF(el, real, name, wait, title) {
         }
         pdf.restoreGraphicsState();
       }
-      // 2) sopra: scritte, ombre e cornici (trasparente dove ci sono le foto)
+      // 2) sopra: ombre, sfumature e cornici (trasparente dove ci sono le foto), senza scritte
+      const texts = schReadText(pg, pr, k);
+      el.classList.add('notext');
       const cv = await window.html2canvas(pg, { scale: mobile ? 2.4 : 3, backgroundColor: null, useCORS: true, logging: false });
+      el.classList.remove('notext');
       pdf.addImage(cv, 'PNG', 0, 0, pw, Math.min(ph, cv.height / cv.width * pw), 'pg' + i, 'FAST');
       cv.width = cv.height = 0;
+      // 3) le scritte come testo vero del PDF: nitide a qualsiasi ingrandimento, spaziatura giusta
+      schWriteText(pdf, texts);
     }
   } catch (e) { console.error(e); el.classList.remove('pdfpass'); el.style.cssText = ''; return false; }
   el.classList.remove('pdfpass'); el.style.cssText = '';
