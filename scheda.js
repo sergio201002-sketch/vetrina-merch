@@ -234,11 +234,27 @@ function schLayoutAsk(cb) {
 /* Formato reale (come l'esempio della mobile teca): riquadri con le proporzioni del campione, ATTACCATI in orizzontale,
    righe distribuite su tutta l'altezza del foglio; la fascia con i dati prende i posti che avanzano nella prima riga
    (teca da 42: 8 per riga, fascia su 6 posti + 2 tozzetti, poi 5 righe da 8). Spazio utile 190 × 276 mm. */
-function schFitReal(n, a) {
+/* misura del testo con le larghezze di Helvetica (Arial ha le stesse), il carattere del PDF; mm per un testo a f pt */
+const SCH_CTX = document.createElement('canvas').getContext('2d');
+function schTextW(t, f, bold) { SCH_CTX.font = `${bold ? 'bold ' : ''}100px Helvetica, Arial, sans-serif`; return SCH_CTX.measureText(t).width / 100 * f * 0.3528; }
+/* righe che servono a un testo andando a capo tra le parole (larghezza in mm) */
+function schLinesOf(t, f, bold, w, measure, indent = 0) {   // indent: spazio già occupato all'inizio della prima riga
+  const words = String(t || '').split(/\s+/).filter(Boolean); if (!words.length) return [];
+  const lines = []; let cur = '';
+  for (const wd of words) { const nx = cur ? cur + ' ' + wd : wd; if (cur && measure(nx, f, bold) > w - (lines.length ? 0 : indent)) { lines.push(cur); cur = wd; } else cur = nx; }
+  lines.push(cur); return lines;
+}
+/* righe di scritte sotto una mattonella: "posto nome colore" (grassetto), "formato · finitura", "codice" */
+const schCapLines = (cp, f, w, measure) => schLinesOf(cp.name, f, true, w, measure, measure(cp.p + ' ', f, true)).length
+  + schLinesOf(cp.z, f, false, w, measure).length + schLinesOf(cp.cd, f, true, w, measure).length;
+function schFitReal(n, a, caps) {
   const W = 190, H = 276, gx = 0, hdrMin = 84;
   for (let c = 1; c <= 30; c++) {
     const cw = (W - (c - 1) * gx) / c, ch = cw * a;
-    const f = Math.max(4, Math.min(6.6, cw / 5.4)), textH = 4 * f * 0.3528 * 1.15 + 1.1;   // fino a 4 righe di scritte sotto la mattonella
+    const f = Math.max(4, Math.min(6.6, cw / 5.4));   // stessa grandezza per tutte le scritte della pagina
+    // spazio sotto le mattonelle per la didascalia più lunga (il nome va a capo, il carattere non si rimpicciolisce)
+    const L = Math.max(3, ...(caps || []).map(cp => schCapLines(cp, f, (cw - 1.2) * 0.97, schTextW)));
+    const textH = L * f * 0.3528 * 1.2 + 1.1;
     const hcMin = Math.min(c, Math.max(1, Math.ceil(hdrMin / cw)));
     const rows = Math.ceil((n + hcMin) / c), gyMin = textH + 0.8;
     if (rows * ch + (rows - 1) * gyMin + textH > H) continue;
@@ -271,7 +287,9 @@ async function exportSchede(list, layout) {
     const shotIm = await schLoadImg(shot), shotA = shotIm ? shotIm.naturalWidth / shotIm.naturalHeight : 1.35;   // espositori lunghi e bassi (culle): render largo
     const bySer = new Map(); filled.forEach(([s]) => { const k = s.b + '|' + s.s; bySer.set(k, (bySer.get(k) || 0) + 1); });
     if (real) {
-      const face = faceOf(d, c), a = face[1] / face[0], G = schFitReal(filled.length, a), brk = x ? 'break-before:page;page-break-before:always;' : '';
+      const caps = filled.map(([s, i]) => ({ p: slotName(d, i, n), name: glTitle(s.s) + ' ' + glTitle(s.c),
+        z: (s.toz ? fmt(tozFmt(d, c)) : fmt(s.z)) + (fin(s) ? ' · ' + fin(s) : ''), cd: (s.k || []).join(' / ') }));
+      const face = faceOf(d, c), a = face[1] / face[0], G = schFitReal(filled.length, a, caps), brk = x ? 'break-before:page;page-break-before:always;' : '';
       // ombra a destra fino al bordo visibile; i 2 mm che finiscono sotto la mattonella dopo restano scuri
       const st = p => (p * G.cw / (G.cw + 2)).toFixed(1) + '%';
       const sh = `linear-gradient(to right, rgba(0,0,0,0) ${st(52)}, rgba(0,0,0,.10) ${st(72)}, rgba(0,0,0,.26) ${st(88)}, rgba(0,0,0,.46) ${st(100)}, rgba(0,0,0,.46) 100%)`;
@@ -284,7 +302,7 @@ async function exportSchede(list, layout) {
         ${filled.map(([s, i], j) => { const u = photo(s), turn = u && a > 1.05 && glLandscape(s);
           const end = (G.hc + j) % G.c === G.c - 1 || j === filled.length - 1;   // ultima della riga: non va sotto a nessuna
           return `<div class="it${end ? ' end' : ''}"><div class="im${turn ? ' turn' : ''}${u ? '' : ' np'}">${u ? `<span class="ph" data-hi="${esc(hiRes(s))}" style="background-image:url('${esc(u)}')"></span>` : ''}</div>
-            <div class="cap"><div class="s"><span class="p">${esc(slotName(d, i, n))}</span> ${esc(glTitle(s.s))} ${esc(glTitle(s.c))}</div>
+            <div class="cap" data-cap="${esc(JSON.stringify(caps[j]))}"><div class="s"><span class="p">${esc(slotName(d, i, n))}</span> ${esc(glTitle(s.s))} ${esc(glTitle(s.c))}</div>
             <div class="z">${esc(s.toz ? fmt(tozFmt(d, c)) : fmt(s.z))}${fin(s) ? ' · ' + esc(fin(s)) : ''}</div><div class="cd">${esc((s.k || []).join(' / '))}</div></div></div>`; }).join('')}
       </div></div>`);
       continue;
@@ -356,13 +374,23 @@ function schClipPath(pdf, x, y, w, h, r) {
   if (tl) pdf.curveTo(x, y + tl - tl * K, x + tl - tl * K, y, x + tl, y);
   pdf.close();
 }
-/* didascalie: il nome al massimo su 2 righe, formato e codice su una riga; se non ci stanno, carattere un po' più piccolo
-   (niente parole tagliate o righe una sopra l'altra; nel PDF il testo resta nitido anche piccolo) */
-function schFitCaps(el) {
-  for (const cap of el.querySelectorAll('.cap')) {
-    const f0 = parseFloat(getComputedStyle(cap).getPropertyValue('--f')); if (!f0) continue;
-    const over = () => [...cap.children].some(d => d.scrollHeight > d.clientHeight + 0.5 || d.scrollWidth > d.clientWidth + 0.5);
-    for (let f = f0; over() && f > f0 * 0.5;) { f *= 0.93; cap.style.setProperty('--f', f.toFixed(2) + 'pt'); }
+/* didascalie del formato reale scritte direttamente nel PDF in Helvetica: stessa grandezza per tutte, a capo tra le parole
+   con le misure vere del carattere (spazi giusti tra posto, parole e numeri; lo spazio sotto le mattonelle è già calcolato) */
+function schWriteCaps(pdf, pg, pr, k) {
+  const els = [...pg.querySelectorAll('.real .cap[data-cap]')]; if (!els.length) return;
+  const f = parseFloat(getComputedStyle(pg.querySelector('.rg')).getPropertyValue('--f')), lh = f * 0.3528 * 1.2;
+  const meas = (t, ff, bold) => { pdf.setFont('helvetica', bold ? 'bold' : 'normal'); pdf.setFontSize(ff); return pdf.getTextWidth(t); };
+  for (const el of els) {
+    const cp = JSON.parse(el.dataset.cap), r = el.getBoundingClientRect();
+    const x = (r.left - pr.left) * k + 0.6, w = r.width * k - 1.2; let y = (r.top - pr.top) * k + f * 0.3528 * 0.9;
+    const pw = meas(cp.p + ' ', f, true);
+    schLinesOf(cp.name, f, true, w, meas, pw).forEach((ln, li) => {
+      pdf.setFont('helvetica', 'bold'); pdf.setFontSize(f);
+      if (!li) { pdf.setTextColor(176, 16, 26); pdf.text(cp.p, x, y); }
+      pdf.setTextColor(24, 24, 27); pdf.text(ln, li ? x : x + pw, y); y += lh;
+    });
+    schLinesOf(cp.z, f, false, w, meas).forEach(ln => { pdf.setFont('helvetica', 'normal'); pdf.setFontSize(f); pdf.setTextColor(102, 102, 102); pdf.text(ln, x, y); y += lh; });
+    schLinesOf(cp.cd, f, true, w, meas).forEach(ln => { pdf.setFont('helvetica', 'bold'); pdf.setFontSize(f); pdf.setTextColor(24, 24, 27); pdf.text(ln, x, y); y += lh; });
   }
 }
 /* legge le scritte della pagina riga per riga (posizione, carattere, colore), solo la parte visibile */
@@ -377,7 +405,8 @@ function schReadText(pg, pr, k) {
   };
   for (let t; (t = tw.nextNode());) {
     const s = t.nodeValue; if (!s.trim()) continue;
-    const el = t.parentElement, cs = getComputedStyle(el); if (cs.visibility === 'hidden') continue;
+    const el = t.parentElement; if (el.closest('.real .cap')) continue;   // queste le scrive schWriteCaps
+    const cs = getComputedStyle(el); if (cs.visibility === 'hidden') continue;
     const m = cs.color.match(/[\d.]+/g) || [0, 0, 0], alpha = m[3] != null ? +m[3] : 1; if (alpha < 0.05) continue;
     const fs = parseFloat(cs.fontSize), up = cs.textTransform === 'uppercase', [cl, ct, cr, cb] = clipOf(el);
     const base = { fs: fs * k / 0.352778, bold: (parseInt(cs.fontWeight) || 400) >= 600, col: [+m[0], +m[1], +m[2]], alpha,
@@ -416,7 +445,6 @@ async function schMakePDF(el, real, name, wait, title) {
   // la pagina deve essere visibile (fuori schermo) per essere fotografata
   el.style.cssText = `display:block;position:absolute;left:-20000px;top:0;width:${pw}mm`;
   el.classList.add('pdfpass');
-  schFitCaps(el);
   const pagesEl = [...el.querySelectorAll('.sch-page')];
   const pdf = new window.jspdf.jsPDF({ orientation: real ? 'portrait' : 'landscape', unit: 'mm', format: 'a4', compress: true });
   const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
@@ -462,7 +490,7 @@ async function schMakePDF(el, real, name, wait, title) {
       pdf.addImage(cv, 'PNG', 0, 0, pw, Math.min(ph, cv.height / cv.width * pw), 'pg' + i, 'FAST');
       cv.width = cv.height = 0;
       // 3) le scritte come testo vero del PDF: nitide a qualsiasi ingrandimento, spaziatura giusta
-      schWriteText(pdf, texts);
+      schWriteText(pdf, texts); schWriteCaps(pdf, pg, pr, k);
     }
   } catch (e) { console.error(e); el.classList.remove('pdfpass'); el.style.cssText = ''; return false; }
   el.classList.remove('pdfpass'); el.style.cssText = '';
