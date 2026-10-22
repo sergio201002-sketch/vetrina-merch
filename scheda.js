@@ -70,11 +70,19 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 #schPrint .real .it .cap .z { color: #666; }
 #schPrint .real .it .cap .cd { font-weight: 700; letter-spacing: .02em; }
 #schPrint .rh { padding-right: 3mm; }
+#schPrint .rh.wide { flex-direction: column; gap: 2mm; }
+#schPrint .rh.wide .rn { width: 100%; height: auto; }
 #schPrint .real .it { height: 100%; }
 #schPrint .real .it .im.turn img { position: absolute; left: 50%; top: 50%; width: var(--ch); height: var(--cw); transform: translate(-50%, -50%) rotate(90deg); object-fit: cover; }
 #schPrint .ph { position: absolute; inset: 0; background: center / cover no-repeat; }
 #schPrint .rn { position: relative; }
 #schPrint .ph.rnph { background-size: contain; }
+/* file PDF: le foto le mette il PDF a piena risoluzione; la "foto" della pagina porta solo scritte, ombre e cornici, sopra */
+#schPrint.pdfpass, #schPrint.pdfpass .sch-page { background: transparent !important; }
+#schPrint.pdfpass .ph { visibility: hidden; }
+#schPrint.pdfpass .it .im:not(.np), #schPrint.pdfpass .rn { background: none; }
+#schPrint.pdfpass .real .it .im::after { display: none; }   /* l'ombra è già dentro la foto del PDF */
+#schPrint.pdfpass .real .it .im.np { width: 100%; }        /* senza foto: non deve coprire la mattonella dopo (questo strato sta sopra) */
 #schPrint .real .it .im.turn .ph { inset: auto; left: 50%; top: 50%; width: var(--ch); height: calc(var(--cw) + 2mm); transform: translate(-50%, -50%) rotate(90deg); }
 .sch-wait { position: fixed; inset: 0; z-index: 600; background: rgba(10,10,12,.82); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 15px; }
 </style>`);
@@ -105,9 +113,12 @@ async function renderDisplayViews(c, views) {
       let ccol = cssColor(cs.backgroundColor);
       if ((!ccol || ccol.a === 0) && bi && bi !== 'none' && !url) { const fc = firstColor(bi); if (fc) ccol = cssColor(fc); }
       if (!url && (!ccol || ccol.a === 0)) continue;
-      const mat = new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5, metalness: 0, side: T.DoubleSide, envMapIntensity: 0.3 });
+      const face = !!url && !/retro_/.test(url);
+      // davanti delle piastrelle: la foto com'è, con i suoi colori (niente luci che la sbiadiscono)
+      const mat = face ? new T.MeshBasicMaterial({ color: 0xffffff, side: T.DoubleSide, toneMapped: false })
+        : new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5, metalness: 0, side: T.DoubleSide, envMapIntensity: 0.3 });
       if (url) {
-        const retro = /retro_/.test(url); if (!retro) url = bigOf(url);
+        const retro = !face; if (!retro) url = bigOf(url);
         const sz = cs.backgroundSize.split(',').pop().trim().split(/\s+/);
         let rx = 1, ry = 1; if (/%$/.test(sz[0]) && /%$/.test(sz[1] || '')) { rx = 100 / parseFloat(sz[0]); ry = 100 / parseFloat(sz[1]); }
         const cover = sz[0] === 'cover';
@@ -125,8 +136,8 @@ async function renderDisplayViews(c, views) {
         if (l < 0.5) { mat.color = new T.Color(0x232327).convertSRGBToLinear(); mat.roughness = 0.85; mat.envMapIntensity = 0.12; }   // metallo nero opaco
         if (ccol.a < 1) { mat.transparent = true; mat.opacity = ccol.a; }
       }
-      const g = new T.BufferGeometry();
-      g.setAttribute('position', new T.Float32BufferAttribute([0, 0, 0, w, 0, 0, w, h, 0, 0, h, 0], 3));
+      const g = new T.BufferGeometry(), zf = face ? 0.08 : 0;   // la foto sta sullo stesso piano del pannello sotto: la stacco appena, se no resta coperta
+      g.setAttribute('position', new T.Float32BufferAttribute([0, 0, zf, w, 0, zf, w, h, zf, 0, h, zf], 3));
       g.setAttribute('uv', new T.Float32BufferAttribute([0, 1, 1, 1, 1, 0, 0, 0], 2));
       g.setIndex([0, 2, 1, 0, 3, 2]);
       g.applyMatrix4(new T.Matrix4().fromArray(FLIP.multiply(relMatrix(el, root)).toFloat32Array()));
@@ -146,7 +157,7 @@ async function renderDisplayViews(c, views) {
     const sc = key.shadow.camera; sc.left = sc.bottom = -R * 1.4; sc.right = sc.top = R * 1.4; sc.near = 1; sc.far = R * 6;
     scene.add(key, key.target);
     const fill = new T.DirectionalLight(0xffffff, 0.35); fill.position.set(ctr.x + R, box.max.y + R, ctr.z + R * 1.5); scene.add(fill);
-    const Wpx = 1080, Hpx = 800;
+    const Wpx = 1620, Hpx = 1200;
     const rdr = new T.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     rdr.setPixelRatio(1); rdr.setSize(Wpx, Hpx);
     rdr.shadowMap.enabled = true; rdr.shadowMap.type = T.PCFSoftShadowMap;
@@ -156,8 +167,22 @@ async function renderDisplayViews(c, views) {
     const out = [];
     const corners = [];
     for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) corners.push(new T.Vector3(x, y, z));
-    for (const [yaw, pitch] of views) {
+    for (const [yaw, pitch, flat] of views) {
       const a = yaw * Math.PI / 180, p = pitch * Math.PI / 180, dir = new T.Vector3(Math.sin(a) * Math.cos(p), Math.sin(p), Math.cos(a) * Math.cos(p));
+      if (flat) {   // vista frontale senza prospettiva (come la foto di catalogo): i campioni in diagonale hanno tutti la stessa angolazione
+        const oc = new T.OrthographicCamera(-1, 1, 1, -1, 0.1, R * 40);
+        oc.position.copy(ctr).addScaledVector(dir, R * 8); oc.lookAt(ctr); oc.updateMatrixWorld();
+        let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+        corners.forEach(c => { const q = c.clone().applyMatrix4(oc.matrixWorldInverse); x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y); });
+        const hw = (x1 - x0) / 2 * 1.05, hh = (y1 - y0) / 2 * 1.05, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+        // immagine con le proporzioni dell'espositore: nel riquadro del PDF viene più grande possibile
+        const asp = hw / hh; rdr.setSize(asp >= 1 ? Wpx : Math.round(Wpx * asp), asp >= 1 ? Math.round(Wpx / asp) : Wpx);
+        oc.left = cx - hw; oc.right = cx + hw; oc.top = cy + hh; oc.bottom = cy - hh; oc.updateProjectionMatrix();
+        rdr.render(scene, oc);
+        out.push(rdr.domElement.toDataURL('image/jpeg', 0.9));
+        rdr.setSize(Wpx, Hpx);
+        continue;
+      }
       const place = dist => { cam.position.copy(ctr).addScaledVector(dir, dist); cam.lookAt(ctr); cam.updateMatrixWorld(); cam.updateProjectionMatrix(); };
       const fits = () => corners.every(c => { const q = c.clone().project(cam); return Math.abs(q.x) < 0.95 && Math.abs(q.y) < 0.94 && q.z < 1; });
       let lo = R * 0.3, hi = R * 12;   // distanza minima perché ci stia tutto (niente tagli)
@@ -229,17 +254,20 @@ async function exportSchede(list, layout) {
   const wait = document.createElement('div'); wait.className = 'sch-wait'; document.body.appendChild(wait);
   const today = new Date().toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
   const photo = s => { const u = IMG[photoKey(s)]; return u ? ((window.FOTO_GAL || {})[u] || FOTO_MED[u] || u) : ''; };
+  // nel PDF va la foto originale (fino a 1920 px, Full HD); l'avif solo se il browser lo apre
+  const hiRes = s => { const u = IMG[photoKey(s)]; return !u ? '' : ((typeof AVIF_OK !== 'undefined' && AVIF_OK) || !/\.avif$/i.test(u)) ? u : (FOTO_MED[u] || u); };
   const fin = s => s.a4 ? s.v : (s.f[0] || '').replace(/\s*Rett\.?$/, '');
   const pages = [];
   for (let x = 0; x < list.length; x++) {
     const c = list[x], d = DISP[c.disp], cl = c.client && clients[c.client], n = c.slots.length;
     const filled = c.slots.map((k, i) => [k && SAMPLE[k], i]).filter(([s]) => s);
     wait.textContent = list.length > 1 ? `Preparo il render ${x + 1} di ${list.length}: ${c.name}…` : 'Preparo il render dell\'espositore…';
-    // un solo render: girevoli dal lato A (le piastrelle guardano di lato), gli altri davanti-sinistra
-    const view = d.mode === 'swing' ? [-58, 14] : [-28, 13];
+    // un solo render: girevoli dal lato A in diagonale (le piastrelle guardano di lato), gli altri di fronte ai campioni
+    const view = d.mode === 'swing' ? [-58, 14] : [0, 0, true];
     let shot = '';
     try { [shot] = await renderDisplayViews(c, [view]); }
     catch (e) { wait.remove(); say('Non riesco a fare il render (serve internet per il motore 3D). Riprova.'); return; }
+    const shotIm = await schLoadImg(shot), shotA = shotIm ? shotIm.naturalWidth / shotIm.naturalHeight : 1.35;   // espositori lunghi e bassi (culle): render largo
     const bySer = new Map(); filled.forEach(([s]) => { const k = s.b + '|' + s.s; bySer.set(k, (bySer.get(k) || 0) + 1); });
     if (real) {
       const face = faceOf(d, c), a = face[1] / face[0], G = schFitReal(filled.length, a), brk = x ? 'break-before:page;page-break-before:always;' : '';
@@ -247,19 +275,20 @@ async function exportSchede(list, layout) {
       const st = p => (p * G.cw / (G.cw + 2)).toFixed(1) + '%';
       const sh = `linear-gradient(to right, rgba(0,0,0,0) ${st(52)}, rgba(0,0,0,.10) ${st(72)}, rgba(0,0,0,.26) ${st(88)}, rgba(0,0,0,.46) ${st(100)}, rgba(0,0,0,.46) 100%)`;
       pages.push(`<div class="sch-page real" style="${brk}"><div class="rg" style="grid-template-columns:repeat(${G.c},${G.cw.toFixed(2)}mm);grid-auto-rows:${G.ch.toFixed(2)}mm;column-gap:${G.gx}mm;row-gap:${G.gy.toFixed(2)}mm;--f:${G.f.toFixed(2)}pt;--cw:${G.cw.toFixed(2)}mm;--ch:${G.ch.toFixed(2)}mm;--sh:${sh}">
-        <div class="rh" style="grid-column:1 / span ${G.hc};grid-row:1 / span ${G.hr}">
-          <div class="rn"><span class="ph rnph" style="background-image:url('${shot}')"></span></div>
+        ${(() => { const wide = shotA > 1.6 && (G.hc * G.cw - 3) / shotA + 24 <= G.ch;   // render largo sopra i dati, a tutta larghezza (se c'è posto)
+          return `<div class="rh${wide ? ' wide' : ''}" style="grid-column:1 / span ${G.hc};grid-row:1 / span ${G.hr}">
+          <div class="rn"${wide ? ` style="aspect-ratio:${shotA.toFixed(3)}"` : ''}><span class="ph rnph" style="background-image:url('${shot}')"></span></div>`; })()}
           <div><div class="k">Scheda espositore${list.length > 1 ? ` · ${x + 1} di ${list.length}` : ''}</div><h1>${esc(d.name)}</h1><div class="cm">${esc(c.name)}${cl ? ' · ' + esc(cl.name) : ''}</div>
             <div class="big"><div><b>${filled.length}</b><span>campioni su ${n} posti</span></div><div><b>${bySer.size}</b><span>serie</span></div></div></div></div>
         ${filled.map(([s, i], j) => { const u = photo(s), turn = u && a > 1.05 && glLandscape(s);
           const end = (G.hc + j) % G.c === G.c - 1 || j === filled.length - 1;   // ultima della riga: non va sotto a nessuna
-          return `<div class="it${end ? ' end' : ''}"><div class="im${turn ? ' turn' : ''}${u ? '' : ' np'}">${u ? `<span class="ph" style="background-image:url('${esc(u)}')"></span>` : ''}</div>
+          return `<div class="it${end ? ' end' : ''}"><div class="im${turn ? ' turn' : ''}${u ? '' : ' np'}">${u ? `<span class="ph" data-hi="${esc(hiRes(s))}" style="background-image:url('${esc(u)}')"></span>` : ''}</div>
             <div class="cap"><div class="s"><span class="p">${esc(slotName(d, i, n))}</span> ${esc(glTitle(s.s))} ${esc(glTitle(s.c))}</div>
             <div class="z">${esc(s.toz ? fmt(tozFmt(d, c)) : fmt(s.z))}${fin(s) ? ' · ' + esc(fin(s)) : ''}</div><div class="cd">${esc((s.k || []).join(' / '))}</div></div></div>`; }).join('')}
       </div></div>`);
       continue;
     }
-    pages.push(`<div class="sch-page"${x ? ' style="break-before:page;page-break-before:always"' : ''}><section class="top">
+    pages.push(`<div class="sch-page"${x ? ' style="break-before:page;page-break-before:always"' : ''}><section class="top"${shotA > 1.6 ? ` style="grid-template-columns:${Math.min(110, 34 * shotA).toFixed(1)}mm 1fr"` : ''}>
       <div class="rn"><span class="ph rnph" style="background-image:url('${shot}')"></span></div>
       <div class="info">
         <div><div class="k">Scheda espositore${list.length > 1 ? ` · ${x + 1} di ${list.length}` : ''}</div><h1>${esc(d.name)}</h1><div class="cm">${esc(c.name)}</div>
@@ -271,7 +300,7 @@ async function exportSchede(list, layout) {
     </section>
     <div class="hd">Prodotti nell'espositore <span>${filled.length} campioni · in ordine di posto</span></div>
     <div class="grid" style="${(g => `grid-template-columns:repeat(${g.cols},minmax(0,1fr));--f:${g.f.toFixed(2)}pt;--gx:${g.gx}mm;--gy:${g.gy.toFixed(1)}mm`)(schFit(filled.length))}">${filled.map(([s, i]) => { const u = photo(s);
-      return `<div class="it"><div class="im">${u ? `<span class="ph" style="background-image:url('${esc(u)}')"></span>` : ''}<span class="pos">${esc(slotName(d, i, n))}</span>
+      return `<div class="it"><div class="im${u ? '' : ' np'}">${u ? `<span class="ph" data-hi="${esc(hiRes(s))}" style="background-image:url('${esc(u)}')"></span>` : ''}<span class="pos">${esc(slotName(d, i, n))}</span>
         <div class="cap"><div class="s">${esc(glTitle(s.s))} ${esc(glTitle(s.c))}</div>
         <div class="z">${esc(s.toz ? fmt(tozFmt(d, c)) : fmt(s.z) + ' cm')}${fin(s) ? ' · ' + esc(fin(s)) : ''}</div></div></div></div>`; }).join('')}</div>
     <div class="foot">${esc(d.name)} · ${esc(c.name)}${cl ? ' · ' + esc(cl.name) : ''} · ${today}</div></div>`);
@@ -291,38 +320,92 @@ function loadPdfLibs() {
   return Promise.all(PDF_LIBS.map(src => (window.html2canvas && /html2canvas/.test(src)) || (window.jspdf && /jspdf/.test(src)) ? 0
     : new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = src; sc.onload = res; sc.onerror = rej; document.head.appendChild(sc); })));
 }
+const schLoadImg = u => new Promise(r => { const im = new Image(); im.onload = () => r(im); im.onerror = () => r(null); im.src = u; });
+/* foto per il PDF: tagliata come nel riquadro (cover), girata se serve, alla risoluzione dell'originale (massimo 1920 px).
+   shade (formato reale) = parte visibile della mattonella: ombra a destra fino al bordo, poi il pezzo che va sotto la successiva in ombra */
+async function schPhotoJpeg(u, turn, aspect, shade, maxPx) {
+  const im = u && await schLoadImg(u); if (!im) return '';
+  const iw = im.naturalWidth, ih = im.naturalHeight, sw = turn ? ih : iw, sh = turn ? iw : ih;
+  let cw = sw, ch = sw / aspect; if (ch > sh) { ch = sh; cw = sh * aspect; }
+  const s = Math.min(1, maxPx / Math.max(cw, ch)), W = Math.max(1, Math.round(cw * s)), H = Math.max(1, Math.round(ch * s));
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+  const g = cv.getContext('2d'); g.imageSmoothingQuality = 'high';
+  g.translate(W / 2, H / 2); if (turn) g.rotate(Math.PI / 2);
+  g.drawImage(im, -iw * s / 2, -ih * s / 2, iw * s, ih * s);
+  if (shade) {
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    const vw = W * shade, gr = g.createLinearGradient(0, 0, vw, 0);
+    [[0.52, 0], [0.72, 0.10], [0.88, 0.26], [1, 0.46]].forEach(([p, a]) => gr.addColorStop(p, `rgba(0,0,0,${a})`));
+    g.fillStyle = gr; g.fillRect(0, 0, vw, H);
+    g.fillStyle = 'rgba(0,0,0,.46)'; g.fillRect(vw, 0, W - vw, H);
+  }
+  const d = cv.toDataURL('image/jpeg', 0.88); cv.width = cv.height = 0;
+  return d;
+}
+/* riquadro con angoli arrotondati (r = [alto sx, alto dx, basso dx, basso sx]) come percorso per ritagliare */
+function schClipPath(pdf, x, y, w, h, r) {
+  const K = 0.5523, [tl, tr, br, bl] = r;
+  pdf.moveTo(x + tl, y); pdf.lineTo(x + w - tr, y);
+  if (tr) pdf.curveTo(x + w - tr + tr * K, y, x + w, y + tr - tr * K, x + w, y + tr);
+  pdf.lineTo(x + w, y + h - br);
+  if (br) pdf.curveTo(x + w, y + h - br + br * K, x + w - br + br * K, y + h, x + w - br, y + h);
+  pdf.lineTo(x + bl, y + h);
+  if (bl) pdf.curveTo(x + bl - bl * K, y + h, x, y + h - bl + bl * K, x, y + h - bl);
+  pdf.lineTo(x, y + tl);
+  if (tl) pdf.curveTo(x, y + tl - tl * K, x + tl - tl * K, y, x + tl, y);
+  pdf.close();
+}
 async function schMakePDF(el, real, name, wait, title) {
   try { await loadPdfLibs(); } catch (e) { return false; }
   if (!window.html2canvas || !window.jspdf) return false;
   const pw = real ? 210 : 297, ph = real ? 297 : 210;
   // la pagina deve essere visibile (fuori schermo) per essere fotografata
-  el.style.cssText = `display:block;position:absolute;left:-20000px;top:0;width:${pw}mm;background:#fff`;
-  // foto girate: html2canvas non disegna gli sfondi ruotati con CSS, quindi le giro prima su un canvas
-  const rot = {};
-  await Promise.all([...el.querySelectorAll('.im.turn .ph')].map(async x => {
-    const u = (x.style.backgroundImage.match(/url\(["']?([^"')]+)/) || [])[1]; if (!u) return;
-    rot[u] = rot[u] || new Promise(r => { const im = new Image(); im.onerror = () => r(''); im.onload = () => {
-      const k = Math.min(1, 900 / Math.max(im.naturalWidth, im.naturalHeight)), w = Math.round(im.naturalWidth * k), h = Math.round(im.naturalHeight * k);
-      const cv = document.createElement('canvas'); cv.width = h; cv.height = w;
-      const g = cv.getContext('2d'); g.translate(h, 0); g.rotate(Math.PI / 2); g.drawImage(im, 0, 0, w, h);
-      r(cv.toDataURL('image/jpeg', 0.9)); }; im.src = u; });
-    const d = await rot[u]; if (!d) return;
-    x.style.backgroundImage = `url('${d}')`; x.parentElement.classList.remove('turn');
-  }));
+  el.style.cssText = `display:block;position:absolute;left:-20000px;top:0;width:${pw}mm`;
+  el.classList.add('pdfpass');
   const pagesEl = [...el.querySelectorAll('.sch-page')];
   const pdf = new window.jspdf.jsPDF({ orientation: real ? 'portrait' : 'landscape', unit: 'mm', format: 'a4', compress: true });
   const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
+  const made = new Map();   // stessa foto, stesso taglio: nel PDF una volta sola
+  // Full HD (1920 px); con tantissime foto (schede di tutti gli espositori) un po' meno, se no il file diventa enorme e il telefono non ce la fa
+  const maxPx = el.querySelectorAll('.ph:not(.rnph)').length > 120 ? 1280 : 1920;
   try {
     for (let i = 0; i < pagesEl.length; i++) {
       wait.textContent = `Creo il PDF… pagina ${i + 1} di ${pagesEl.length}`;
       const pg = pagesEl[i]; pg.style.breakBefore = 'auto'; pg.style.width = pw + 'mm';
-      const cv = await window.html2canvas(pg, { scale: mobile ? 2 : 2.6, backgroundColor: '#ffffff', useCORS: true, logging: false });
       if (i) pdf.addPage('a4', real ? 'portrait' : 'landscape');
-      const hmm = Math.min(ph, cv.height / cv.width * pw);
-      pdf.addImage(cv.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, pw, hmm, undefined, 'FAST');
+      const pr = pg.getBoundingClientRect(), k = pw / pr.width;   // px → mm
+      // 1) sotto: le foto, ognuna nel suo riquadro con gli angoli arrotondati (in ordine: la mattonella dopo copre il pezzo di quella prima)
+      const phs = [...pg.querySelectorAll('.ph')];
+      for (const [j, x] of phs.entries()) {
+        wait.textContent = `Creo il PDF… pagina ${i + 1} di ${pagesEl.length} · foto ${j + 1} di ${phs.length}`;
+        const box = x.parentElement, r = box.getBoundingClientRect(), cs = getComputedStyle(box), rn = x.classList.contains('rnph');
+        const bx = (r.left - pr.left) * k, by = (r.top - pr.top) * k, bw = r.width * k, bh = r.height * k;
+        const rad = ['borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomRightRadius', 'borderBottomLeftRadius'].map(p => Math.min(bw / 2, bh / 2, (parseFloat(cs[p]) || 0) * k));
+        const it = box.closest('.it'), ext = it && !it.classList.contains('end') ? Math.max(0, bw - it.getBoundingClientRect().width * k) : 0;
+        pdf.saveGraphicsState(); schClipPath(pdf, bx, by, bw, bh, rad); pdf.clip(); pdf.discardPath();
+        if (rn) {   // render dell'espositore: intero (contain) sul fondo chiaro
+          const u = (x.style.backgroundImage.match(/url\(["']?([^"')]+)/) || [])[1], im = u && await schLoadImg(u);
+          pdf.setFillColor(243, 242, 239); pdf.rect(bx, by, bw, bh, 'F');
+          if (im) { const s = Math.min(bw / im.naturalWidth, bh / im.naturalHeight), w = im.naturalWidth * s, h = im.naturalHeight * s;
+            pdf.addImage(u, 'JPEG', bx + (bw - w) / 2, by + (bh - h) / 2, w, h, 'render' + i, 'NONE'); }
+        } else {
+          const u = x.dataset.hi || (x.style.backgroundImage.match(/url\(["']?([^"')]+)/) || [])[1], turn = box.classList.contains('turn');
+          const shade = real && it ? (bw - ext) / bw : 0;   // il pezzo che finisce sotto la mattonella dopo resta in ombra (si vede negli angoli smussati)
+          const key = u + '|' + turn + '|' + (bw / bh).toFixed(3) + '|' + shade.toFixed(3);
+          if (!made.has(key)) made.set(key, await schPhotoJpeg(u, turn, bw / bh, shade, maxPx));
+          const d = made.get(key);
+          if (d) pdf.addImage(d, 'JPEG', bx, by, bw, bh, key, 'NONE');
+          else { pdf.setFillColor(217, 214, 208); pdf.rect(bx, by, bw, bh, 'F'); }
+        }
+        pdf.restoreGraphicsState();
+      }
+      // 2) sopra: scritte, ombre e cornici (trasparente dove ci sono le foto)
+      const cv = await window.html2canvas(pg, { scale: mobile ? 2.4 : 3, backgroundColor: null, useCORS: true, logging: false });
+      pdf.addImage(cv, 'PNG', 0, 0, pw, Math.min(ph, cv.height / cv.width * pw), 'pg' + i, 'FAST');
+      cv.width = cv.height = 0;
     }
-  } catch (e) { el.style.cssText = ''; return false; }
-  el.style.cssText = '';
+  } catch (e) { console.error(e); el.classList.remove('pdfpass'); el.style.cssText = ''; return false; }
+  el.classList.remove('pdfpass'); el.style.cssText = '';
   const blob = pdf.output('blob'), url = URL.createObjectURL(blob);
   wait.remove();
   const download = () => { const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); };
