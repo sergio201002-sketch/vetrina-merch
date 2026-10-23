@@ -77,13 +77,14 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 </style>`);
 
 let mc = null;   // { compId, client, series, sel: Set(keys), q }
-/* lineette diagonali nell'angolo (3 = R11 / Tecnica, 1 = marmo opaco) */
-const mcLinesSVG = n => `<svg viewBox="0 0 46 46">${(n === 3 ? [14, 22, 30] : [22]).map(x => `<line x1="${x}" y1="-1" x2="47" y2="${47 - x}"/>`).join('')}</svg>`;
+/* lineette diagonali nell'angolo (3 = R11 / Tecnica, 2 tratteggiate = Lappato Antique, 1 = marmo opaco) */
+const mcLinesSVG = n => `<svg viewBox="0 0 46 46">${(n === 3 ? [14, 22, 30] : n === 2 ? [17, 26] : [22]).map(x => `<line x1="${x}" y1="-1" x2="47" y2="${47 - x}"${n === 2 ? ' style="stroke-dasharray:4.5 4;stroke-linecap:butt"' : ''}/>`).join('')}</svg>`;
 const mcIsMarble = s => /MARMO|MARBLE|ONYX/i.test(s.s);
-/* lineette: 3 = R11 / Tecnica; 1 = marmo non lappato (Silktech, R9, R10); 0 = niente */
+const MC_LN_NAME = { 3: 'R11 / Tecnica', 2: 'Lappato Antique', 1: 'marmo opaco' };
+/* lineette: 3 = R11 / Tecnica; 2 = Lappato Antique (tratteggiate); 1 = marmo non lappato (Silktech, R9, R10); 0 = niente */
 function mcLines(s) {
   const fs = s.a4 ? [s.f[0]] : (s.f || []);
-  const lv = fs.map(f => /\bR11\b|Tecnica/i.test(f) ? 3 : mcIsMarble(s) && !/lappat|lucid|lux/i.test(f) ? 1 : 0);
+  const lv = fs.map(f => /\bR11\b|Tecnica/i.test(f) ? 3 : /lappato\s+antique/i.test(f) ? 2 : mcIsMarble(s) && !/lappat|lucid|lux/i.test(f) ? 1 : 0);
   if (!lv.length) return 0;
   return lv.every(x => x === lv[0]) ? lv[0] : 0;   // più finiture diverse nello stesso campione: niente segno
 }
@@ -131,7 +132,7 @@ function mcRender(full) {
         <button class="btn" onclick="mcClose()"><svg class="ic"><use href="#i-x"/></svg></button></div>
       <div class="mc-body"><aside class="mc-side"><input id="mcQ" placeholder="Cerca serie…" value="${esc(mc.q)}"><div class="mc-ser" id="mcSer"></div></aside>
         <main class="mc-main" id="mcMain"></main></div>
-      <div class="mc-foot"><div class="lg"><span><i class="d"></i> il cliente ce l'ha già (in altri espositori)</span><span><i class="l">${mcLinesSVG(3)}</i> R11 / Tecnica</span><span><i class="l">${mcLinesSVG(1)}</i> marmo opaco (Silktech, R9, R10)</span><span id="mcFree"></span></div>
+      <div class="mc-foot"><div class="lg"><span><i class="d"></i> il cliente ce l'ha già (in altri espositori)</span><span><i class="l">${mcLinesSVG(3)}</i> R11 / Tecnica</span><span><i class="l">${mcLinesSVG(2)}</i> Lappato Antique</span><span><i class="l">${mcLinesSVG(1)}</i> marmo opaco (Silktech, R9, R10)</span><span id="mcFree"></span></div>
         <button class="btn" onclick="mc.sel.clear(); mcRender()">Deseleziona</button>
         <button class="btn red" id="mcGo" onclick="mcInsert()"></button></div>`;
     document.getElementById('mcComp').onchange = e => { mc.compId = e.target.value; mc.sel.clear(); mc.series = null; if (comps[mc.compId].client) mc.client = comps[mc.compId].client; mcRender(true); };
@@ -177,7 +178,7 @@ function mcRender(full) {
         const gw = x.g ? x.g.toLowerCase().split(' ') : [], nm = gr.tint && gr.tint[x.c] ? gr.tint[x.c] : gw.length ? (x.c.split(' ').filter(w => !gw.includes(w.toLowerCase())).join(' ') || x.c) : x.c;   // nelle grafiche il nome senza la grafica
         const sub = x.a4 ? x.v : (x.toz ? 'tozzetto' : fmt(x.z)) + (x.f.length ? ' · ' + x.f.join(', ').replace(/\s*Rett\.?/g, '') : '');
         return `<button class="mc-sw${mc.sel.has(x.key) ? ' sel' : ''}${isIn ? ' in' : ''}" data-k="${esc(x.key)}" ${isIn ? 'disabled' : `onclick="mcToggle(this.dataset.k)"`} title="${esc(x.c + ' · ' + sub)}">
-          <span class="im" style="${mi ? `background-image:url('${esc(mi)}')` : ''}">${ln ? `<span class="ln" title="${ln === 3 ? 'R11 / Tecnica' : 'marmo opaco'}">${mcLinesSVG(ln)}</span>` : ''}${own.has(mcOwnKey(x)) ? '<span class="has" title="Il cliente ce l\'ha già"></span>' : ''}</span>
+          <span class="im" style="${mi ? `background-image:url('${esc(mi)}')` : ''}">${ln ? `<span class="ln" title="${MC_LN_NAME[ln]}">${mcLinesSVG(ln)}</span>` : ''}${own.has(mcOwnKey(x)) ? '<span class="has" title="Il cliente ce l\'ha già"></span>' : ''}</span>
           <b>${esc(glTitle(nm))}</b><small>${esc(sub)}</small>${isIn ? '<small class="inn">già in questo espositore</small>' : ''}</button>`;
       }).join('')}</div></div>`).join('') + '</div>';
   }
