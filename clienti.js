@@ -294,6 +294,7 @@ function invHTML(cid, inv) {
       ${noPhoto ? `<div class="card"><b style="color:var(--red)">${noPhoto}</b><span>referenze senza foto</span></div>` : ''}
     </div>
     <div class="vhead"><input class="search" id="invSearch" placeholder="Cerca serie, colore, formato, codice…" value="${esc(invQ)}" style="flex:1">
+      <button class="btn" onclick="invMailAsk('${cid}')" title="Prepara una mail con i campioni di tutti gli espositori o di quelli che scegli"><svg class="ic"><use href="#i-mail"/></svg> Mail</button>
       <button class="btn" onclick="copyInventory('${cid}')"><svg class="ic"><use href="#i-clipboard"/></svg> Copia</button>
       <button class="btn dark" onclick="exportInventoryCSV('${cid}')"><svg class="ic"><use href="#i-download"/></svg> Excel (CSV)</button></div>
     <div class="card" style="overflow-x:auto"><table class="inv">
@@ -308,6 +309,85 @@ const INV_HEAD = ['Marca', 'Serie', 'Colore', 'Formato', 'Spessore', 'Codici', '
 function copyInventory(cid) {
   const txt = [`Inventario campioni — ${clients[cid].name}`, '', INV_HEAD.join('\t'), ...invRows(cid).map(r => r.join('\t'))].join('\n');
   (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(() => toast('Inventario copiato: incollalo in Excel o in una mail'), () => showCopy('Copia l\'inventario:', txt));
+}
+/* ── Mail con i campioni: di tutti gli espositori o di quelli scelti; si controlla il testo e si apre nella mail ── */
+document.head.insertAdjacentHTML('beforeend', `<style>
+#invMail .im-seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+#invMail .im-seg .btn { justify-content: center; }
+#invMail .im-seg .btn.on { background: var(--red); border-color: var(--red); color: #fff; }
+#invMail .im-list { display: flex; flex-direction: column; gap: 6px; max-height: 46vh; overflow: auto; }
+#invMail .im-list label { display: flex; gap: 10px; align-items: center; border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; cursor: pointer; }
+#invMail .im-list label:has(input:checked) { border-color: var(--red); background: #fff5f5; }
+#invMail .im-list input { width: 18px; height: 18px; accent-color: var(--red); flex: none; }
+#invMail .im-list small { color: var(--mid); }
+#invMail .im-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+#invMail textarea { width: 100%; min-height: 42vh; font: 13px/1.45 var(--font-body); border: 1px solid var(--border); border-radius: 10px; padding: 10px; resize: vertical; box-sizing: border-box; }
+#invMail input.subj { width: 100%; font: 600 14px var(--font-body); border: 1px solid var(--border); border-radius: 10px; padding: 9px 10px; box-sizing: border-box; }
+</style>`);
+function invMailAsk(cid) {
+  const cc = visibleComps(cid).filter(c => DISP[c.disp] && c.slots.some(k => k && SAMPLE[k]));
+  if (!cc.length) return toast('Nessun espositore con campioni');
+  let m = document.getElementById('invMail'); if (m) m.remove();
+  document.body.insertAdjacentHTML('beforeend', `<div class="modal open" id="invMail" style="z-index:280"><div class="mbox" style="max-width:560px;width:calc(100vw - 32px)">
+    <div class="mhead"><h3><svg class="ic"><use href="#i-mail"/></svg> Mail campioni · ${esc(clients[cid].name)}</h3></div>
+    <div class="im-body" style="padding:6px 18px 18px;display:flex;flex-direction:column;gap:12px"></div></div></div>`);
+  m = document.getElementById('invMail');
+  m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+  let mode = 'all';
+  const sel = new Set();
+  const step1 = () => {
+    const b = m.querySelector('.im-body');
+    b.innerHTML = `<div class="im-seg"><button class="btn${mode === 'all' ? ' on' : ''}" data-m="all">Tutti gli espositori</button><button class="btn${mode === 'sel' ? ' on' : ''}" data-m="sel">Scelgo io</button></div>
+      ${mode === 'sel' ? `<div class="im-list">${cc.map(c => `<label><input type="checkbox" value="${c.id}"${sel.has(c.id) ? ' checked' : ''}><span><b>${esc(c.name)}</b><br><small>${esc(DISP[c.disp].name)} · ${filledOf(c)} campioni</small></span></label>`).join('')}</div>`
+        : `<div style="color:var(--mid);font-size:13px">${cc.length} espositori · ${cc.reduce((n, c) => n + filledOf(c), 0)} campioni</div>`}
+      <div class="im-row"><button class="btn" id="imNo">Annulla</button><button class="btn red" id="imGo"${mode === 'sel' && !sel.size ? ' disabled' : ''}><svg class="ic"><use href="#i-mail"/></svg> Crea la mail</button></div>`;
+    b.querySelectorAll('[data-m]').forEach(x => x.onclick = () => { mode = x.dataset.m; step1(); });
+    b.querySelectorAll('.im-list input').forEach(x => x.onchange = () => { if (x.checked) sel.add(x.value); else sel.delete(x.value); b.querySelector('#imGo').disabled = !sel.size; });
+    b.querySelector('#imNo').onclick = () => m.remove();
+    b.querySelector('#imGo').onclick = () => step2(mode === 'all' ? cc : cc.filter(c => sel.has(c.id)));
+  };
+  const step2 = list => {
+    const { subject, body } = invMailText(cid, list), b = m.querySelector('.im-body');
+    const open = list.reduce((n, c) => n + c.slots.filter(k => { const s = k && SAMPLE[k]; return s && !s.a4 && (s.f || []).length > 1; }).length, 0);
+    b.innerHTML = `${open ? `<div style="background:#fff7e0;border:1px solid #f5d27a;border-radius:10px;padding:8px 10px;font-size:12.5px"><b>${open} ${open === 1 ? 'campione ha' : 'campioni hanno'} la finitura non scelta:</b> nella mail trovi le finiture e i codici possibili separati da «/». Puoi correggere qui sotto, oppure sceglierla in Sistema i campioni → Visualizza finitura.</div>` : ''}
+      <input class="subj" value="${esc(subject)}"><textarea>${esc(body)}</textarea>
+      <div class="im-row"><button class="btn" id="imBack"><svg class="ic"><use href="#i-left"/></svg> Indietro</button>
+        <button class="btn" id="imCopy"><svg class="ic"><use href="#i-copy"/></svg> Copia</button>
+        ${navigator.share ? `<button class="btn" id="imShare" title="Gmail, Outlook, WhatsApp…"><svg class="ic"><use href="#i-upload"/></svg> Condividi</button>` : ''}
+        <button class="btn red" id="imOpen"><svg class="ic"><use href="#i-mail"/></svg> Apri nella mail</button></div>`;
+    const subj = () => b.querySelector('.subj').value, txt = () => b.querySelector('textarea').value;
+    b.querySelector('#imBack').onclick = step1;
+    b.querySelector('#imCopy').onclick = () => {
+      const all = subj() + '\n\n' + txt();
+      (navigator.clipboard ? navigator.clipboard.writeText(all) : Promise.reject()).then(() => toast('Mail copiata: incollala dove vuoi'), () => showCopy('Copia la mail:', all));
+    };
+    const sh = b.querySelector('#imShare');
+    if (sh) sh.onclick = () => navigator.share({ title: subj(), text: txt() }).catch(() => {});
+    b.querySelector('#imOpen').onclick = () => { location.href = 'mailto:?subject=' + encodeURIComponent(subj()) + '&body=' + encodeURIComponent(txt().replace(/\r?\n/g, '\r\n')); };
+  };
+  step1();
+}
+/* testo della mail (come il modello d'ordine):
+   "Ordinare i seguenti campioni per CLIENTE," poi per ogni espositore
+   "Campioni per espositore girevole 120x120 (20 pezzi) (00000PLZ):" e una riga per campione, in ordine di posto:
+   "MAPIERRE Blanc Noble Naturale R10 Rett. 120x120 - EM5J" */
+function invMailText(cid, list) {
+  const cl = clients[cid], x = t => String(t || '').replace(/×/g, 'x');
+  const fin = s => s.a4 ? s.v : (s.f || []).join(' / ');   // finitura non scelta: le possibili, separate da /
+  // espositori dello stesso tipo (es. girevole 120×120 DX + SX) in un solo blocco, pezzi sommati
+  const groups = new Map();
+  list.forEach(c => { const g = groups.get(c.disp) || groups.set(c.disp, []).get(c.disp); c.slots.forEach(k => { const s = k && SAMPLE[k]; if (s) g.push({ s, c }); }); });
+  const parts = [...groups].map(([did, rows]) => {
+    const d = DISP[did], nm = d.name.charAt(0).toLowerCase() + d.name.slice(1);
+    const ord = new Map(); rows.forEach(r => { if (!ord.has(r.s.b + '|' + r.s.s)) ord.set(r.s.b + '|' + r.s.s, ord.size); });   // righe raggruppate per serie
+    rows = rows.map((r, i) => [r, i]).sort((a, b) => ord.get(a[0].s.b + '|' + a[0].s.s) - ord.get(b[0].s.b + '|' + b[0].s.s) || a[1] - b[1]).map(a => a[0]);
+    return [`Campioni per ${x(nm)} (${rows.length} ${rows.length === 1 ? 'pezzo' : 'pezzi'}) (${d.code}):`, ``,
+      ...rows.map(({ s, c }) => `${s.s} ${s.c}${fin(s) ? ' ' + fin(s) : ''} ${x(s.toz ? tozFmt(d, c) : s.z)} - ${(s.k || []).join(' / ')}`)].join('\n');
+  });
+  return {
+    subject: `Ordine campioni — ${cl.name}`,
+    body: [`Ordinare i seguenti campioni per ${cl.name},`, ``, parts.join('\n\n')].join('\n')
+  };
 }
 function exportInventoryCSV(cid) {
   const q = v => '"' + String(v).replace(/"/g, '""') + '"';
