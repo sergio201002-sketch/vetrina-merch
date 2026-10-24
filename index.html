@@ -804,13 +804,18 @@ function cullaMods(d, n) { const k = (d.variants || []).indexOf(n); return k >= 
    e i campioni vanno nei posti in ordine. Ogni riga = un campione (righe uguali = due pezzi) ── */
 let CODE_IDX = null;
 function codeIndex() {
-  if (!CODE_IDX) { CODE_IDX = {}; expandFin(SAMPLES).concat(TOZ_A4).forEach(s => (s.k || []).forEach(k => { (CODE_IDX[k.toUpperCase()] = CODE_IDX[k.toUpperCase()] || []).push(s); })); }
+  if (!CODE_IDX) {
+    // per ogni codice: il prodotto, il tozzetto A4 ufficiale, il tozzetto tagliato dal prodotto (cassettiera 20 mm): si usa quello che entra
+    CODE_IDX = {}; expandFin(SAMPLES).concat(TOZ_A4, TOZ_SAMPLES).forEach(s => (s.k || []).forEach(k => { (CODE_IDX[k.toUpperCase()] = CODE_IDX[k.toUpperCase()] || []).push(s); }));
+    // tozzetti A4: il codice è di 8 caratteri (0000ILDB); vale anche scritto senza gli zeri davanti (ILDB)
+    TOZ_A4.forEach(s => (s.k || []).forEach(k => { const sh = k.toUpperCase().replace(/^0+/, ''); if (sh.length >= 4 && !CODE_IDX[sh]) CODE_IDX[sh] = [s]; }));
+  }
   return CODE_IDX;
 }
 function parseCodeList(text) {
   const idx = codeIndex();
   return String(text || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(line => {
-    const toks = line.toUpperCase().split(/[^A-Z0-9]+/).filter(t => t.length >= 4 && t.length <= 6);
+    const toks = line.toUpperCase().split(/[^A-Z0-9]+/).filter(t => t.length >= 4 && t.length <= 10);   // codici prodotto (4) e tozzetti (8)
     const code = toks.reverse().find(t => idx[t]) || null;        // il codice sta di solito in fondo alla riga
     return { line, code, samples: code ? idx[code] : [] };
   });
@@ -833,6 +838,13 @@ function pasteDialog(title, choices) {
     m.classList.add('open'); setTimeout(() => ta.focus(), 50);
   });
 }
+/* tozzetto A4 ufficiale per un prodotto (stessa marca, serie, colore; stessa superficie se la finitura è una sola) */
+function a4For(c, x) {
+  if (x.toz) return null;
+  const sf = (x.f || []).length === 1 ? surfOf(x)[0] : null;
+  const m = TOZ_A4.filter(a => a.b === x.b && a.s === x.s && a.c === x.c && acceptsIn(c, a) && (!sf || surfOf(a).includes(sf)));
+  return m.length === 1 || (sf && m.length) ? m[0] : null;
+}
 /* targets: posti in ordine [{cid, i}]; restituisce il resoconto */
 function fillWithCodes(targets, text, all) {
   const rows = parseCodeList(text), out = { put: 0, missing: [], bad: [], over: [] };
@@ -841,7 +853,9 @@ function fillWithCodes(targets, text, all) {
   rows.forEach(r => {
     if (!r.code) { out.missing.push(r.line); return; }
     if (!free()) { out.over.push(r.code); return; }
-    const c = comps[targets[t].cid], s = r.samples.find(x => acceptsIn(c, x));
+    const c = comps[targets[t].cid], a4 = usesA4(DISP[c.disp], c);
+    // teche / cassettiera tozzetti: solo i tozzetti A4 ufficiali; col codice di un prodotto, il tozzetto della stessa serie, colore e finitura
+    const s = r.samples.find(x => acceptsIn(c, x) && (!x.toz || x.a4 || !a4)) || (a4 ? r.samples.map(x => a4For(c, x)).find(Boolean) : null);
     if (!s) { out.bad.push(r.code + ' (' + fmt(r.samples[0].z) + ')'); return; }
     c.slots[targets[t].i] = s.key; c.upd = Date.now(); out.put++; t++;
   });
