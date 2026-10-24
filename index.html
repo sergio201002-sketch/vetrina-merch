@@ -814,10 +814,13 @@ function codeIndex() {
 }
 function parseCodeList(text) {
   const idx = codeIndex();
+  // codice d'ordine "00ELNA01" / "00E7KXF1": 00 + codice prodotto + 2 caratteri
+  const cand = t => idx[t] ? t : /^00[A-Z0-9]{6}$/.test(t) && idx[t.slice(2, 6)] ? t.slice(2, 6) : null;
   return String(text || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(line => {
-    const toks = line.toUpperCase().split(/[^A-Z0-9]+/).filter(t => t.length >= 4 && t.length <= 10);   // codici prodotto (4) e tozzetti (8)
-    const code = toks.reverse().find(t => idx[t]) || null;        // il codice sta di solito in fondo alla riga
-    return { line, code, samples: code ? idx[code] : [] };
+    const toks = line.toUpperCase().split(/[^A-Z0-9]+/).filter(t => t.length >= 4 && t.length <= 10).reverse();   // codici prodotto (4), tozzetti e righe d'ordine (8); il codice sta di solito in fondo
+    let code = null; for (const t of toks) if ((code = cand(t))) break;
+    const disp = !code && toks.find(t => /^00000[A-Z0-9]{3}$/.test(t)) || null;   // codice di un espositore (00000PLY), non di un campione
+    return { line, code, disp, samples: code ? idx[code] : [] };
   });
 }
 /* choices (facoltativo): [{id, label, sub, on}] = in quali espositori incollare (uno o più) */
@@ -847,27 +850,38 @@ function a4For(c, x) {
 }
 /* targets: posti in ordine [{cid, i}]; restituisce il resoconto */
 function fillWithCodes(targets, text, all) {
-  const rows = parseCodeList(text), out = { put: 0, missing: [], bad: [], over: [] };
-  let t = 0;
-  const free = () => { while (t < targets.length && !all && comps[targets[t].cid].slots[targets[t].i]) t++; return t < targets.length; };
-  rows.forEach(r => {
-    if (!r.code) { out.missing.push(r.line); return; }
-    if (!free()) { out.over.push(r.code); return; }
-    const c = comps[targets[t].cid], a4 = usesA4(DISP[c.disp], c);
+  const rows = parseCodeList(text), out = { put: 0, missing: [], bad: [], over: [], disp: [] };
+  const taken = new Set(), memo = new Map();
+  const pick = (c, r) => {   // il campione di quel codice che entra in questo espositore (o niente)
+    const k = c.id + '|' + r.code; if (memo.has(k)) return memo.get(k);
+    const a4 = usesA4(DISP[c.disp], c);
     // teche / cassettiera tozzetti: solo i tozzetti A4 ufficiali; col codice di un prodotto, il tozzetto della stessa serie, colore e finitura
-    const s = r.samples.find(x => acceptsIn(c, x) && (!x.toz || x.a4 || !a4)) || (a4 ? r.samples.map(x => a4For(c, x)).find(Boolean) : null);
-    if (!s) { out.bad.push(r.code + ' (' + fmt(r.samples[0].z) + ')'); return; }
-    c.slots[targets[t].i] = s.key; c.upd = Date.now(); out.put++; t++;
+    const s = r.samples.find(x => acceptsIn(c, x) && (!x.toz || x.a4 || !a4)) || (a4 ? r.samples.map(x => a4For(c, x)).find(Boolean) : null) || null;
+    memo.set(k, s); return s;
+  };
+  rows.forEach(r => {
+    if (r.disp) { out.disp.push(r.disp); return; }
+    if (!r.code) { out.missing.push(r.line); return; }
+    // nel primo posto libero (in ordine) di un espositore che lo accetta: in un elenco misto i tozzetti vanno nella teca, le lastre nello slabs…
+    let fits = false;
+    for (let j = 0; j < targets.length; j++) {
+      const tg = targets[j], c = comps[tg.cid], s = pick(c, r); if (!s) continue;
+      fits = true;
+      if (taken.has(j) || (!all && c.slots[tg.i])) continue;
+      c.slots[tg.i] = s.key; c.upd = Date.now(); taken.add(j); out.put++; return;
+    }
+    if (fits) out.over.push(r.code); else out.bad.push(r.code + ' (' + fmt(r.samples[0].z) + ')');
   });
   saveComps();
   return out;
 }
 function pasteReport(o) {
   const L = [`Inseriti ${o.put} campioni.`];
-  if (o.bad.length) L.push(`\nNon entrano in questo espositore (formato): ${o.bad.join(', ')}`);
-  if (o.over.length) L.push(`\nPosti finiti, restano fuori ${o.over.length}: ${o.over.join(', ')}`);
-  if (o.missing.length) L.push(`\nRighe senza un codice del listino (${o.missing.length}):\n` + o.missing.slice(0, 12).join('\n') + (o.missing.length > 12 ? '\n…' : ''));
-  if (o.bad.length || o.over.length || o.missing.length) say(L.join('\n')); else toast(L[0]);
+  if (o.bad.length) L.push(`\nNon entrano negli espositori scelti (formato) — ${o.bad.length}: ${o.bad.join(', ')}`);
+  if (o.over.length) L.push(`\nPosti finiti negli espositori adatti, restano fuori ${o.over.length}: ${o.over.join(', ')}`);
+  if (o.missing.length) L.push(`\nCodici che non trovo nel listino né tra i tozzetti A4 (${o.missing.length}):\n` + o.missing.slice(0, 40).join(o.missing.every(l => l.length <= 14) ? ', ' : '\n') + (o.missing.length > 40 ? ' …' : ''));
+  if (o.disp.length) L.push(`\nCodici di espositori, saltati (non sono campioni): ${o.disp.join(', ')}`);
+  if (o.bad.length || o.over.length || o.missing.length || o.disp.length) say(L.join('\n')); else toast(L[0]);
 }
 /* incolla in una o più composizioni a scelta (list = composizioni proposte, pre = quella già spuntata) */
 async function pasteIntoComps(list, pre, after) {
