@@ -70,8 +70,12 @@ function nvColors(p) {
 }
 const nvColIk = (p, col) => col.ik || `NEW|${p.id}|${col.id}`;
 const nvColName = col => ((col.v ? col.v.trim() + ' ' : '') + String(col.c || '').trim()).trim();
-/* formati di un colore: quelli della serie (meno quelli tolti) + quelli solo suoi */
-const nvColFmts = (p, col) => [...(p.fmts || []).filter(fm => !(col.off || []).includes(nvZ(fm.z))), ...(col.extra || [])];
+/* formati di un colore: quelli della serie (meno quelli tolti) + quelli solo suoi; un formato solo suo con la stessa misura
+   di uno della serie lo sostituisce per quel colore (es. il Grey 60×120 ha una finitura sola) */
+const nvColFmts = (p, col) => {
+  const own = (col.extra || []).map(fm => nvZ(fm.z));
+  return [...(p.fmts || []).filter(fm => !(col.off || []).includes(nvZ(fm.z)) && !own.includes(nvZ(fm.z))), ...(col.extra || [])];
+};
 function saveNovita() { LS.set('vm_novita_v1', novita); applyNovita(); markDirty(); }
 
 /* le novità diventano campioni: uno per colore e formato; con più finiture una variante per finitura, come il listino */
@@ -148,7 +152,7 @@ function nvNameFromFile(name, serie) {
 function nvEdit(id) {
   const orig = id && novita[id], isNew = !orig;
   const p = JSON.parse(JSON.stringify(orig || { id: uid(), b: '', s: '', note: '', fmts: [{ z: '', t: '', fins: [{ f: '' }] }] }));
-  if (!p.colors) { p.colors = nvColors(p); delete p.c; }
+  if (!p.colors) { p.colors = isNew ? [] : nvColors(p); delete p.c; }   // le prime novità (un colore solo) diventano una serie con un colore
   if (!p.colors.length) p.colors.push(nvNewColor());
   p.fmts.forEach(fm => { fm.fins = (fm.fins || []).map(x => ({ f: x.f || '' })); if (!fm.fins.length) fm.fins.push({ f: '' }); });   // i codici stanno nei colori
   const origIks = orig ? nvColors(orig).map(col => nvColIk(orig, col)) : [];
@@ -177,23 +181,45 @@ function nvEdit(id) {
       ${fm.fins.map((x, j) => `<div class="nv-fin"><input data-fin="${j}" list="nvFins" value="${esc(x.f)}" placeholder="Finitura (es. Silktech R10 Rett.)">
         <button class="x" data-delfin="${j}" title="Togli la finitura"><svg class="ic"><use href="#i-x"/></svg></button></div>`).join('')}
       <div><button class="btn sm" data-addfin><svg class="ic"><use href="#i-plus"/></svg> Finitura</button></div></div>`;
-  const colHTML = (col, ci) => {
-    const u = IMG[nvColIk(p, col)], sf = p.fmts.filter(fm => parseSize(nvZ(fm.z)));
+  // parti di un colore che dipendono dai formati e dalle finiture scritte: si aggiornano da sole (refreshDeps) senza ridisegnare
+  // le caselle (così il tocco sulla casella o sul pulsante dopo non va perso e quello che scrivi resta)
+  const chipsHTML = col => p.fmts.filter(fm => parseSize(nvZ(fm.z))).map(fm => { const z = nvZ(fm.z), on = !(col.off || []).includes(z);
+      return `<button class="chip${on ? ' on' : ' off'}" data-tog="${esc(z)}" title="${on ? 'Questo colore lo ha: tocca per toglierlo' : 'Tocca per rimetterlo'}">${esc(fmt(z))}</button>`; }).join('')
+    || '<span style="color:var(--mid)">scrivi prima i formati della serie</span>';
+  const codesHTML = col => {
     const combos = nvColFmts(p, col).filter(fm => parseSize(nvZ(fm.z))).flatMap(fm => fm.fins.filter(x => x.f && x.f.trim()).map(x => [nvZ(fm.z), x.f.trim()]));
+    return combos.length ? `<details class="cod"${openCodes.has(col.id) ? ' open' : ''} data-cod="${col.id}"><summary>Codici (facoltativi)</summary>${combos.map(([z, f]) =>
+      `<div class="nv-code"><span>${esc(fmt(z))} · ${esc(f)}</span><input data-code="${esc(z + '|' + f)}" value="${esc((col.codes || {})[z + '|' + f] || '')}" placeholder="Codice"></div>`).join('')}</details>` : '';
+  };
+  const colHTML = (col, ci) => {
+    const u = IMG[nvColIk(p, col)];
     return `<div class="nv-col" data-ci="${ci}">
       <div class="ch"><div class="pv" data-cph title="${u ? 'Cambia foto' : 'Carica foto'}" style="${u ? `background-image:url('${esc(u)}')` : ''}">${u ? '' : '<svg class="ic"><use href="#i-camera"/></svg>'}</div>
         <div><div class="nv-row2"><label class="f">Colore *<input data-cc value="${esc(col.c || '')}" placeholder="es. Beige"></label>
           <label class="f">Variante<input data-cv value="${esc(col.v || '')}" placeholder="es. Sassi (facoltativa)"></label></div>
           <div class="cb"><button class="btn sm${u ? '' : ' red'}" data-cph><svg class="ic"><use href="#i-camera"/></svg> ${u ? 'Cambia foto' : 'Carica foto'}</button>
             <button class="btn sm" data-cdel title="Togli questo colore"><svg class="ic"><use href="#i-trash"/></svg> Togli colore</button></div></div></div>
-      <div class="cfm"><span class="k">Formati:</span>${sf.map(fm => { const z = nvZ(fm.z), on = !(col.off || []).includes(z);
-          return `<button class="chip${on ? ' on' : ' off'}" data-tog="${esc(z)}" title="${on ? 'Questo colore lo ha: tocca per toglierlo' : 'Tocca per rimetterlo'}">${esc(fmt(z))}</button>`; }).join('') || '<span style="color:var(--mid)">scrivi prima i formati della serie</span>'}
+      <div class="cfm"><span class="k">Formati:</span><span class="chips" style="display:contents">${chipsHTML(col)}</span>
         <button class="btn sm" data-addx><svg class="ic"><use href="#i-plus"/></svg> Formato solo per questo colore</button></div>
       ${(col.extra || []).map((fm, i) => fmtHTML(fm, 'C' + ci, i)).join('')}
-      ${combos.length ? `<details class="cod"${openCodes.has(col.id) ? ' open' : ''} data-cod="${col.id}"><summary>Codici (facoltativi)</summary>${combos.map(([z, f]) =>
-        `<div class="nv-code"><span>${esc(fmt(z))} · ${esc(f)}</span><input data-code="${esc(z + '|' + f)}" value="${esc((col.codes || {})[z + '|' + f] || '')}" placeholder="Codice"></div>`).join('')}</details>` : ''}
+      <div class="codw">${codesHTML(col)}</div>
     </div>`;
   };
+  const bindDeps = (box, col) => {
+    box.querySelectorAll('[data-tog]').forEach(x => x.onclick = () => {
+      const z = x.dataset.tog; col.off = col.off || [];
+      if (col.off.includes(z)) col.off = col.off.filter(q => q !== z); else col.off.push(z); refreshDeps();
+    });
+    box.querySelectorAll('[data-code]').forEach(x => x.oninput = () => { col.codes = col.codes || {}; const v = x.value.trim().toUpperCase(); if (v) col.codes[x.dataset.code] = v; else delete col.codes[x.dataset.code]; });
+    const det = box.querySelector('details[data-cod]'); if (det) det.ontoggle = () => { if (det.open) openCodes.add(col.id); else openCodes.delete(col.id); };
+  };
+  const refreshDeps = () => m.querySelectorAll('.nv-col').forEach(box => {
+    const col = p.colors[+box.dataset.ci]; if (!col) return;
+    const ch = chipsHTML(col), cd = codesHTML(col), cs = box.querySelector('.chips'), cw = box.querySelector('.codw');
+    if (cs.innerHTML !== ch) cs.innerHTML = ch;
+    if (cw.dataset.h !== cd) { cw.innerHTML = cd; cw.dataset.h = cd; }
+    bindDeps(box, col);
+  });
   const fmOf = box => box.dataset.p === 'S' ? p.fmts[+box.dataset.i] : p.colors[+box.dataset.p.slice(1)].extra[+box.dataset.i];
   const listOf = box => box.dataset.p === 'S' ? p.fmts : p.colors[+box.dataset.p.slice(1)].extra;
   const pickPhotos = (multi, cb) => { const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = multi; inp.onchange = () => cb([...inp.files]); inp.click(); };
@@ -217,9 +243,9 @@ function nvEdit(id) {
     b.querySelectorAll('.nv-fmt').forEach(box => {
       const fm = fmOf(box);
       box.querySelector('[data-fz]').oninput = e => { fm.z = e.target.value; };
-      box.querySelector('[data-fz]').onchange = draw;
+      box.querySelector('[data-fz]').onchange = refreshDeps;
       box.querySelector('[data-ft]').oninput = e => { fm.t = e.target.value; };
-      box.querySelectorAll('[data-fin]').forEach(x => { x.oninput = () => { fm.fins[+x.dataset.fin].f = x.value; }; x.onchange = draw; });
+      box.querySelectorAll('[data-fin]').forEach(x => { x.oninput = () => { fm.fins[+x.dataset.fin].f = x.value; }; x.onchange = refreshDeps; });
       box.querySelectorAll('[data-delfin]').forEach(x => x.onclick = () => { fm.fins.splice(+x.dataset.delfin, 1); if (!fm.fins.length) fm.fins.push({ f: '' }); draw(); });
       box.querySelector('[data-addfin]').onclick = () => { fm.fins.push({ f: '' }); draw(); };
       box.querySelector('[data-delf]').onclick = () => { const L = listOf(box); L.splice(+box.dataset.i, 1); if (box.dataset.p === 'S' && !L.length) L.push({ z: '', t: '', fins: [{ f: '' }] }); draw(); };
@@ -236,13 +262,13 @@ function nvEdit(id) {
         draw();
       }));
       box.querySelector('[data-cdel]').onclick = () => { p.colors.splice(+box.dataset.ci, 1); if (!p.colors.length) p.colors.push(nvNewColor()); draw(); };
-      box.querySelectorAll('[data-tog]').forEach(x => x.onclick = () => {
-        const z = x.dataset.tog; col.off = col.off || [];
-        if (col.off.includes(z)) col.off = col.off.filter(q => q !== z); else col.off.push(z); draw();
-      });
-      box.querySelector('[data-addx]').onclick = () => { col.extra = col.extra || []; const last = p.fmts[p.fmts.length - 1]; col.extra.push({ z: '', t: last ? last.t || '' : '', fins: last ? last.fins.map(x => ({ f: x.f })) : [{ f: '' }] }); draw(); };
-      box.querySelectorAll('[data-code]').forEach(x => x.oninput = () => { col.codes = col.codes || {}; const v = x.value.trim().toUpperCase(); if (v) col.codes[x.dataset.code] = v; else delete col.codes[x.dataset.code]; });
-      const det = box.querySelector('details[data-cod]'); if (det) det.ontoggle = () => { if (det.open) openCodes.add(col.id); else openCodes.delete(col.id); };
+      // formato solo per questo colore: parte con lo spessore e le finiture della serie, poi si cambia
+      box.querySelector('[data-addx]').onclick = () => {
+        col.extra = col.extra || []; const last = p.fmts[p.fmts.length - 1];
+        col.extra.push({ z: '', t: last ? last.t || '' : '', fins: last && last.fins.some(x => x.f) ? last.fins.map(x => ({ f: x.f })) : [{ f: '' }] }); draw();
+        setTimeout(() => { const zs = m.querySelectorAll(`.nv-fmt[data-p="C${box.dataset.ci}"] [data-fz]`); zs[zs.length - 1]?.focus(); }, 30);
+      };
+      bindDeps(box, col);
     });
     // nuovo colore: segue i formati della serie
     b.querySelector('#nvAddC').onclick = () => { p.colors.push(nvNewColor()); draw(); setTimeout(() => { const all = m.querySelectorAll('[data-cc]'); all[all.length - 1]?.focus(); }, 30); };
