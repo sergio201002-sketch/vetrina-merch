@@ -714,6 +714,7 @@ let current = LS.get('vm_current_v1', {});
 let ui = LS.get('vm_ui_v1', { disp: 'PLY', labels: true, tab: 'pick' });
 let clients = LS.get('vm_clients_v1', {});   // id -> { id, name, city, contact, phone, note, upd }
 let scenes = LS.get('vm_scenes_v1', {});     // id -> ambientazione { id, client, name, w, d, h, wallL, wallR, items: [...] }
+let novita = LS.get('vm_novita_v1', {});     // id -> prodotto nuovo non a listino { id, b, s, c, note, fmts: [{ z, t, fins: [{ f, k }] }], upd } (novita.js)
 const markDirty = () => { if (window.Sync) Sync.dirty(); };      // salvataggio su disco (salva.js)
 const saveClients = () => { LS.set('vm_clients_v1', clients); markDirty(); };
 const saveScenes = () => { LS.set('vm_scenes_v1', scenes); markDirty(); };
@@ -1954,6 +1955,7 @@ function renderToolbar() {
   const list = Object.values(comps).filter(x => x.disp === d.id && sameCtx(x)).sort((a, b) => a.name.localeCompare(b.name));
   const cl = clients[ctxClient()];
   document.getElementById('ctxBtn').innerHTML = ui.returnTo && ui.returnTo.startsWith('#/pacchetti/') ? '<svg class="ic"><use href="#i-left"/></svg>Pacchetto'
+    : ui.returnTo === '#/novita' ? '<svg class="ic"><use href="#i-left"/></svg>Novità'
     : ui.returnTo && ui.returnTo.startsWith('#/ambiente/') ? '<svg class="ic"><use href="#i-left"/></svg>Ambientazione'
     : ui.returnTo && ui.returnTo.startsWith('#/salamostra/') ? '<svg class="ic"><use href="#i-left"/></svg>Sala mostra' : cl ? '<svg class="ic"><use href="#i-left"/></svg>' + esc(cl.name) : '<svg class="ic"><use href="#i-left"/></svg>Clienti';
   document.getElementById('ctxBtn').title = cl ? 'Torna alla scheda cliente' : 'Catalogo libero (senza cliente) — torna ai clienti';
@@ -2066,7 +2068,7 @@ function renderPicker(full) {
   document.getElementById('pickList').innerHTML = shown.slice(0, LIMIT).map(s => `
     <div class="srow${used.has(s.key) ? ' used' : ''}" data-k="${esc(s.key)}">
       <div class="sw" style="${swatchStyle(s)}"></div>
-      <div class="info"><div class="brand">${esc(s.b)}</div><div class="ser">${esc(s.s)} <span class="col">${esc(s.c)}</span></div>
+      <div class="info"><div class="brand">${s.nuovo ? '<span class="nwb">NOVITÀ</span> ' : ''}${esc(s.b)}</div><div class="ser">${esc(s.s)} <span class="col">${esc(s.c)}</span></div>
       <div class="meta">${s.a4 ? `<b>${esc(s.v)}</b>${s.t[0] !== '6,5' ? ' · ' + esc(s.t[0] + ' mm') : ''} · cod. ${esc(s.k[0])}` : `${esc(s.toz ? 'tozzetto ' + fmt(tozFmt(d, c)) + ' · da ' + s.from.map(fmt).join(', ') : fmt(s.z))} · ${esc(s.t.map(t => t + ' mm').join('/'))}${s.f.length ? ' · ' + esc(s.f.join(', ')) : ''}`}</div></div>
       <button class="cam${hasPhoto(s) ? ' has' : ''}" title="${hasPhoto(s) ? 'Cambia foto' : 'Carica foto'}" data-ik="${esc(s.ik)}">${hasPhoto(s) ? '<svg class="ic"><use href="#i-check"/></svg>' : '<svg class="ic"><use href="#i-camera"/></svg>'}</button>
     </div>`).join('') + (shown.length > LIMIT ? `<div class="count" style="padding:12px 14px">Altri ${shown.length - LIMIT}: usa la ricerca per restringere.</div>` : '') +
@@ -2232,7 +2234,7 @@ async function exportBackup() {
   toast('Preparo il backup…');
   const images = {};
   for (const [k, v] of await idbAll()) images[k] = { name: v.name, upd: v.upd, data: await blobToDataURL(v.blob) };
-  const blob = new Blob([JSON.stringify({ app: 'vetrina-merch', v: 2, date: new Date().toISOString(), comps, current, clients, scenes, images })], { type: 'application/json' });
+  const blob = new Blob([JSON.stringify({ app: 'vetrina-merch', v: 2, date: new Date().toISOString(), comps, current, clients, scenes, novita, images })], { type: 'application/json' });
   const fname = 'vetrina-merch-backup-' + new Date().toISOString().slice(0, 10) + '.json';
   if (window.Sync && Sync.mode === 'cloud') { await Sync.download(fname, blob); return; }   // online: il file lo salva il visualizzatore
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
@@ -2259,6 +2261,7 @@ async function importBackup(file) {
     Object.assign(comps, data.comps || {}); Object.assign(current, data.current || {}); saveComps();
     Object.assign(clients, data.clients || {}); saveClients();
     Object.assign(scenes, data.scenes || {}); saveScenes();
+    if (data.novita && typeof saveNovita === 'function') { Object.assign(novita, data.novita); saveNovita(); }
     for (const [k, v] of Object.entries(data.images || {})) {
       const blob = dataURLtoBlob(v.data);
       await idbPut(k, { blob, name: v.name, upd: v.upd });
@@ -2308,6 +2311,6 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 </script>
 <script>/* sempre l'ultima versione del programma (niente copie vecchie rimaste nel browser) */
-['salva.js', 'clienti.js', 'ambiente.js', 'espositori3d.js', 'campioni.js', 'render.js', 'galleria.js', 'roomgl.js', 'galleria2.js', 'misure.js', 'pacchetti.js', 'metticampioni.js', 'scheda.js'].forEach(f => document.write('<script src="' + f + '?v=' + APPV + '"><\/script>'));</script>
+['salva.js', 'clienti.js', 'ambiente.js', 'espositori3d.js', 'campioni.js', 'render.js', 'galleria.js', 'roomgl.js', 'galleria2.js', 'misure.js', 'pacchetti.js', 'metticampioni.js', 'scheda.js', 'novita.js'].forEach(f => document.write('<script src="' + f + '?v=' + APPV + '"><\/script>'));</script>
 </body>
 </html>

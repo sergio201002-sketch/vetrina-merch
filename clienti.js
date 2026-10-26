@@ -40,6 +40,7 @@ function route() {
   if (a === 'galleria') return go('#/galleria2');   // la vecchia Galleria è stata sostituita dalla Galleria+
   if (a === 'campioni' && clients[id]) return go('#/g2/' + id + (sub && sub !== 'tutti' ? '/' + sub : ''));
   if (a === 'pacchetti') { document.body.dataset.view = 'packs'; renderPacks(id); return; }
+  if (a === 'novita') { document.body.dataset.view = 'novita'; renderNovita(); return; }
   if (a === 'ambiente' && scenes[id]) { document.body.dataset.view = 'room'; openRoom(id); return; }
   if (a === 'salamostra' && clients[id]) {
     const rooms = showRooms(id), last = (ui.showRoom || {})[id];
@@ -83,6 +84,7 @@ function leaveConfig() {
   if (back && back.startsWith('#/ambiente/') && scenes[back.split('/')[2]]) return go(back);
   if (back && back.startsWith('#/salamostra/') && clients[back.split('/')[2]]) return go(back);
   if (back && back.startsWith('#/pacchetti/') && scenes[back.split('/')[2]]) return go(back);
+  if (back === '#/novita') return go(back);
   go(ctxClient() ? '#/cliente/' + ctxClient() : '#/');
 }
 
@@ -127,6 +129,8 @@ function renderHome() {
         <div class="sub">Prova gli espositori senza cliente${free ? ` · ${free} composizioni libere` : ''}</div></div>
       <div class="card ccard" onclick="go('#/pacchetti')"><h3><svg class="ic"><use href="#i-box"/></svg> Pacchetti espositori</h3>
         <div class="sub">Le tue proposte di esposizione pronte da mettere nella sala mostra di un cliente</div></div>
+      <div class="card ccard" onclick="go('#/novita')"><h3><svg class="ic"><use href="#i-sparkles"/></svg> Novità</h3>
+        <div class="sub">${Object.keys(novita).length ? `${Object.keys(novita).length} prodotti nuovi non ancora a listino` : 'Prodotti nuovi non ancora a listino: foto, formati e finiture, da campionare'}</div></div>
       <div class="card ccard" onclick="openVersions()"><h3><svg class="ic"><use href="#i-history"/></svg> Versioni salvate</h3>
         <div class="sub">Tutto si salva da solo su disco. Qui puoi tornare a una versione precedente.</div></div>
       <div class="card ccard" onclick="openImages()"><h3><svg class="ic"><use href="#i-camera"/></svg> Foto campioni</h3>
@@ -382,7 +386,7 @@ function invMailText(cid, list) {
     const ord = new Map(); rows.forEach(r => { if (!ord.has(r.s.b + '|' + r.s.s)) ord.set(r.s.b + '|' + r.s.s, ord.size); });   // righe raggruppate per serie
     rows = rows.map((r, i) => [r, i]).sort((a, b) => ord.get(a[0].s.b + '|' + a[0].s.s) - ord.get(b[0].s.b + '|' + b[0].s.s) || a[1] - b[1]).map(a => a[0]);
     return [`Campioni per ${x(nm)} (${rows.length} ${rows.length === 1 ? 'pezzo' : 'pezzi'}) (${d.code}):`, ``,
-      ...rows.map(({ s, c }) => `${s.s} ${s.c}${fin(s) ? ' ' + fin(s) : ''} ${x(s.toz ? tozFmt(d, c) : s.z)} - ${(s.k || []).join(' / ')}`)].join('\n');
+      ...rows.map(({ s, c }) => `${s.nuovo ? '[NOVITÀ] ' : ''}${s.s} ${s.c}${fin(s) ? ' ' + fin(s) : ''} ${x(s.toz ? tozFmt(d, c) : s.z)} - ${(s.k || []).join(' / ') || 'codice da definire'}`)].join('\n');
   });
   return {
     subject: `Ordine campioni — ${cl.name}`,

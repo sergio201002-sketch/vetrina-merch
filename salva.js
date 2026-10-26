@@ -8,7 +8,7 @@
    • online come pagina su claude.ai: stesso schema, nel database della pagina.
    Il browser tiene solo una copia di lavoro. Senza nessuno dei due, l'indicatore in alto lo dice.
    ════════════════════════════════════════════════════════════ */
-const PARTS = ['clients', 'comps', 'scenes', 'current'];
+const PARTS = ['clients', 'comps', 'scenes', 'current', 'novita'];
 const FIREBASE_CONFIG = {
   apiKey: 'AIzaSyChf_3YvySt6Y01j8xY9gP_hRPQRBjRt3k',
   authDomain: 'vetrina-merch.firebaseapp.com',
@@ -52,7 +52,7 @@ const Sync = {
   online: false, pending: false, busy: false, again: false, error: false, timer: null, lastSaved: null,
   db: null, assets: null, sent: {}, lastBackup: 0, lastCounts: null, fotoMap: {},
 
-  snapshot() { return { app: 'vetrina-merch', v: 3, clients, comps, scenes, current }; },
+  snapshot() { return { app: 'vetrina-merch', v: 3, clients, comps, scenes, current, novita }; },
   counts(d) { return { clients: Object.keys(d.clients || {}).length, comps: Object.keys(d.comps || {}).length, scenes: Object.keys(d.scenes || {}).length }; },
 
   /* all'avvio: i dati salvati (disco o online) sono quelli buoni; la prima volta ci porta quelli del browser */
@@ -74,7 +74,7 @@ const Sync = {
     if (d) {
       if (!localStorage.getItem(flag)) {
         const add = (dst, src) => Object.keys(src || {}).forEach(k => { if (!dst[k] || (src[k].upd || 0) > (dst[k].upd || 0)) dst[k] = src[k]; });
-        add(d.clients = d.clients || {}, clients); add(d.comps = d.comps || {}, comps); add(d.scenes = d.scenes || {}, scenes);
+        add(d.clients = d.clients || {}, clients); add(d.comps = d.comps || {}, comps); add(d.scenes = d.scenes || {}, scenes); add(d.novita = d.novita || {}, novita);
         d.current = Object.assign({}, current, d.current || {});
         this.apply(d); this.dirty();
       } else this.apply(d);
@@ -83,7 +83,9 @@ const Sync = {
   },
   apply(d) {
     clients = d.clients || {}; comps = d.comps || {}; scenes = d.scenes || {}; current = d.current || {};
-    LS.set('vm_clients_v1', clients); LS.set('vm_comps_v1', comps); LS.set('vm_scenes_v1', scenes); LS.set('vm_current_v1', current);
+    novita = d.novita || {};
+    LS.set('vm_clients_v1', clients); LS.set('vm_comps_v1', comps); LS.set('vm_scenes_v1', scenes); LS.set('vm_current_v1', current); LS.set('vm_novita_v1', novita);
+    if (typeof applyNovita === 'function') applyNovita();
   },
   dirty() {
     this.pending = true; this.badge();
