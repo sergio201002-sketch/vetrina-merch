@@ -16,9 +16,11 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 body[data-view="novita"] #viewNovita { display: block; }
 .nv-intro { color: var(--mid); font-size: 13px; margin: -8px 0 16px; max-width: 760px; line-height: 1.5; }
 .nv-card { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
-.nv-ph { aspect-ratio: 4 / 3; background: #f3f1ec; position: relative; display: grid; grid-template-columns: repeat(var(--n, 1), 1fr); gap: 2px; }
-.nv-ph span { background: #ebe8e2 center / cover no-repeat; display: flex; align-items: center; justify-content: center; color: var(--mid); font-size: 12px; font-weight: 600; }
-.nv-ph .nwb { position: absolute; left: 10px; top: 10px; }
+.nv-ph { background: #f3f1ec; position: relative; display: flex; flex-direction: column; gap: 2px; }
+.nv-ph .pr { display: grid; grid-template-columns: repeat(var(--n, 1), 1fr); gap: 2px; height: var(--h, 170px); position: relative; }
+.nv-ph .pr span { background: #ebe8e2 center / cover no-repeat; display: flex; align-items: center; justify-content: center; color: var(--mid); font-size: 12px; font-weight: 600; min-width: 0; }
+.nv-ph .pr .vl { position: absolute; right: 6px; bottom: 6px; background: rgba(20,20,22,.78); color: #fff; font: 700 10.5px var(--font-body); padding: 2px 7px; border-radius: 6px; }
+.nv-ph .nwb { position: absolute; left: 10px; top: 10px; z-index: 1; }
 .nv-card .in { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
 .nv-card .br { font: 700 10.5px var(--font-body); letter-spacing: .12em; text-transform: uppercase; color: var(--red); }
 .nv-card h3 { margin: 0; font-size: 15.5px; }
@@ -120,15 +122,17 @@ function renderNovita() {
     <div class="nv-intro">Le serie nuove non ancora a listino: i formati e le finiture si scrivono una volta per la serie, poi aggiungi i colori con la loro foto
       (anche più foto insieme). Li trovi subito nei <b>Campioni compatibili</b> degli espositori di quel formato, con l'etichetta <span class="nwb">NOVITÀ</span>, e li campioni come gli altri.</div>
     <div class="cgrid">${list.map(p => {
-      const cols = nvColors(p), wh = nvWhere(p), ph = cols.slice(0, 4);
-      // colori raggruppati per variante (es. Sassi: Beige, Grey · Neutra: Beige)
-      const byV = new Map(); cols.forEach(col => { const k = (col.v || '').trim(); byV.set(k, [...(byV.get(k) || []), String(col.c || '').trim()]); });
+      const cols = nvColors(p), wh = nvWhere(p);
+      // colori raggruppati per variante (es. Venezia: Cotone, Avorio… · Fine: … · Maxi: …), nell'ordine in cui li hai messi
+      const byV = new Map(); cols.forEach(col => { const k = (col.v || '').trim(); byV.set(k, [...(byV.get(k) || []), col]); });
       const fmts = [...new Set(cols.flatMap(col => nvColFmts(p, col).map(fm => nvZ(fm.z)).filter(z => parseSize(z))))];
+      // foto: una riga per variante con i suoi colori (senza varianti: una riga, al massimo 6 colori)
+      const rows = byV.size > 1 ? [...byV] : [['', cols.slice(0, 6)]], h = rows.length === 1 ? 170 : rows.length === 2 ? 110 : Math.max(64, Math.round(270 / rows.length));
       return `<div class="card nv-card">
-        <div class="nv-ph" style="--n:${Math.max(1, ph.length)}">${(ph.length ? ph : [null]).map(col => { const u = col && IMG[nvColIk(p, col)];
-          return `<span style="${u ? `background-image:url('${esc(u)}')` : ''}">${u ? '' : '<svg class="ic"><use href="#i-camera"/></svg>'}</span>`; }).join('')}<span class="nwb">NOVITÀ</span></div>
+        <div class="nv-ph">${rows.map(([vv, cc]) => `<div class="pr" style="--n:${Math.max(1, cc.length)};--h:${h}px">${(cc.length ? cc : [null]).map(col => { const u = col && IMG[nvColIk(p, col)];
+          return `<span style="${u ? `background-image:url('${esc(u)}')` : ''}" title="${esc(col ? nvColName(col) : '')}">${u ? '' : '<svg class="ic"><use href="#i-camera"/></svg>'}</span>`; }).join('')}${vv ? `<i class="vl">${esc(vv)}</i>` : ''}</div>`).join('')}<span class="nwb">NOVITÀ</span></div>
         <div class="in"><div class="br">${esc(p.b || 'Novità')}</div><h3>${esc(String(p.s || '').toUpperCase())}</h3>
-          <div class="cols">${[...byV].map(([vv, cc]) => `${vv ? `<b>${esc(vv)}</b>: ` : ''}${esc(cc.filter(Boolean).join(', ') || '—')}`).join('<br>')}</div>
+          <div class="cols">${[...byV].map(([vv, cc]) => `${vv ? `<b>${esc(vv)}</b>: ` : ''}${esc(cc.map(col => String(col.c || '').trim()).filter(Boolean).join(', ') || '—')}`).join('<br>')}</div>
           <div class="fm">${cols.length} ${cols.length === 1 ? 'colore' : 'colori'} · ${esc(fmts.map(fmt).join(', ') || 'formati da definire')}</div>
           ${p.note ? `<div class="where">${esc(p.note)}</div>` : ''}
           <div class="where">${wh.length ? 'Entra in: ' + esc(wh.slice(0, 4).join(', ')) + (wh.length > 4 ? ` e altri ${wh.length - 4}` : '') : 'Nessun espositore accetta questi formati'}</div>
