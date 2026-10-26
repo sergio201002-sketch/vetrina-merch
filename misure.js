@@ -37,6 +37,12 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 svg.mislines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .misdim { position: absolute; transform: translate(-50%, -100%); margin-top: -3px; font: 700 11.5px var(--font-body); padding: 2px 6px; border-radius: 6px; white-space: nowrap; color: #fff; pointer-events: none; }
 .misdim.t1 { background: #1d1d20; } .misdim.t2 { background: var(--red); } .misdim.t3 { background: #1f5fbf; } .misdim.gap { background: #fff; color: #555; border: 1px dashed #999; }
+.misdim.dp { background: #2e7d32; } .misdim.ht { background: #7a3db8; transform: translate(6px, -50%); margin-top: 0; }
+.mispanel .mdims { display: flex; align-items: center; gap: 5px; padding: 7px 12px; border-bottom: 1px solid #eee; flex-wrap: wrap; }
+.mispanel .mdims .k { color: #666; font-size: 11.5px; margin-right: 2px; }
+.mispanel .mdims button { border: 1px solid var(--border); background: #fff; border-radius: 14px; padding: 4px 10px; font: 600 11.5px var(--font-body); cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+.mispanel .mdims button i { width: 10px; height: 3px; border-radius: 2px; display: inline-block; }
+.mispanel .mdims button.on { background: #1d1d20; border-color: #1d1d20; color: #fff; }
 .misfp { position: absolute; border: 2px dashed var(--red); border-radius: 3px; pointer-events: none; z-index: 3; }
 .misfp span { position: absolute; left: 50%; top: -20px; transform: translateX(-50%); background: var(--red); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 6px; white-space: nowrap; }
 @media (max-width: 720px) { .mispanel { max-height: 48%; } .mislbl { font-size: 10.5px; padding: 4px 7px; } .mislbl small { display: none; } }
@@ -103,6 +109,13 @@ function misToggleItem(id) {
   if (misSel.size === all.length) misSel = null;
   misRefresh();
 }
+/* quali linee: larghezza (L), lunghezza / profondità (P), altezza (H); toccarne una accende le linee misure */
+const misDims = () => Object.assign({ L: true, P: false, H: false }, ui.misDims);
+function misDim(k) {
+  const d = misDims();
+  if (!ui.misLines) { ui.misLines = true; d[k] = true; } else d[k] = !d[k];
+  ui.misDims = d; saveUI(); misRefresh();
+}
 function misOnly(id) { misSel = id ? new Set([id]) : null; misRefresh(); }
 function misNone() { misSel = new Set(); misRefresh(); }
 
@@ -127,6 +140,8 @@ function misRefresh() {
       <button onclick="misOnly(null)">Tutti</button><button onclick="misNone()">Nessuno</button>
       <button onclick="misPanelMin = !misPanelMin; misRefresh()" title="${misPanelMin ? 'Apri' : 'Riduci'}">${misPanelMin ? '<svg class="ic"><use href="#i-cup"/></svg>' : '<svg class="ic"><use href="#i-cdown"/></svg>'}</button>
       <button onclick="toggleMisure()" title="Chiudi"><svg class="ic"><use href="#i-x"/></svg></button></div>
+    <div class="mdims"><span class="k">Linee:</span>${[['L', 'Larghezza', '#1d1d20'], ['P', 'Lunghezza', '#2e7d32'], ['H', 'Altezza', '#7a3db8']].map(([k, t, c]) =>
+      `<button class="${ui.misLines && misDims()[k] ? 'on' : ''}" onclick="misDim('${k}')" title="${k === 'L' ? 'Larghezza: lungo il muro (ogni espositore, gruppi, spazi, totale)' : k === 'P' ? 'Lunghezza (profondità): dal davanti al dietro di ogni espositore' : 'Altezza di ogni espositore, da terra'}"><i style="background:${c}"></i>${t}</button>`).join('')}</div>
     <div class="mt">${b ? `<div class="k">${chosen.length === all.length ? 'Tutti gli espositori' : chosen.length === 1 ? 'Espositore scelto' : chosen.length + ' espositori scelti'} · ingombro a terra</div>
       <div class="big">${misFmt(b.L)} × ${misFmt(b.P)} cm</div>
       <div class="row2"><span><span class="k">Altezza max</span><br><b>${misFmt(b.H)} cm</b></span><span><span class="k">Superficie occupata</span><br><b>${misFmt(b.area / 10000)} m²</b></span>
@@ -173,26 +188,44 @@ function misPlan(b) {
    livello 1: ogni espositore (dall'inizio alla fine) + gli spazi vuoti tra gruppi staccati
    livello 2: ogni gruppo di espositori attaccati (es. una coppia)
    livello 3: dal primo all'ultimo (es. coppia + spazio + coppia)
-   Le misure sono lungo la larghezza della stanza (parallele al muro di fondo), tutte alla stessa altezza per livello, davanti agli espositori. */
+   Le misure sono lungo la larghezza della stanza (parallele al muro di fondo), tutte alla stessa altezza per livello, davanti agli espositori.
+   A scelta anche la lunghezza (profondità, a terra su un lato libero) e l'altezza (verticale, sullo spigolo davanti) di ogni espositore. */
 let misSegs = [];
 function misLinesPlan(items) {
   const rows = items.filter(it => !isUpper(it) && elevY(it) < 50).map(it => {
     const s = misSize(it), a = (it.rot || 0) * Math.PI / 180, cs = Math.abs(Math.cos(a)), sn = Math.abs(Math.sin(a));
     const hx = (cs * s.L + sn * s.P) / 2, hz = (sn * s.L + cs * s.P) / 2;
-    return { it, x0: it.x - hx, x1: it.x + hx, zf: it.z + hz, top: elevY(it) + s.Hmodel };
+    return { it, x0: it.x - hx, x1: it.x + hx, zb: it.z - hz, zf: it.z + hz, top: elevY(it) + s.Hmodel };
   }).sort((a, b) => a.x0 - b.x0);
   if (!rows.length) return [];
   const groups = [];
   rows.forEach(r => { const g = groups[groups.length - 1]; if (g && r.x0 - g.x1 <= 3) { g.rows.push(r); g.x1 = Math.max(g.x1, r.x1); } else groups.push({ rows: [r], x0: r.x0, x1: r.x1 }); });
   const z = Math.max(...rows.map(r => r.zf)) + 4, base = Math.max(...rows.map(r => r.top)) + 15, step = 26;
-  const segs = [];
-  rows.forEach(r => segs.push({ t: 't1', x0: r.x0, x1: r.x1, y: base, ext: r.top + 3 }));
-  for (let i = 1; i < groups.length; i++) segs.push({ t: 'gap', x0: groups[i - 1].x1, x1: groups[i].x0, y: base });
-  const pairs = groups.filter(g => g.rows.length > 1);
-  pairs.forEach(g => segs.push({ t: 't2', x0: g.x0, x1: g.x1, y: base + step, ext: base }));
-  if (groups.length > 1) segs.push({ t: 't3', x0: groups[0].x0, x1: groups[groups.length - 1].x1, y: base + step * (pairs.length ? 2 : 1), ext: base });
-  segs.forEach(sg => { sg.z = z; sg.len = sg.x1 - sg.x0; });
-  return segs.filter(sg => sg.len > 0.5);
+  const segs = [], dims = misDims();
+  if (dims.L) {
+    rows.forEach(r => segs.push({ t: 't1', x0: r.x0, x1: r.x1, y: base, ext: r.top + 3 }));
+    for (let i = 1; i < groups.length; i++) segs.push({ t: 'gap', x0: groups[i - 1].x1, x1: groups[i].x0, y: base });
+    const pairs = groups.filter(g => g.rows.length > 1);
+    pairs.forEach(g => segs.push({ t: 't2', x0: g.x0, x1: g.x1, y: base + step, ext: base }));
+    if (groups.length > 1) segs.push({ t: 't3', x0: groups[0].x0, x1: groups[groups.length - 1].x1, y: base + step * (pairs.length ? 2 : 1), ext: base });
+  }
+  // linee lungo la larghezza: estremi [x, y, z]
+  const out = segs.map(sg => ({ t: sg.t, len: sg.x1 - sg.x0, p0: [sg.x0, sg.y, z], p1: [sg.x1, sg.y, z],
+    e0: sg.ext != null ? [sg.x0, sg.ext, z] : null, e1: sg.ext != null ? [sg.x1, sg.ext, z] : null }));
+  if (dims.P || dims.H) rows.forEach(r => {
+    const s = misSize(r.it), { zb, zf } = r, y0 = elevY(r.it), H = s.H || (r.top - y0);
+    // un lato libero (senza un espositore attaccato): a destra, se no a sinistra; in mezzo a un gruppo: davanti, al centro
+    const near = side => rows.some(o => o !== r && (side > 0 ? o.x0 >= r.x1 - 2 && o.x0 - r.x1 < 25 : r.x0 >= o.x1 - 2 && r.x0 - o.x1 < 25) && o.zf > zb && o.zb < zf);
+    const sx = !near(1) ? r.x1 + 8 : !near(-1) ? r.x0 - 8 : null, ex = sx == null ? null : sx > r.x1 ? r.x1 : r.x0;
+    if (dims.P) out.push(sx != null
+      ? { t: 'dp', len: zf - zb, p0: [sx, 1, zb], p1: [sx, 1, zf], e0: [ex, 1, zb], e1: [ex, 1, zf] }
+      : { t: 'dp', len: zf - zb, p0: [(r.x0 + r.x1) / 2, r.top + 4, zb], p1: [(r.x0 + r.x1) / 2, r.top + 4, zf], e0: null, e1: null });
+    if (dims.H && H > 1) {
+      const hx = sx != null ? sx : (r.x0 + r.x1) / 2, hzf = sx != null ? zf : zf + 8;
+      out.push({ t: 'ht', len: H, p0: [hx, y0, hzf], p1: [hx, y0 + H, hzf], e0: sx != null ? [ex, y0, zf] : null, e1: sx != null ? [ex, y0 + H, zf] : null });
+    }
+  });
+  return out.filter(sg => sg.len > 0.5);
 }
 /* punti 3D nella stanza → elementi invisibili: il browser ci dà la posizione sullo schermo (funziona anche con il 3D veloce) */
 function misAnchors(items) {
@@ -201,25 +234,25 @@ function misAnchors(items) {
   if (!items) { if (host) host.remove(); misSegs = []; return; }
   misSegs = misLinesPlan(items);
   if (!host) { host = document.createElement('div'); host.className = 'misanchors'; sc.appendChild(host); }
-  const pt = (x, y, z) => `<div class="misanc" style="transform:translate3d(${x}px,${-y}px,${z}px)"></div>`;
-  host.innerHTML = misSegs.map(g => pt(g.x0, g.y, g.z) + pt(g.x1, g.y, g.z) + pt(g.x0, g.ext != null ? g.ext : g.y, g.z) + pt(g.x1, g.ext != null ? g.ext : g.y, g.z)).join('');
+  const pt = ([x, y, z]) => `<div class="misanc" style="transform:translate3d(${x}px,${-y}px,${z}px)"></div>`;
+  host.innerHTML = misSegs.map(g => pt(g.p0) + pt(g.p1) + pt(g.e0 || g.p0) + pt(g.e1 || g.p1)).join('');
 }
 function misDrawLines(box, layer) {
   const host = document.querySelector('#roomScene > .misanchors'); if (!host) return;
   const r0 = box.getBoundingClientRect(), an = host.children; let key = '';
   const P = [...an].map(a => { const r = a.getBoundingClientRect(); const p = [r.left - r0.left, r.top - r0.top]; key += Math.round(p[0]) + ',' + Math.round(p[1]) + ';'; return p; });
   if (key === misLast) return; misLast = key;
-  const col = { t1: '#1d1d20', t2: '#c0102a', t3: '#1f5fbf', gap: '#888' };
+  const col = { t1: '#1d1d20', t2: '#c0102a', t3: '#1f5fbf', gap: '#888', dp: '#2e7d32', ht: '#7a3db8' };
   let svg = '', html = '';
   misSegs.forEach((g, i) => {
     const [a, b, ea, eb] = [P[i * 4], P[i * 4 + 1], P[i * 4 + 2], P[i * 4 + 3]], c = col[g.t], dash = g.t === 'gap' ? ' stroke-dasharray="5 4"' : '';
-    if (g.ext != null) svg += `<line x1="${ea[0]}" y1="${ea[1]}" x2="${a[0]}" y2="${a[1]}" stroke="${c}" stroke-width="1" stroke-dasharray="3 3" opacity=".6"/><line x1="${eb[0]}" y1="${eb[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${c}" stroke-width="1" stroke-dasharray="3 3" opacity=".6"/>`;
+    if (g.e0) svg += `<line x1="${ea[0]}" y1="${ea[1]}" x2="${a[0]}" y2="${a[1]}" stroke="${c}" stroke-width="1" stroke-dasharray="3 3" opacity=".6"/><line x1="${eb[0]}" y1="${eb[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${c}" stroke-width="1" stroke-dasharray="3 3" opacity=".6"/>`;
     svg += `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${c}" stroke-width="${g.t === 'gap' ? 1.5 : 2}"${dash}/>`;
     // trattini a 45° alle estremità (come nei disegni tecnici)
     [a, b].forEach(p => { svg += `<line x1="${p[0] - 5}" y1="${p[1] + 5}" x2="${p[0] + 5}" y2="${p[1] - 5}" stroke="${c}" stroke-width="2"/>`; });
     const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, px = Math.hypot(b[0] - a[0], b[1] - a[1]);
     const txt = misFmt(g.len) + ' cm';
-    if (px > 18) html += `<div class="misdim ${g.t}" style="left:${mx}px;top:${my}px">${g.t === 'gap' ? 'spazio ' : ''}${txt}</div>`;
+    if (px > 18 || g.t === 'dp') html += `<div class="misdim ${g.t}" style="left:${mx}px;top:${my}px">${g.t === 'gap' ? 'spazio ' : g.t === 'dp' ? 'lungh. ' : g.t === 'ht' ? 'h ' : ''}${txt}</div>`;
   });
   layer.innerHTML = `<svg class="mislines">${svg}</svg>${html}`;
 }
