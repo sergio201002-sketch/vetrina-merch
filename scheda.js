@@ -95,12 +95,18 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 #schPrint .real .it .im.turn .ph { inset: auto; left: 50%; top: 50%; width: var(--ch); height: calc(var(--cw) + 2mm); transform: translate(-50%, -50%) rotate(90deg); }
 #schAsk .sch-t { font: 700 11px var(--font-body); letter-spacing: .1em; text-transform: uppercase; color: var(--mid); margin-top: 2px; }
 #schAsk .sch-list { display: flex; flex-direction: column; gap: 5px; max-height: 34vh; overflow: auto; }
-#schAsk .sch-list label, #schAsk .sch-merge { display: flex; gap: 10px; align-items: center; border: 1px solid var(--border); border-radius: 10px; padding: 7px 10px; cursor: pointer; font-size: 13px; }
+#schAsk .sch-list label { display: flex; gap: 10px; align-items: center; border: 1px solid var(--border); border-radius: 10px; padding: 7px 10px; cursor: pointer; font-size: 13px; background: #fff; }
 #schAsk .sch-list label:has(input:checked) { border-color: var(--red); background: #fff5f5; }
-#schAsk .sch-merge { align-items: flex-start; background: #f8f7f4; }
-#schAsk .sch-list input, #schAsk .sch-merge input { width: 18px; height: 18px; accent-color: var(--red); flex: none; }
+#schAsk .sch-list.picking label:has(input:checked) { border-color: #1f5fbf; background: #eef4ff; }
+#schAsk .sch-list.picking input { accent-color: #1f5fbf; }
+#schAsk .sch-list input { width: 18px; height: 18px; accent-color: var(--red); flex: none; }
+#schAsk .sch-grp { border: 2px dashed #1f5fbf; border-radius: 12px; padding: 6px; display: flex; flex-direction: column; gap: 5px; background: #f6f9ff; }
+#schAsk .sch-grp .gh { display: flex; align-items: center; justify-content: space-between; font: 700 11.5px var(--font-body); color: #1f5fbf; padding: 0 4px; }
+#schAsk .sch-grp .gh .btn { padding: 3px 9px; font-size: 11.5px; }
+#schAsk .sch-pick { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12.5px; }
+#schAsk .sch-pick > span:first-child { flex: 1 1 100%; color: #1f5fbf; }
 #schAsk small { color: var(--mid); font-size: 11.5px; }
-#schAsk .sch-pages { font-size: 12.5px; font-weight: 700; color: var(--red); }
+#schAsk .sch-pages { font-size: 12.5px; font-weight: 700; color: var(--red); margin-left: auto; }
 .sch-wait { position: fixed; inset: 0; z-index: 600; background: rgba(10,10,12,.82); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 15px; }
 </style>`);
 
@@ -227,25 +233,23 @@ async function exportSchedaPDF(cid) { const c = cid ? comps[cid] : comp(); schLa
 async function exportSchedeCliente(clientId) {
   const list = visibleComps(clientId).filter(c => c.slots.some(k => k && SAMPLE[k]));
   if (!list.length) return toast('Nessun espositore con campioni da esportare');
-  schLayoutAsk((lay, o) => exportSchede(list.filter(c => o.ids.has(c.id)), lay, o), list);
+  schLayoutAsk((lay, o) => exportSchede(list.filter(c => o.ids.has(c.id)), lay, o), list, clientId);
 }
 /* impostazioni prima del PDF: (più espositori) quali esportare e se unire in una pagina quelli uguali non completi;
    poi il layout: Quadrati (A4 orizzontale) o Formato reale (A4 verticale, riquadri con le proporzioni del campione) */
-function schLayoutAsk(cb, list) {
+function schLayoutAsk(cb, list, key) {
   let m = document.getElementById('schAsk'); if (m) m.remove();
   const cur = ui.schLayout || 'quadrati', many = !!list && list.length > 1, ids = new Set((list || []).map(c => c.id));
-  let merge = ui.schMerge !== false;
+  // espositori uniti nella stessa pagina: li scegli tu ("Unisci espositori"); restano ricordati per il cliente
+  let merged = many ? ((ui.schGroups || {})[key] || []).map(g => g.filter(id => list.some(c => c.id === id))).filter(g => g.length > 1) : [];
+  let picking = false; const pick = new Set();
   const opt = (v, t, d, pic) => `<button class="btn${cur === v ? ' on' : ''}" data-v="${v}" style="display:grid;grid-template-columns:54px 1fr;gap:12px;align-items:center;text-align:left;padding:12px;justify-content:stretch">${pic}<span><b style="font-size:14px">${t}</b><br><span style="font-weight:500;color:var(--mid);font-size:12px">${d}</span></span></button>`;
   const picQ = `<svg viewBox="0 0 54 40" width="54" height="40"><rect x="1" y="1" width="52" height="38" rx="3" fill="#fff" stroke="#bbb"/><rect x="4" y="4" width="12" height="9" fill="#999"/>${[0, 1, 2, 3, 4, 5].map(i => `<rect x="${4 + i * 8}" y="17" width="7" height="7" fill="#c9c4bb"/><rect x="${4 + i * 8}" y="27" width="7" height="7" fill="#c9c4bb"/>`).join('')}</svg>`;
   const picR = `<svg viewBox="0 0 40 54" width="40" height="54" style="margin:0 7px"><rect x="1" y="1" width="38" height="52" rx="3" fill="#fff" stroke="#bbb"/><rect x="4" y="4" width="18" height="9" fill="#999"/>${[0, 1].map(i => `<rect x="${24 + i * 7}" y="4" width="6" height="9" fill="#c9c4bb"/>`).join('')}${[0, 1, 2, 3].map(r => [0, 1, 2, 3, 4].map(i => `<rect x="${4 + i * 6.6}" y="${16 + r * 9.4}" width="5.8" height="8.6" fill="#c9c4bb"/>`).join('')).join('')}</svg>`;
   document.body.insertAdjacentHTML('beforeend', `<div class="modal open" id="schAsk" style="z-index:280"><div class="mbox" style="max-width:${many ? 520 : 440}px;width:calc(100vw - 32px)">
     <div class="mhead"><h3><svg class="ic"><use href="#i-download"/></svg> Scheda PDF · ${many ? 'impostazioni' : 'layout'}</h3></div>
     <div style="padding:6px 18px 18px;display:flex;flex-direction:column;gap:10px;max-height:calc(100vh - 120px);overflow:auto">
-      ${many ? `<div class="sch-t">Espositori nel PDF</div>
-      <div class="sch-list">${list.map(c => `<label><input type="checkbox" value="${c.id}" checked><span><b>${esc(c.name)}</b><br><small>${esc(DISP[c.disp].name)} · ${filledOf(c)}/${c.slots.length} campioni</small></span></label>`).join('')}</div>
-      <label class="sch-merge"><input type="checkbox" id="schMerge"${merge ? ' checked' : ''}><span><b>Unisci in una pagina gli espositori uguali non completi</b><br>
-        <small>Es. due girevoli 120×120 con 3 e 5 campioni su 10: una pagina con i due render in alto e i campioni di seguito (posti 1·A1, 2·A1…)</small></span></label>
-      <div class="sch-pages" id="schPages"></div>
+      ${many ? `<div class="sch-t">Espositori nel PDF</div><div id="schSet"></div>
       <div class="sch-t">Layout · tocca per creare il PDF</div>` : ''}
       ${opt('quadrati', 'Quadrati', 'A4 orizzontale: render e dati in alto, prodotti in quadrati', picQ)}
       ${opt('reale', 'Formato reale', 'A4 verticale: riquadri con le proporzioni del campione (es. tozzetti 19,5×29,5), anche accanto ai dati', picR)}
@@ -253,18 +257,47 @@ function schLayoutAsk(cb, list) {
   m = document.getElementById('schAsk');
   m.addEventListener('click', e => { if (e.target === m) m.remove(); });
   m.querySelector('#schAskNo').onclick = () => m.remove();
-  const upd = () => {   // quante pagine verranno
+  // elenco: spunta = nel PDF; i gruppi uniti stanno in un riquadro "Nella stessa pagina" (con "Separa");
+  // "Unisci espositori": tocchi quelli da mettere insieme e premi "Unisci"
+  const row = c => `<label class="sch-row${picking && pick.has(c.id) ? ' pk' : ''}"><input type="checkbox" data-id="${c.id}"${(picking ? pick.has(c.id) : ids.has(c.id)) ? ' checked' : ''}>
+    <span><b>${esc(c.name)}</b><br><small>${esc(DISP[c.disp].name)} · ${filledOf(c)}/${c.slots.length} campioni</small></span></label>`;
+  const draw = () => {
     if (!many) return;
-    const l = list.filter(c => ids.has(c.id)), np = merge ? schGroups(l).length : l.length;
-    m.querySelector('#schPages').textContent = l.length ? `${l.length} espositori → ${np} ${np === 1 ? 'pagina' : 'pagine'}` : 'Scegli almeno un espositore';
-    m.querySelectorAll('button[data-v]').forEach(b => { b.disabled = !l.length; });
+    const done = new Set(); let h = '';
+    list.forEach(c => {
+      if (done.has(c.id)) return;
+      const gi = merged.findIndex(g => g.includes(c.id));
+      if (gi < 0) { h += row(c); return; }
+      const items = list.filter(x => merged[gi].includes(x.id)); items.forEach(x => done.add(x.id));
+      h += `<div class="sch-grp"><div class="gh"><span>Nella stessa pagina</span>${picking ? '' : `<button class="btn" data-split="${gi}">Separa</button>`}</div>${items.map(row).join('')}</div>`;
+    });
+    const l = list.filter(c => ids.has(c.id)), np = schPageGroups(l, merged).length;
+    m.querySelector('#schSet').innerHTML = `<div class="sch-list${picking ? ' picking' : ''}">${h}</div>
+      ${picking ? `<div class="sch-pick"><span>Tocca gli espositori da mettere <b>nella stessa pagina</b></span>
+          <button class="btn" id="schPickNo">Annulla</button><button class="btn red" id="schPickOk"${pick.size < 2 ? ' disabled' : ''}>Unisci (${pick.size})</button></div>`
+        : `<div class="sch-pick"><button class="btn" id="schPickGo"><svg class="ic"><use href="#i-plus"/></svg> Unisci espositori</button>
+          <span class="sch-pages">${l.length ? `${l.length} espositori → ${np} ${np === 1 ? 'pagina' : 'pagine'}` : 'Scegli almeno un espositore'}</span></div>`}`;
+    m.querySelectorAll('button[data-v]').forEach(b => { b.disabled = picking || !l.length; });
+    m.querySelectorAll('#schSet input[data-id]').forEach(x => x.onchange = () => {
+      const s = picking ? pick : ids; if (x.checked) s.add(x.dataset.id); else s.delete(x.dataset.id); draw();
+    });
+    m.querySelectorAll('[data-split]').forEach(b => b.onclick = e => { e.preventDefault(); merged.splice(+b.dataset.split, 1); draw(); });
+    const go = m.querySelector('#schPickGo'); if (go) go.onclick = () => { picking = true; pick.clear(); draw(); };
+    const no = m.querySelector('#schPickNo'); if (no) no.onclick = () => { picking = false; draw(); };
+    const ok = m.querySelector('#schPickOk'); if (ok) ok.onclick = () => {
+      const sel = list.filter(c => pick.has(c.id));
+      if (new Set(sel.map(schFaceKey)).size > 1) return say('Si possono unire solo espositori con campioni della stessa misura (es. due 120×120): i campioni stanno nella stessa griglia.');
+      merged = merged.map(g => g.filter(id => !pick.has(id))).filter(g => g.length > 1);   // tolti dai gruppi di prima
+      merged.push(sel.map(c => c.id)); sel.forEach(c => ids.add(c.id));
+      picking = false; draw();
+    };
   };
-  if (many) {
-    m.querySelectorAll('.sch-list input').forEach(x => x.onchange = () => { if (x.checked) ids.add(x.value); else ids.delete(x.value); upd(); });
-    m.querySelector('#schMerge').onchange = e => { merge = e.target.checked; ui.schMerge = merge; saveUI(); upd(); };
-    upd();
-  }
-  m.querySelectorAll('button[data-v]').forEach(b => b.onclick = () => { ui.schLayout = b.dataset.v; saveUI(); m.remove(); cb(b.dataset.v, { merge: many && merge, ids }); });
+  draw();
+  m.querySelectorAll('button[data-v]').forEach(b => b.onclick = () => {
+    ui.schLayout = b.dataset.v;
+    if (many) ui.schGroups = Object.assign({}, ui.schGroups, { [key]: merged });
+    saveUI(); m.remove(); cb(b.dataset.v, { groups: merged, ids });
+  });
 }
 /* Formato reale (come l'esempio della mobile teca): riquadri con le proporzioni del campione, ATTACCATI in orizzontale,
    righe distribuite su tutta l'altezza del foglio; la fascia con i dati prende i posti che avanzano nella prima riga
@@ -310,7 +343,7 @@ async function exportSchede(list, layout, opts = {}) {
   const hiRes = s => { const u = IMG[photoKey(s)]; return !u ? '' : ((typeof AVIF_OK !== 'undefined' && AVIF_OK) || !/\.avif$/i.test(u)) ? u : (FOTO_MED[u] || u); };
   // finitura: se non è stata scelta, tutte quelle possibili (nello stesso ordine dei codici), non solo la prima
   const fin = s => s.a4 ? s.v : (s.f || []).map(f => f.replace(/\s*Rett\.?$/, '')).join(' / ');
-  const pages = [], groups = opts.merge ? schGroups(list) : list.map(c => [c]), NP = groups.length;
+  const pages = [], groups = schPageGroups(list, opts.groups), NP = groups.length;
   let nr = 0;
   for (let x = 0; x < NP; x++) {
     // una pagina = un espositore, oppure più espositori uguali non completi messi insieme (campioni di seguito, posti "1·A3", "2·A1")
@@ -379,17 +412,18 @@ async function exportSchede(list, layout, opts = {}) {
   const ok = await schMakePDF(el, real, name.replace(/[^\w\-.]+/g, '_'), wait, title);
   if (!ok) { wait.remove(); printWhenReady('sch-printing', title, real ? 'A4 portrait' : 'A4 landscape'); }
 }
-/* espositori uguali (stesso tipo e stesso formato) non completi nella stessa pagina, finché i campioni insieme
-   ci stanno nei posti di un espositore (es. girevole 120×120: 3/10 + 5/10 = 8 → una pagina) */
-function schGroups(list) {
-  const gs = [];
+/* pagine del PDF: un espositore per pagina, tranne quelli che hai unito tu (merged = [[id, id], …]) che vanno insieme
+   nella pagina del primo, nell'ordine dell'elenco */
+function schPageGroups(list, merged) {
+  const out = [], done = new Set();
   list.forEach(c => {
-    const d = DISP[c.disp], nf = c.slots.filter(k => k && SAMPLE[k]).length, fk = c.disp + '|' + faceOf(d, c).join('x');
-    const g = nf < c.slots.length && gs.find(g => g.fk === fk && g.n + nf <= g.cap);
-    if (g) { g.items.push(c); g.n += nf; } else gs.push({ fk, items: [c], n: nf, cap: nf < c.slots.length ? c.slots.length : 0 });
+    if (done.has(c.id)) return;
+    const g = (merged || []).find(g => g.includes(c.id)), items = g ? list.filter(x => g.includes(x.id)) : [c];
+    items.forEach(x => done.add(x.id)); out.push(items);
   });
-  return gs.map(g => g.items);
+  return out;
 }
+const schFaceKey = c => faceOf(DISP[c.disp], c).join('x');   // si uniscono solo espositori con campioni della stessa misura
 /* crea il file PDF: ogni scheda diventa una pagina (immagine fedele della pagina), senza passare dalla stampa del browser */
 const PDF_LIBS = ['https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'];
 function loadPdfLibs() {
@@ -531,7 +565,7 @@ async function schMakePDF(el, real, name, wait, title) {
           const u = (x.style.backgroundImage.match(/url\(["']?([^"')]+)/) || [])[1], im = u && await schLoadImg(u);
           pdf.setFillColor(243, 242, 239); pdf.rect(bx, by, bw, bh, 'F');
           if (im) { const s = Math.min(bw / im.naturalWidth, bh / im.naturalHeight), w = im.naturalWidth * s, h = im.naturalHeight * s;
-            pdf.addImage(u, 'JPEG', bx + (bw - w) / 2, by + (bh - h) / 2, w, h, 'render' + i, 'NONE'); }
+            pdf.addImage(u, 'JPEG', bx + (bw - w) / 2, by + (bh - h) / 2, w, h, 'render' + i + '_' + j, 'NONE'); }   // un nome per render: più espositori nella pagina = render diversi
         } else {
           const u = x.dataset.hi || (x.style.backgroundImage.match(/url\(["']?([^"')]+)/) || [])[1], turn = box.classList.contains('turn');
           const shade = real && it ? (bw - ext) / bw : 0;   // il pezzo che finisce sotto la mattonella dopo resta in ombra (si vede negli angoli smussati)
