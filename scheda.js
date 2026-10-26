@@ -43,6 +43,7 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 #schPrint .it .b { font: 700 calc(var(--f) * .78) Inter, Arial; letter-spacing: .08em; text-transform: uppercase; color: #ffb3b8; }
 #schPrint .it .s { font-weight: 700; font-size: calc(var(--f) * 1.08); white-space: normal !important; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 #schPrint .it .z { color: rgba(255,255,255,.85); }
+#schPrint .sch-page:not(.real) .it .cap .z { white-space: normal; }   /* più finiture: va a capo invece di tagliarsi */
 #schPrint .it .cd { font-weight: 700; letter-spacing: .02em; }
 #schPrint .foot { font-size: 6.5pt; color: #999; text-align: center; margin-top: auto; padding-top: 2mm; flex: none; }
 #schPrint .sch-page.real { width: 210mm; height: 296mm; padding: 10mm; }
@@ -273,7 +274,8 @@ async function exportSchede(list, layout) {
   const photo = s => { const u = IMG[photoKey(s)]; return u ? ((window.FOTO_GAL || {})[u] || FOTO_MED[u] || u) : ''; };
   // nel PDF va la foto originale (fino a 1920 px, Full HD); l'avif solo se il browser lo apre
   const hiRes = s => { const u = IMG[photoKey(s)]; return !u ? '' : ((typeof AVIF_OK !== 'undefined' && AVIF_OK) || !/\.avif$/i.test(u)) ? u : (FOTO_MED[u] || u); };
-  const fin = s => s.a4 ? s.v : (s.f[0] || '').replace(/\s*Rett\.?$/, '');
+  // finitura: se non è stata scelta, tutte quelle possibili (nello stesso ordine dei codici), non solo la prima
+  const fin = s => s.a4 ? s.v : (s.f || []).map(f => f.replace(/\s*Rett\.?$/, '')).join(' / ');
   const pages = [];
   for (let x = 0; x < list.length; x++) {
     const c = list[x], d = DISP[c.disp], cl = c.client && clients[c.client], n = c.slots.length;
