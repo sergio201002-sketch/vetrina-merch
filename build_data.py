@@ -524,6 +524,8 @@ def main():
     missing = [d['id'] for d in DISPLAYS if 'img' not in d]
     if missing:
         print('Senza foto:', missing)
+    import build_codici                # codice -> finitura e spessore (prodotti con più codici), dallo stesso listino
+    build_codici.main()
 
 
 if __name__ == '__main__':

@@ -377,7 +377,7 @@ function invMailAsk(cid) {
    "MAPIERRE Blanc Noble Naturale R10 Rett. 120x120 - EM5J" */
 function invMailText(cid, list) {
   const cl = clients[cid], x = t => String(t || '').replace(/×/g, 'x');
-  const fin = s => s.a4 ? s.v : (s.f || []).join(' / ');   // finitura non scelta: le possibili, separate da /
+  const fin = s => s.a4 ? s.v : (FIN_VAR[s.key] ? FIN_VAR[s.key].map(v => v.f[0]) : s.f || []).join(' / ');   // finitura non scelta: le possibili (come i codici), separate da /
   // espositori dello stesso tipo (es. girevole 120×120 DX + SX) in un solo blocco, pezzi sommati
   const groups = new Map();
   list.forEach(c => { const g = groups.get(c.disp) || groups.set(c.disp, []).get(c.disp); c.slots.forEach(k => { const s = k && SAMPLE[k]; if (s) g.push({ s, c }); }); });

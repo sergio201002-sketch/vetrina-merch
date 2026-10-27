@@ -365,7 +365,7 @@ async function exportSchede(list, layout, opts = {}) {
   // nel PDF va la foto originale (fino a 1920 px, Full HD); l'avif solo se il browser lo apre
   const hiRes = s => { const u = IMG[photoKey(s)]; return !u ? '' : ((typeof AVIF_OK !== 'undefined' && AVIF_OK) || !/\.avif$/i.test(u)) ? u : (FOTO_MED[u] || u); };
   // finitura: se non è stata scelta, tutte quelle possibili (nello stesso ordine dei codici), non solo la prima
-  const fin = s => s.a4 ? s.v : (s.f || []).map(f => f.replace(/\s*Rett\.?$/, '')).join(' / ');
+  const fin = s => s.a4 ? s.v : (FIN_VAR[s.key] ? FIN_VAR[s.key].map(v => v.f[0]) : s.f || []).map(f => f.replace(/\s*Rett\./, '')).join(' / ');
   const pages = [], groups = schPageGroups(list, opts.groups), NP = groups.length;
   let nr = 0;
   for (let x = 0; x < NP; x++) {

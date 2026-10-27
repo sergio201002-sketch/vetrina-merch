@@ -447,7 +447,7 @@ function csFinInfo(s) {
   if (!s) return null;
   if (s.a4) return { label: s.v, ln: mcLines(s) };
   const fin = (s.f || []).map(f => f.replace(/\s*Rett\.?$/, ''));
-  if (FIN_VAR[s.key]) return { label: 'finitura da scegliere', ln: 0, unset: true };
+  if (FIN_VAR[s.key]) return { label: new Set(FIN_VAR[s.key].map(v => v.f[0].replace(/ · [\d,]+ mm$/, ''))).size > 1 ? 'finitura da scegliere' : 'spessore da scegliere', ln: 0, unset: true };
   return { label: fin.join(' / '), ln: mcLines(s) };
 }
 /* le finiture che esistono per quel prodotto, colore e formato */

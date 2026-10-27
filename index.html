@@ -597,7 +597,8 @@ textarea { font-family: inherit; }
    altrimenti il browser usa quelli già scaricati (partenza veloce) */
 window.APPV = (() => { try { const x = new XMLHttpRequest(); x.open('GET', 'versione.txt?' + Date.now(), false); x.send(); if (x.status === 200 && x.responseText.trim()) return x.responseText.trim(); } catch (e) {} return String(Date.now()); })();
 document.write('<script src="data.js?v=' + APPV + '"><\/script>');
-document.write('<script src="tozzetti.js?v=' + APPV + '"><\/script>');</script>
+document.write('<script src="tozzetti.js?v=' + APPV + '"><\/script>');
+document.write('<script src="codici.js?v=' + APPV + '"><\/script>');</script>
 <script>
 'use strict';
 /* ════════════════════════════════════════════════════════════
@@ -614,13 +615,23 @@ const TOZ = '19,5x29,5 tozzetto';
 const TOZ_SAMPLES = SAMPLES.map(s => ({ b: s.b, s: s.s, c: s.c, z: TOZ, f: s.f.slice(), k: s.k.slice(), t: s.t.slice(),
   key: s.key + '|' + TOZ, ik: s.ik, pkey: s.key, toz: true, from: [s.z] }));
 TOZ_SAMPLES.forEach(s => SAMPLE[s.key] = s);
-/* Varianti per finitura: un campione con più finiture e un codice per finitura (es. 60×120 Silktech R10 / Silktech Plus R11)
-   si divide in un campione per finitura, con il suo codice: si sceglie la finitura giusta e si vedono le lineette (R11…).
+/* Varianti per codice: un campione con più codici d'ordine (es. 60×120 Silktech R10 / Silktech Plus R11, oppure la stessa
+   finitura in 9,5 e 6,5 mm) si divide in un campione per codice, con la sua finitura e il suo spessore (codici.js, dal listino):
+   si sceglie quello giusto, si vedono le lineette (R11…) e un codice incollato prende sempre il suo.
    Il campione "intero" resta valido per le composizioni già fatte. */
-const FIN_VAR = {};
+const FIN_VAR = {}, CODE_INFO = window.CODE_INFO || {};
 SAMPLES.forEach(s => {
-  if (s.f.length < 2 || s.k.length !== s.f.length) return;
-  FIN_VAR[s.key] = s.f.map((f, i) => { const v = Object.assign({}, s, { f: [f], k: [s.k[i]], key: s.key + '#' + s.k[i], base: s.key, pkey: s.key, fv: true }); SAMPLE[v.key] = v; return v; });
+  if (s.k.length < 2) return;
+  // finitura e spessore di ogni codice; senza codici.js: in ordine, se i codici sono tanti quante le finiture
+  const inf = s.k.map((k, i) => CODE_INFO[k] ? { f: CODE_INFO[k][0] || s.f[0], t: CODE_INFO[k][1] || '' } : s.k.length === s.f.length ? { f: s.f[i], t: '' } : null);
+  if (inf.some(x => !x)) return;
+  // codici con stessa finitura e stesso spessore = lo stesso prodotto (es. due codici a listino): restano insieme
+  const gm = new Map(); s.k.forEach((k, i) => { const id = inf[i].f + '|' + inf[i].t; if (!gm.has(id)) gm.set(id, { f: inf[i].f, t: inf[i].t, k: [] }); gm.get(id).k.push(k); });
+  if (gm.size < 2) return;
+  const gs = [...gm.values()], same = f => gs.filter(x => x.f === f).length > 1;   // due codici con la stessa finitura: li distingue lo spessore
+  FIN_VAR[s.key] = gs.map(g => {
+    const v = Object.assign({}, s, { f: [same(g.f) && g.t ? `${g.f} · ${g.t} mm` : g.f], k: g.k, t: g.t ? [g.t] : s.t, key: s.key + '#' + g.k[0], base: s.key, pkey: s.key, fv: true });
+    SAMPLE[v.key] = v; return v; });
 });
 const expandFin = list => list.flatMap(s => FIN_VAR[s.key] || [s]);
 /* Tozzetti A4 19,5×29,5 UFFICIALI (tozzetti.js, dal file della selezione A4): codice vero 0000IL…, finitura e spessore.
@@ -851,7 +862,7 @@ function a4For(c, x) {
 }
 /* targets: posti in ordine [{cid, i}]; restituisce il resoconto */
 function fillWithCodes(targets, text, all) {
-  const rows = parseCodeList(text), out = { put: 0, missing: [], bad: [], over: [], disp: [] };
+  const rows = parseCodeList(text), out = { put: 0, fixed: 0, missing: [], bad: [], over: [], disp: [] };
   const taken = new Set(), memo = new Map();
   const pick = (c, r) => {   // il campione di quel codice che entra in questo espositore (o niente)
     const k = c.id + '|' + r.code; if (memo.has(k)) return memo.get(k);
@@ -863,6 +874,11 @@ function fillWithCodes(targets, text, all) {
   rows.forEach(r => {
     if (r.disp) { out.disp.push(r.disp); return; }
     if (!r.code) { out.missing.push(r.line); return; }
+    // il prodotto c'è già con la finitura da scegliere (messo prima che si potesse scegliere): il codice gliela sceglie lì, niente doppione
+    for (let j = 0; j < targets.length; j++) {
+      const tg = targets[j], c = comps[tg.cid], s = pick(c, r);
+      if (s && s.base && !taken.has(j) && c.slots[tg.i] === s.base) { c.slots[tg.i] = s.key; c.upd = Date.now(); taken.add(j); out.fixed++; return; }
+    }
     // nel primo posto libero (in ordine) di un espositore che lo accetta: in un elenco misto i tozzetti vanno nella teca, le lastre nello slabs…
     let fits = false;
     for (let j = 0; j < targets.length; j++) {
@@ -877,7 +893,7 @@ function fillWithCodes(targets, text, all) {
   return out;
 }
 function pasteReport(o) {
-  const L = [`Inseriti ${o.put} campioni.`];
+  const L = [`Inseriti ${o.put} campioni.` + (o.fixed ? ` Finitura scelta col codice su ${o.fixed} campioni che c'erano già.` : '')];
   if (o.bad.length) L.push(`\nNon entrano negli espositori scelti (formato) — ${o.bad.length}: ${o.bad.join(', ')}`);
   if (o.over.length) L.push(`\nPosti finiti negli espositori adatti, restano fuori ${o.over.length}: ${o.over.join(', ')}`);
   if (o.missing.length) L.push(`\nCodici che non trovo nel listino né tra i tozzetti A4 (${o.missing.length}):\n` + o.missing.slice(0, 40).join(o.missing.every(l => l.length <= 14) ? ', ' : '\n') + (o.missing.length > 40 ? ' …' : ''));
