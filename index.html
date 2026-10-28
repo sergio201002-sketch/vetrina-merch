@@ -1204,7 +1204,7 @@ function renderStage() {
   st.style.setProperty('--lblk', 1);
   st.classList.toggle('teca-nozoom', ['teca', 'shelf', 'culla', 'cassettiera'].includes(d.mode) && !ui.zoom);
   const W = st.clientWidth, H = st.clientHeight;
-  ({ swing: renderSwing, slide: renderSlide, cassettiera: renderCassettiera, colonna: renderColonna, teca: renderTeca, culla: renderCulla, shelf: renderShelf, book: renderModel3D, drawers: renderModel3D, rack: renderModel3D, wall: renderModel3D, grid: renderModel3D })[d.mode](d, c, sc, W, H, st);
+  ({ swing: renderSwing, slide: renderSlide, cassettiera: renderCassettiera, colonna: renderColonna, teca: renderTeca, culla: renderCulla, shelf: renderShelf, book: renderModel3D, slide45: renderModel3D, drawers: renderModel3D, rack: renderModel3D, wall: renderModel3D, grid: renderModel3D })[d.mode](d, c, sc, W, H, st);
   // occhio: nasconde/mostra tutte le scritte sulle piastrelle (numero posto e descrizione)
   let info = st.querySelector('.pageinfo');
   if (!info) { info = document.createElement('div'); info.className = 'pageinfo'; st.appendChild(info); }

@@ -130,8 +130,9 @@ async function renderDisplayViews(c, views) {
   const host = document.createElement('div');
   host.style.cssText = 'position:fixed;left:-30000px;top:0;width:0;height:0;pointer-events:none';
   host.innerHTML = `<div class="room-scene"><div class="ritem">${m.html}</div></div>`;
-  document.body.appendChild(host);
   const root = host.firstChild;
+  (m.pose || []).forEach(([sel, tf]) => { const el = root.querySelector(sel); if (el) { el.style.transition = 'none'; el.style.transform = tf; } });   // posa da catalogo (Megastone: una lastra fuori)
+  document.body.appendChild(host);
   try {
     const FLIP = new DOMMatrix().scale(1, -1, 1);
     const scene = new T.Scene(); scene.background = new T.Color('#f3f2ef');
@@ -377,7 +378,8 @@ async function exportSchede(list, layout, opts = {}) {
       .filter(([s]) => s || (opts.empty && opts.empty.has(ci.id))));
     const filled = tiles.filter(([s]) => s);
     // un render per espositore: girevoli dal lato A in diagonale (le piastrelle guardano di lato), gli altri di fronte ai campioni
-    const view = d.mode === 'swing' ? [-58, 14] : [0, 0, true], shots = [];
+    // (Megastone: di fronte alle lastre, che stanno a 45°)
+    const view = d.mode === 'swing' ? [-58, 14] : d.mode === 'slide45' ? [d.side === 'SX' ? 45 : -45, 4, true] : [0, 0, true], shots = [];
     for (const ci of items) {
       nr++; wait.textContent = list.length > 1 ? `Preparo il render ${nr} di ${list.length}: ${ci.name}…` : 'Preparo il render dell\'espositore…';
       let shot = '';

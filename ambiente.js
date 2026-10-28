@@ -660,7 +660,7 @@ function focusCam(animate) {
   const f = m.focus, r = (it.rot || 0) * Math.PI / 180, y0 = elevY(it);
   cam.focus = { x: it.x + f.x * Math.cos(r) + f.z * Math.sin(r), y: f.y - y0, z: it.z - f.x * Math.sin(r) + f.z * Math.cos(r), w: f.w, h: f.h };
   let fy = f.yaw, ft = f.tilt || 6;
-  if (ui.roomZoom) { fy = Math.abs(f.yaw) > 45 ? Math.sign(f.yaw) * 90 : 0; ft = ft > 30 ? 86 : 0; }   // dritto di fronte (dall'alto per le lastre distese)
+  if (ui.roomZoom) { fy = f.flatYaw != null ? f.flatYaw : Math.abs(f.yaw) > 45 ? Math.sign(f.yaw) * 90 : 0; ft = ft > 30 ? 86 : 0; }   // dritto di fronte (dall'alto per le lastre distese)
   let yaw = fy - (it.rot || 0); yaw = ((yaw + 540) % 360) - 180;
   cam.yaw = yaw; cam.tilt = ft; cam.zoom = 1;
   applyCam(animate);

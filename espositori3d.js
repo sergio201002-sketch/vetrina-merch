@@ -283,6 +283,52 @@ function cartHolders(d, c, op) {
   return m;
 }
 
+/* ── Megastone 45° DX / SX: 10 lastre 120×278 parallele, a 45° rispetto al fronte, una dietro l'altra e spostate
+   di lato (come un mazzo di carte aperto), su una base nera a parallelogramma. Aperto sul posto N: la lastra N scorre
+   in avanti lungo la sua diagonale (con una ruota sotto la punta) e si vede tutta.
+   DX: le lastre guardano a sinistra e escono verso destra; SX speculare. L'ingombro della scheda (L323 × P175)
+   comprende la lastra tirata fuori: la pila sta dietro, sul lato opposto all'uscita. */
+function megaSlide(d, c, op) {
+  const { L, P, H: H0 } = parseDims(d), [fw, fh] = d.face, n = c.slots.length, R = Math.SQRT1_2;
+  const dx = d.side !== 'SX', s = dx ? 1 : -1, fp = fw * R, m = 8, e = 3, pt = 3;
+  const yb = Math.max(6, H0 - fh);                                    // piede delle lastre (H289 − 278)
+  const p = Math.max(6, (L - P) / Math.max(1, n - 1)), q = p * R;     // passo lungo il fronte; q = lo stesso lungo e attraverso la lastra
+  const OUT = Math.max(fw - q + 4, (P - m - fp) / R);                 // corsa: la lastra esce tutta dalla pila
+  // le lastre stanno in un riquadro girato di 45°: x lungo la lastra (verso l'uscita), z verso chi le guarda
+  const O = { x: -s * (L / 2 - m), z: -P / 2 + m };
+  const xOf = i => dx ? i * q : -i * q - fw, zOf = i => -i * q;
+  const slabT = (i, out) => tr(xOf(i) + (out ? s * OUT : 0), -yb - fh, zOf(i));
+  const glob = (lx, lz) => ({ x: O.x + lx * R - lz * s * R, z: O.z + lx * s * R + lz * R });
+  const clips = x => [0.26, 0.5, 0.74].map(f => `<div class="bx" style="width:1.4px;height:3.2px;background:#1a1a1c;transform:translate3d(${rn(x - 0.7)}px,${rn(fh * f - 1.6)}px,0.6px)"></div>`).join('');
+  let slabs = '';
+  for (let i = 0; i < n; i++) {
+    const face = rface(d, c, i, fw, fh, true);
+    if (LITE3D && !face) continue;                                  // posto vuoto in sala mostra: niente lastra
+    slabs += tileDiv(fw, fh, 'transform:' + slabT(i, false), face + tileBody(d, c, i, fw, fh, true, 1) + clips(0) + clips(fw) +
+      `<div class="bx" style="width:${fw}px;height:${yb - pt}px;background:#1d1d20;transform:translate3d(0,${fh}px,0)"></div>` +   // carrello
+      bx3(dx ? fw - 7 : 2, fh + yb - 7, 2.5, 5, 7, 5), i);                                                                        // ruota sotto la punta
+  }
+  // base: parallelogramma basso sotto la pila (lati lungo il fronte e lungo le lastre)
+  const Wp = (n - 1) * p + 2 * e * Math.SQRT2, Hp = fp + 2 * e, zb = O.z - e, xa = -L / 2 + m - e - e * Math.SQRT2;
+  const x0 = dx ? xa : -(xa + Wp), xf = dx ? xa + Hp : -(xa + Wp + Hp), col = 'background:#1d1d20;';
+  const plane = (w, h, tf) => `<div class="bx" style="width:${rn(w)}px;height:${rn(h)}px;${col}transform:${tf}"></div>`;
+  let h = plane(Wp, Hp, `${tr(x0, -pt, zb)} rotateX(90deg) skewX(${s * 45}deg)`);
+  h += plane(Wp, pt, tr(x0, -pt, zb)) + plane(Wp, pt, tr(xf, -pt, zb + Hp));
+  (dx ? [xa, xa + Wp] : [-(xa + Wp), -xa]).forEach(x => { h += plane(Hp * Math.SQRT2, pt, tr(x, -pt, zb, `rotateY(${dx ? -45 : -135}deg)`)); });
+  h += `<div class="bx" style="transform:${tr(O.x, 0, O.z, `rotateY(${-s * 45}deg)`)};transform-style:preserve-3d">${slabs}</div>`;
+  const mm = { html: h, L, P, H: yb + fh, fitW: L };
+  // scheda PDF: come nella foto del catalogo, l'ultima lastra piena tirata fuori
+  const last = c.slots.map((k, i) => k && SAMPLE[k] ? i : -1).filter(i => i >= 0).pop();
+  if (last != null) mm.pose = [[`.ttile[data-t="${last}"]`, slabT(last, true)]];
+  if (op >= 0) {
+    const g = glob(xOf(op) + s * OUT + fw / 2, zOf(op));
+    mm.after = [[`.ttile[data-t="${op}"]`, slabT(op, true)]];
+    mm.focus = { x: g.x, y: -(yb + fh / 2), z: g.z, w: fw, h: fh, yaw: 28 * s, flatYaw: 45 * s, tilt: 6 };
+  }
+  return mm;
+}
+MODELS.slide45 = megaSlide;
+
 MODELS.rack = (d, c, op) => (d.id === 'PP2' ? rackPlanks : d.id === 'PMK' ? drawerCabinet : d.id === 'OYQ' || d.id === 'PEX' ? cartHolders : rackStack)(d, c, op);
 MODELS.grid = benchTray;
 
@@ -295,6 +341,8 @@ const GVIEWS = {
   OYQ: [['A', 'Lato A', 62, 8], ['B', 'Lato B', -62, 8]],
   PEX: [['A', 'Lato A', 62, 8], ['B', 'Lato B', -62, 8]],
   PMV: [['front', 'Di fronte', -14, 16], ['top', "Dall'alto", 0, 88]],
+  Q8T: [['front', 'Di fronte', 45, 6], ['side', 'Di sbieco', 16, 14]],
+  Q8U: [['front', 'Di fronte', -45, 6], ['side', 'Di sbieco', -16, 14]],
 };
 function setGView(id) {
   const v = (GVIEWS[gcam.mode] || []).find(x => x[0] === id); if (!v) return;
@@ -315,7 +363,7 @@ function renderModel3D(d, c, sc, W, H, st) {
     ? (kz => `translate3d(${W / 2}px,${H * 0.4}px,0) rotateX(${-gcam.tilt}deg) rotateY(${gcam.yaw}deg) scale3d(${kz},${kz},${kz}) translate3d(${-ov.x}px,${-ov.y}px,${-ov.z}px)`)
         ((gcam.zoom * Math.min(W * 0.8 / ov.w, H * 0.8 / (ov.d * Math.sin(ta) + ov.h * Math.cos(ta)))).toFixed(4))
     : f
-    ? (kz => `translate3d(${W / 2}px,${H * 0.5}px,0) rotateX(${gcam.view === 'top' ? -88 : -4}deg) rotateY(${Math.abs(f.yaw) > 45 ? (gcam.yaw < 0 ? -88 : 88) : 0}deg) scale3d(${kz},${kz},${kz}) translate3d(${-f.x}px,${-f.y}px,${-f.z}px)`)(Math.min(H * 0.8 / f.h, W * 0.8 / f.w).toFixed(4))
+    ? (kz => `translate3d(${W / 2}px,${H * 0.5}px,0) rotateX(${gcam.view === 'top' ? -88 : -4}deg) rotateY(${f.flatYaw != null ? f.flatYaw : Math.abs(f.yaw) > 45 ? (gcam.yaw < 0 ? -88 : 88) : 0}deg) scale3d(${kz},${kz},${kz}) translate3d(${-f.x}px,${-f.y}px,${-f.z}px)`)(Math.min(H * 0.8 / f.h, W * 0.8 / f.w).toFixed(4))
     : `translate3d(${W / 2}px,${H * 0.86}px,0) rotateX(${-gcam.tilt}deg) rotateY(${gcam.yaw}deg) scale3d(${k.toFixed(4)},${k.toFixed(4)},${k.toFixed(4)})`;
   sc.innerHTML = `<div class="sw-root room-scene" id="m3d" style="transform:${camT()}">
     <div class="bx" style="width:${fw}px;height:${fd}px;background:radial-gradient(ellipse at 50% 50%, rgba(0,0,0,.26), rgba(0,0,0,0) 62%);transform:translate3d(${-fw / 2}px,0.5px,${fd / 2}px) rotateX(-90deg)"></div>${m.html}</div>`;
@@ -343,7 +391,7 @@ function renderModel3D(d, c, sc, W, H, st) {
     });
     const end = () => { s = null; setTimeout(() => { window._dragMoved = false; }, 0); };
     st.addEventListener('pointerup', end); st.addEventListener('pointercancel', end);
-    st.addEventListener('wheel', e => { if (!['book', 'drawers', 'rack', 'wall', 'grid'].includes(disp().mode)) return; e.preventDefault(); gcam.zoom = Math.max(0.6, Math.min(2.4, gcam.zoom * (e.deltaY < 0 ? 1.1 : 0.9))); renderStage(); }, { passive: false });
+    st.addEventListener('wheel', e => { if (!['book', 'drawers', 'rack', 'wall', 'grid', 'slide45'].includes(disp().mode)) return; e.preventDefault(); gcam.zoom = Math.max(0.6, Math.min(2.4, gcam.zoom * (e.deltaY < 0 ? 1.1 : 0.9))); renderStage(); }, { passive: false });
   }
   const sm = SAMPLE[c.slots[op]], info = document.createElement('div'); info.className = 'pageinfo';
   info.textContent = `${slotName(d, op, n)} · ${sm ? sm.s + ' ' + sm.c : 'vuoto'} — trascina per girare`;

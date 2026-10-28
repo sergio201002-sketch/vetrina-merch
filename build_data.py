@@ -24,6 +24,7 @@ CAT_DIR = os.path.join(ROOT, 'catalogo-prodotti')
 #         wall    = lastra singola fronte (lavagna, totem)
 #         teca    = mobile a 3 ripiani con tozzetti in piedi
 #         slide   = lastre su pannelli affiancati che scorrono in avanti (opening = DX o SX)
+#         slide45 = Megastone 45°: lastre parallele a 45° che scorrono in avanti lungo la diagonale (side = DX o SX)
 #         culla   = culla modulare: moduli in fila (variants = posti totali, perModule posti per modulo)
 #         cassettiera = mobile 100×45×104 con 2 cassetti estraibili da 5 incavi (rows) × cols pezzi
 #         colonna = mobile colonna 50×45×104 per cataloghi (nessun campione)
@@ -81,6 +82,16 @@ DISPLAYS = [
        slots=10, face=[120, 278], opening='SX', side='SX', mirror='ILEF', accept={'sizes': ['120x278']},
        dims='L144 × P120 × H290,2 cm', price=1109,
        spec='10 lastre 120×278 montate su pannello, apertura SX (retro del pannello grigio chiaro)'),
+  # Megastone 45°: lastre parallele a 45° (una dietro l'altra, spostate di lato), ognuna scorre in avanti lungo la diagonale.
+  # Non è nel catalogo 2026.01: foto e pagina ritagliate dalla scheda (pag. 22-23) in img/
+  dict(id='Q8T', code='00000Q8T', name='Megastone 45° DX', family='Pannelli e slabs', mode='slide45',
+       slots=10, face=[120, 278], side='DX', mirror='Q8U', accept={'sizes': ['120x278']},
+       dims='L323 × P175 × H289 cm', price=2079, img='img/esp_Q8T.jpg', sheet='img/scheda_Q8T.jpg',
+       spec='10 lastre stuoiate 120×278 cm in diagonale a 45°, ognuna scorre in avanti verso destra. Nero. Su ordinazione (make to order)'),
+  dict(id='Q8U', code='00000Q8U', name='Megastone 45° SX', family='Pannelli e slabs', mode='slide45',
+       slots=10, face=[120, 278], side='SX', mirror='Q8T', accept={'sizes': ['120x278']},
+       dims='L323 × P175 × H289 cm', price=2079, img='img/esp_Q8U.jpg', sheet='img/scheda_Q8U.jpg',
+       spec='10 lastre stuoiate 120×278 cm in diagonale a 45°, ognuna scorre in avanti verso sinistra. Nero. Su ordinazione (make to order)'),
   dict(id='PMU', code='00000PMU', name='Totem slabs 120×278', family='Pannelli e slabs', mode='wall',
        slots=2, sides=2, face=[120, 278], accept={'sizes': ['120x278']},
        dims='L120 × P49 × H279 cm', price=380, spec='2 lastre stuoiate 120×278 (fronte / retro)'),
