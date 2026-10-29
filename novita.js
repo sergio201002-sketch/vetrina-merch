@@ -144,32 +144,61 @@ function renderNovita() {
   </div>`;
 }
 
-/* colore (e variante) dal nome del file: "MATERA_SASSI_BEIGE_60x120.jpg" → "Sassi Beige" (senza serie e formato);
-   "EP0D_ESSENZA20VENEZIA%20AVORIO_120x120_002.avif" → variante "Venezia" (se la serie ce l'ha già) e colore "Avorio":
-   via il codice davanti e i numeri; i "20" attaccati alle parole dei file scaricati sono spazi (%20) */
-function nvNameFromFile(name, p) {
-  const sw = new Set(String(p.s || '').toLowerCase().split(/\s+/).filter(Boolean));
-  const vs = new Map(p.colors.map(col => String(col.v || '').trim()).filter(Boolean).map(v => [v.toLowerCase(), v]));
-  let s = name.replace(/\.[^.]+$/, '');
+/* parole utili di un nome di file (o di un colore scritto col nome del file): via il codice davanti (EP0D_…), la serie,
+   il formato, i numeri e "copia"; i "20" attaccati alle parole dei file scaricati sono spazi (%20) */
+function nvWords(name, p) {
+  const sw = new Set(String(p.s || '').toLowerCase().split(/[\s_\-.]+/).filter(Boolean));
+  let s = String(name || '');
   try { s = decodeURIComponent(s); } catch (e) { s = s.replace(/%20/gi, ' '); }
   const ws = s.replace(/([a-z])20(?=[a-z])/gi, '$1 ').split(/[\s_\-.]+/).filter(Boolean);
-  if (ws.length > 1 && /^(?=.*\d)(?=.*[a-z])[a-z0-9]{4,6}$/i.test(ws[0])) ws.shift();   // codice prodotto (EP0D_…)
-  let v = '';
-  const c = ws.filter(w => {
-    const l = w.toLowerCase();
-    if (!v && vs.has(l)) { v = vs.get(l); return false; }
-    return !sw.has(l) && !/^\d+([,.]\d+)?x\d+([,.]\d+)?$/i.test(w) && !/^\d+$/.test(w) && !/^(copia|copy|ok|@\d*ok)$/i.test(w);
-  }).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
-  return { c, v };
+  if (ws.length > 1 && /^(?=.*\d)(?=.*[a-z])[a-z0-9]{4,6}$/i.test(ws[0])) ws.shift();
+  return ws.map(w => w.toLowerCase()).filter(w => !sw.has(w) && !/^\d+([,.]\d+)?x\d+([,.]\d+)?$/.test(w) && !/^\d+$/.test(w) && !/^(copia|copy|ok|@\d*ok)$/.test(w));
 }
+const nvTitle = ws => ws.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+/* varianti: quelle già scritte nella serie + quelle riconosciute nelle foto caricate insieme (minuscolo → come si scrive) */
+const nvVariants = (p, extra) => {
+  const vs = new Map(p.colors.map(col => String(col.v || '').trim()).filter(Boolean).map(v => [v.toLowerCase(), v]));
+  (extra || []).forEach(w => { if (!vs.has(w)) vs.set(w, nvTitle([w])); });
+  return vs;
+};
+/* nelle foto caricate insieme la prima parola è una variante se lo stesso colore c'è anche con un'altra prima parola, tra le foto
+   o tra i colori della serie scritti senza variante ("Fine Avorio" e "Venezia Avorio" → varianti Fine e Venezia), oppure se
+   almeno 3 foto cominciano tutte con la stessa parola ("Fine Avorio", "Fine Cotone", "Fine Sabbia" → variante Fine) */
+function nvBatchVariants(lists, others) {
+  const by = new Map(), multi = lists.filter(ws => ws.length > 1);
+  [...multi, ...(others || []).filter(ws => ws.length > 1)].forEach(ws => { const r = ws.slice(1).join(' '); by.set(r, new Set([...(by.get(r) || []), ws[0]])); });
+  const out = new Set([...by.values()].filter(s => s.size > 1).flatMap(s => [...s]));
+  if (lists.length > 2 && multi.length === lists.length && multi.every(ws => ws[0] === multi[0][0])) out.add(multi[0][0]);
+  return out;
+}
+const nvSplit = (ws, vs) => {
+  const i = ws.length > 1 ? ws.findIndex(w => vs.has(w)) : -1;
+  return i < 0 ? { c: nvTitle(ws), v: '' } : { c: nvTitle(ws.filter((w, j) => j !== i)), v: vs.get(ws[i]) };
+};
+/* colore e variante dal nome del file: "MATERA_SASSI_BEIGE_60x120.jpg" → "Sassi Beige" (senza serie e formato);
+   "EP0D_ESSENZA20VENEZIA%20AVORIO_120x120_002.avif" → variante "Venezia" e colore "Avorio" */
+const nvNameFromFile = (name, p, extra) => nvSplit(nvWords(name.replace(/\.[^.]+$/, ''), p), nvVariants(p, extra));
 /* colore già scritto con quel nome e quella variante ("Siena" va anche su "Rosso Siena"): la foto va a lui, senza doppioni;
-   prima quelli ancora senza foto. anyV: in qualunque variante (per prenderne il nome intero) */
+   prima quelli ancora senza foto. Uno scritto senza variante ("Fine Avorio") va bene lo stesso e prende variante e nome giusti.
+   anyV: in qualunque variante (per prenderne il nome intero) */
 function nvFindColor(p, { c, v }, taken, anyV) {
-  const words = x => String(x || '').toLowerCase().split(/\s+/).filter(Boolean), fw = words(c);
+  const fw = c.toLowerCase().split(/\s+/).filter(Boolean), vl = v.toLowerCase();
   if (!fw.length) return null;
-  const ok = p.colors.filter(col => { const cw = words(col.c);
-    return !taken.has(col) && (anyV || String(col.v || '').trim().toLowerCase() === v.toLowerCase()) && fw.every(w => cw.includes(w)); });
-  return ok.find(col => !IMG[nvColIk(p, col)]) || ok[0] || null;
+  const hit = col => {
+    const cv = String(col.v || '').trim().toLowerCase(), cw = nvWords(col.c, p);
+    if (taken.has(col) || !fw.every(w => cw.includes(w))) return 0;
+    if (anyV) return cv ? 1 : 0;
+    return cv === vl ? 2 : !cv && vl && cw.includes(vl) ? 1 : 0;
+  };
+  const [col, h] = p.colors.map(x => [x, hit(x)]).filter(x => x[1])
+    .sort((a, b) => b[1] - a[1] || !IMG[nvColIk(p, b[0])] - !IMG[nvColIk(p, a[0])])[0] || [];
+  if (col && h === 1 && !anyV) { col.v = v; col.c = nvTitle(nvWords(col.c, p).filter(w => w !== vl)); }
+  return col || null;
+}
+/* colori della serie scritti senza variante ("Fine Mandorla"): prendono la variante (Fine) e il nome giusto (Mandorla) */
+function nvFixVariants(p, extra) {
+  const vs = nvVariants(p, extra);
+  p.colors.forEach(col => { if (String(col.v || '').trim()) return; const nm = nvSplit(nvWords(col.c, p), vs); if (nm.v) Object.assign(col, nm); });
 }
 
 /* scheda della serie: marca, serie, formati della serie, colori (foto, nome, variante, formati, codici) */
@@ -301,9 +330,10 @@ function nvEdit(id) {
     b.querySelector('#nvAddPh').onclick = () => pickPhotos(true, async files => {
       if (!files.length) return;
       toast(`Carico ${files.length} foto…`);
-      const taken = new Set(); let found = 0;
+      const bv = nvBatchVariants(files.map(f => nvWords(f.name.replace(/\.[^.]+$/, ''), p)),
+        p.colors.filter(col => !String(col.v || '').trim()).map(col => nvWords(col.c, p))), taken = new Set(); let found = 0;
       for (const f of files) {
-        const nm = nvNameFromFile(f.name, p);
+        const nm = nvNameFromFile(f.name, p, bv);
         let col = nvFindColor(p, nm, taken);
         if (col) found++;
         else {
@@ -314,6 +344,7 @@ function nvEdit(id) {
         taken.add(col);
         await setImage(nvColIk(p, col), f);
       }
+      nvFixVariants(p, bv);
       draw();
       if (found) toast(found === files.length ? `Foto messe sui loro colori (${found})` : `${found} foto sui colori che c'erano, ${files.length - found} colori nuovi`);
     });
