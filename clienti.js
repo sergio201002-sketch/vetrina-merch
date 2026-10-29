@@ -40,6 +40,7 @@ function route() {
   if (a === 'galleria') return go('#/galleria2');   // la vecchia Galleria è stata sostituita dalla Galleria+
   if (a === 'campioni' && clients[id]) return go('#/g2/' + id + (sub && sub !== 'tutti' ? '/' + sub : ''));
   if (a === 'pacchetti') { document.body.dataset.view = 'packs'; renderPacks(id); return; }
+  if (a === 'box') { document.body.dataset.view = 'boxes'; renderBoxes(); return; }
   if (a === 'novita') { document.body.dataset.view = 'novita'; renderNovita(); return; }
   if (a === 'ambiente' && scenes[id]) { document.body.dataset.view = 'room'; openRoom(id); return; }
   if (a === 'salamostra' && clients[id]) {
@@ -78,13 +79,17 @@ function openComp(id, returnTo) {
   selSlot = 0; bookPage = 0; swing = { holder: 0, pose: 'in', side: 'A' }; searchQ = ''; brandFilter = '';
   go('#/espositori');
 }
-function openFreeCatalog() { ui.client = ''; ui.returnTo = ''; saveUI(); go('#/espositori'); }
+function openFreeCatalog() {
+  ui.client = ''; ui.returnTo = '';
+  if (DISP[ui.disp] && DISP[ui.disp].mode === 'box') ui.disp = DISPLAYS.find(d => d.mode !== 'box').id;   // i box si aprono dalla sezione Box
+  saveUI(); go('#/espositori');
+}
 function leaveConfig() {
   const back = ui.returnTo; ui.returnTo = ''; saveUI();
   if (back && back.startsWith('#/ambiente/') && scenes[back.split('/')[2]]) return go(back);
   if (back && back.startsWith('#/salamostra/') && clients[back.split('/')[2]]) return go(back);
   if (back && back.startsWith('#/pacchetti/') && scenes[back.split('/')[2]]) return go(back);
-  if (back === '#/novita') return go(back);
+  if (back === '#/novita' || back === '#/box') return go(back);
   go(ctxClient() ? '#/cliente/' + ctxClient() : '#/');
 }
 
