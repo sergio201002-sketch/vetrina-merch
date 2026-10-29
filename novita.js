@@ -144,12 +144,32 @@ function renderNovita() {
   </div>`;
 }
 
-/* nome del colore dal nome del file: "MATERA_SASSI_BEIGE_60x120.jpg" → "Sassi Beige" (senza serie e formato) */
-function nvNameFromFile(name, serie) {
-  const sw = new Set(String(serie || '').toLowerCase().split(/\s+/).filter(Boolean));
-  return name.replace(/\.[^.]+$/, '').replace(/[_\-.]+/g, ' ').split(/\s+/)
-    .filter(w => w && !sw.has(w.toLowerCase()) && !/^\d+([,.]\d+)?x\d+([,.]\d+)?$/i.test(w) && !/^\d+$/.test(w))
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+/* colore (e variante) dal nome del file: "MATERA_SASSI_BEIGE_60x120.jpg" → "Sassi Beige" (senza serie e formato);
+   "EP0D_ESSENZA20VENEZIA%20AVORIO_120x120_002.avif" → variante "Venezia" (se la serie ce l'ha già) e colore "Avorio":
+   via il codice davanti e i numeri; i "20" attaccati alle parole dei file scaricati sono spazi (%20) */
+function nvNameFromFile(name, p) {
+  const sw = new Set(String(p.s || '').toLowerCase().split(/\s+/).filter(Boolean));
+  const vs = new Map(p.colors.map(col => String(col.v || '').trim()).filter(Boolean).map(v => [v.toLowerCase(), v]));
+  let s = name.replace(/\.[^.]+$/, '');
+  try { s = decodeURIComponent(s); } catch (e) { s = s.replace(/%20/gi, ' '); }
+  const ws = s.replace(/([a-z])20(?=[a-z])/gi, '$1 ').split(/[\s_\-.]+/).filter(Boolean);
+  if (ws.length > 1 && /^(?=.*\d)(?=.*[a-z])[a-z0-9]{4,6}$/i.test(ws[0])) ws.shift();   // codice prodotto (EP0D_…)
+  let v = '';
+  const c = ws.filter(w => {
+    const l = w.toLowerCase();
+    if (!v && vs.has(l)) { v = vs.get(l); return false; }
+    return !sw.has(l) && !/^\d+([,.]\d+)?x\d+([,.]\d+)?$/i.test(w) && !/^\d+$/.test(w) && !/^(copia|copy|ok|@\d*ok)$/i.test(w);
+  }).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+  return { c, v };
+}
+/* colore già scritto con quel nome e quella variante ("Siena" va anche su "Rosso Siena"): la foto va a lui, senza doppioni;
+   prima quelli ancora senza foto. anyV: in qualunque variante (per prenderne il nome intero) */
+function nvFindColor(p, { c, v }, taken, anyV) {
+  const words = x => String(x || '').toLowerCase().split(/\s+/).filter(Boolean), fw = words(c);
+  if (!fw.length) return null;
+  const ok = p.colors.filter(col => { const cw = words(col.c);
+    return !taken.has(col) && (anyV || String(col.v || '').trim().toLowerCase() === v.toLowerCase()) && fw.every(w => cw.includes(w)); });
+  return ok.find(col => !IMG[nvColIk(p, col)]) || ok[0] || null;
 }
 
 /* scheda della serie: marca, serie, formati della serie, colori (foto, nome, variante, formati, codici) */
@@ -262,7 +282,7 @@ function nvEdit(id) {
       box.querySelector('[data-cv]').oninput = e => { col.v = e.target.value; };
       box.querySelectorAll('[data-cph]').forEach(x => x.onclick = () => pickPhotos(false, async ([f]) => {
         if (!f) return; toast('Carico la foto…'); await setImage(nvColIk(p, col), f);
-        if (!String(col.c || '').trim()) col.c = nvNameFromFile(f.name, p.s);
+        if (!String(col.c || '').trim()) { const nm = nvNameFromFile(f.name, p); col.c = nm.c; if (!String(col.v || '').trim()) col.v = nm.v; }
         draw();
       }));
       box.querySelector('[data-cdel]').onclick = () => { p.colors.splice(+box.dataset.ci, 1); if (!p.colors.length) p.colors.push(nvNewColor()); draw(); };
@@ -276,17 +296,26 @@ function nvEdit(id) {
     });
     // nuovo colore: segue i formati della serie
     b.querySelector('#nvAddC').onclick = () => { p.colors.push(nvNewColor()); draw(); setTimeout(() => { const all = m.querySelectorAll('[data-cc]'); all[all.length - 1]?.focus(); }, 30); };
-    // più foto insieme: un colore per foto (nome dal nome del file, da correggere se serve)
+    // più foto insieme: ogni foto va sul colore che ha già quel nome (e variante), altrimenti diventa un colore nuovo
+    // (nome dal nome del file, da correggere se serve)
     b.querySelector('#nvAddPh').onclick = () => pickPhotos(true, async files => {
       if (!files.length) return;
       toast(`Carico ${files.length} foto…`);
+      const taken = new Set(); let found = 0;
       for (const f of files) {
-        let col = p.colors.find(x => !String(x.c || '').trim() && !IMG[nvColIk(p, x)]);   // il primo colore ancora vuoto si riempie
-        if (!col) { col = nvNewColor(); p.colors.push(col); }
-        col.c = nvNameFromFile(f.name, p.s);
+        const nm = nvNameFromFile(f.name, p);
+        let col = nvFindColor(p, nm, taken);
+        if (col) found++;
+        else {
+          col = p.colors.find(x => !taken.has(x) && !String(x.c || '').trim() && !IMG[nvColIk(p, x)]);   // il primo colore ancora vuoto si riempie
+          if (!col) { col = nvNewColor(); p.colors.push(col); }
+          col.c = (nvFindColor(p, nm, new Set(), true) || nm).c; col.v = nm.v;   // "Siena" → "Rosso Siena" come nell'altra variante
+        }
+        taken.add(col);
         await setImage(nvColIk(p, col), f);
       }
       draw();
+      if (found) toast(found === files.length ? `Foto messe sui loro colori (${found})` : `${found} foto sui colori che c'erano, ${files.length - found} colori nuovi`);
     });
     b.querySelector('#nvNo').onclick = close;
     b.querySelector('#nvOk').onclick = async () => {
