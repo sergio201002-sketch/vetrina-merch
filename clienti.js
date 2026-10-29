@@ -222,7 +222,7 @@ function compCardHTML(c, cid) {
   const f = filledOf(c), shown = c.slots.filter(k => k && SAMPLE[k]).slice(0, 14);
   return `<div class="card ecard"><img src="${d.img}" alt="">
     <div class="info"><div class="t">${esc(c.name)}</div>
-      <div class="s">${esc(d.name)} · cod. ${esc(d.code)} · <b>${f}</b>/${c.slots.length} campioni</div>
+      <div class="s">${esc(d.name)}${d.code ? ' · cod. ' + esc(d.code) : ''} · <b>${f}</b>/${c.slots.length} ${d.mode === 'box' ? 'superfici' : 'campioni'}</div>
       <div class="sws">${shown.map(k => `<span style="${swatchStyle(SAMPLE[k])}" title="${esc(SAMPLE[k].s + ' ' + SAMPLE[k].c)}"></span>`).join('')}${f > shown.length ? `<span style="display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--mid)">+${f - shown.length}</span>` : ''}</div></div>
     <div class="acts">
       <button class="btn dark" onclick="openComp('${c.id}')">Apri</button>
