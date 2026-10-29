@@ -348,13 +348,30 @@ async function restoreVersion(f) {
   } catch (e) { say('Ripristino non riuscito: ' + e.message); }
 }
 
+/* foto per il documento online (al massimo ~950 KB di testo): le foto molto dettagliate (es. graniglie) a 1600 px
+   ci stanno strette; si riducono un passo alla volta (qualità, poi misura) finché ci stanno */
+async function fitForCloud(blob) {
+  let data = await blobToDataURL(blob);
+  if (data.length <= 950000) return data;
+  const bmp = await createImageBitmap(blob);
+  for (const [max, q] of [[1600, .76], [1400, .74], [1200, .72], [1000, .7], [800, .68]]) {
+    const r = Math.min(1, max / Math.max(bmp.width, bmp.height)), cv = document.createElement('canvas');
+    cv.width = Math.round(bmp.width * r); cv.height = Math.round(bmp.height * r);
+    cv.getContext('2d').drawImage(bmp, 0, 0, cv.width, cv.height);
+    data = await blobToDataURL(await new Promise(res => cv.toBlob(res, 'image/jpeg', q)));
+    if (data.length <= 950000) return data;
+  }
+  return null;
+}
+
 /* ── Foto dei campioni caricate dal browser: anche su disco (foto/caricate) o online (file della pagina) ── */
 async function uploadPhotoToDisk(ik, blob) {
   if (!Sync.online) return null;
   try {
     if (Sync.provider === 'fire') {        // foto ridotta salvata dentro il documento (niente servizio a pagamento)
-      const data = await blobToDataURL(blob);
-      if (data.length > 950000) { toast('Foto troppo grande per il salvataggio online'); return null; }
+      // se non ci sta neanche ridotta, la vecchia online si toglie: altrimenti alla prossima apertura tornerebbe al posto della nuova
+      const data = await fitForCloud(blob);
+      if (!data) { toast('Foto troppo grande per il salvataggio online'); await Sync.db.doc(fotoDocId(ik)).delete().catch(() => {}); return null; }
       await Sync.db.doc(fotoDocId(ik)).set({ ik, data, upd: Date.now() });
       return data;
     }
