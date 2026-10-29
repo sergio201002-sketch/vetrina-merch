@@ -24,6 +24,7 @@ CAT_DIR = os.path.join(ROOT, 'catalogo-prodotti')
 #         wall    = lastra singola fronte (lavagna, totem)
 #         teca    = mobile a 3 ripiani con tozzetti in piedi
 #         slide   = lastre su pannelli affiancati che scorrono in avanti (opening = DX o SX)
+#         box     = box in posa: superfici (parete, pavimento, pareti laterali) con la mattonella posata (accept any = tutti i formati)
 #         slide45 = Megastone 45°: lastre parallele a 45° che scorrono in avanti lungo la diagonale (side = DX o SX)
 #         culla   = culla modulare: moduli in fila (variants = posti totali, perModule posti per modulo)
 #         cassettiera = mobile 100×45×104 con 2 cassetti estraibili da 5 incavi (rows) × cols pezzi
@@ -148,6 +149,12 @@ DISPLAYS = [
   dict(id='PJU', code='00000PJU', name='Base piana 6 incavi 60×60 / 80×80 / 60×120 (20 mm)', family='Carrellati, cubo e culle', mode='rack',
        slots=6, face=[60, 60], accept={'sizes': ['60x60', '80x80', '60x120'], 'thick': ['20']},
        dims='L59,5 × P99,1 × H14,9 cm', price=71, spec='6 piastrelle spessore 20 mm 60×60, 80×80 e 60×120'),
+  # BOX IN POSA: la mattonella posata su una parete (e, se vuoi, pavimento e pareti laterali), come nei progetti dei box.
+  # Non è un espositore del catalogo (niente codice): i posti sono le superfici; misure e posa in ogni composizione (c.box)
+  dict(id='BOX', code='', name='Box in posa', family='Box in posa', mode='box', slots=4,
+       slotNames=['Parete di fondo', 'Pavimento', 'Parete sinistra', 'Parete destra'], face=[240, 278], accept={'any': True},
+       dims='', price=0, img='img/esp_BOX.jpg',
+       spec='Parete con la mattonella posata e, se le scegli, pavimento e pareti laterali. Ogni pezzo ha la grafica girata in modo diverso'),
   # TOZZETTI
   dict(id='PLT', code='00000PLS / 00000PLU', name='Mobile teca DX', family='Mobili e tozzetti', mode='teca', side='DX', mirror='PLTSX',
        system=True, codes={'inf': '00000PLS', 'sup': '00000PLU'},
@@ -290,6 +297,8 @@ def display_images():
     by_code = {p['code']: p for p in prods if p['brand'] == 'Emilgroup'}
     os.makedirs(os.path.join(HERE, 'img'), exist_ok=True)
     for d in DISPLAYS:
+        if not d['code']:
+            continue                                   # box in posa: non è nel catalogo
         code = d['code'].split()[0].split('/')[0]
         p = by_code.get(code)
         if not p:

@@ -161,6 +161,7 @@ async function renderDisplayViews(c, views) {
           if (!im) return;
           const t = new T.Texture(im); t.encoding = T.sRGBEncoding; t.anisotropy = 16; t.needsUpdate = true;
           if (rx > 1.02 || ry > 1.02) { t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); }
+          else if (rx < 0.98 || ry < 0.98) { t.repeat.set(rx, ry); t.offset.set(0, 1 - ry); }   // pezzo tagliato (box in posa)
           else if (cover) { const pa = w / h, ia = im.width / im.height; let sx = 1, sy = 1; if (ia > pa) sx = pa / ia; else sy = ia / pa; t.repeat.set(sx, sy); t.offset.set((1 - sx) / 2, (1 - sy) / 2); }
           mat.map = t; mat.needsUpdate = true;
         }));
@@ -379,11 +380,12 @@ async function exportSchede(list, layout, opts = {}) {
     const filled = tiles.filter(([s]) => s);
     // un render per espositore: girevoli dal lato A in diagonale (le piastrelle guardano di lato), gli altri di fronte ai campioni
     // (Megastone: di fronte alle lastre, che stanno a 45°)
-    const view = d.mode === 'swing' ? [-58, 14] : d.mode === 'slide45' ? [d.side === 'SX' ? 45 : -45, 4, true] : [0, 0, true], shots = [];
+    const view = d.mode === 'swing' ? [-58, 14] : d.mode === 'box' ? [-28, 14] : d.mode === 'slide45' ? [d.side === 'SX' ? 45 : -45, 4, true] : [0, 0, true], shots = [];
     for (const ci of items) {
       nr++; wait.textContent = list.length > 1 ? `Preparo il render ${nr} di ${list.length}: ${ci.name}…` : 'Preparo il render dell\'espositore…';
       let shot = '';
-      try { [shot] = await renderDisplayViews(ci, [view]); }
+      const v = d.mode !== 'box' ? view : [ci.slots[2] && !ci.slots[3] ? 28 : ci.slots[2] ? 0 : -28, ci.slots[2] && ci.slots[3] ? 10 : 14];   // box: dal lato aperto
+      try { [shot] = await renderDisplayViews(ci, [v]); }
       catch (e) { wait.remove(); say('Non riesco a fare il render (serve internet per il motore 3D). Riprova.'); return; }
       const im = await schLoadImg(shot); shots.push({ shot, a: im ? im.naturalWidth / im.naturalHeight : 1.35 });
     }

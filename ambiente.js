@@ -909,6 +909,7 @@ function copyDistinta() {
   const tot = {};
   rows.forEach(it => {
     const c = comps[it.comp], code = itemCode(it);
+    if (!code) return;                                       // box in posa: niente codice d'ordine
     tot[code] = tot[code] || { n: 0, name: itemLabel(it) }; tot[code].n++;
     lines.push(`${code}\t${itemLabel(it)}\t${c ? c.name + (DISP[it.disp].slots ? ' · ' + filledOf(c) + ' campioni' : '') : ''}`);
   });

@@ -64,6 +64,7 @@ const RoomGL = {
       if (!this.texCache[k]) {
         const t = new T.Texture(img); t.encoding = T.sRGBEncoding; t.anisotropy = this.rdr.capabilities.getMaxAnisotropy(); t.generateMipmaps = true; t.minFilter = T.LinearMipmapLinearFilter; t.needsUpdate = true;
         if (rx > 1.02 || ry > 1.02) { t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); }
+        else if (rx < 0.98 || ry < 0.98) { t.repeat.set(rx, ry); t.offset.set(0, 1 - ry); }   // pezzo tagliato (box in posa): solo una parte della foto
         else if (sx < 1 || sy < 1) { t.repeat.set(sx, sy); t.offset.set((1 - sx) / 2, (1 - sy) / 2); }
         this.texCache[k] = t;
       }
@@ -109,7 +110,7 @@ const RoomGL = {
       } else if (wall) { mat.color = new T.Color(0xf6f5f2).convertSRGBToLinear(); mat.roughness = 0.95; }
       else if (url0) {
         const sz = cs.backgroundSize.split(',').pop().trim().split(/\s+/);
-        let rx = 1, ry = 1; if (/%$/.test(sz[0]) && /%$/.test(sz[1] || '')) { rx = Math.round(100 / parseFloat(sz[0]) * 100) / 100; ry = Math.round(100 / parseFloat(sz[1]) * 100) / 100; }
+        let rx = 1, ry = 1; if (/%$/.test(sz[0]) && /%$/.test(sz[1] || '')) { rx = Math.round(100 / parseFloat(sz[0]) * 1000) / 1000; ry = Math.round(100 / parseFloat(sz[1]) * 1000) / 1000; }
         const isRetro = /retro_/.test(url0), url = isRetro ? url0 : this.smallUrl(url0);
         photo = { url0, rx, ry, cover: sz[0] === 'cover', w, h };
         this.tex(url, rx, ry, photo.cover, w, h).then(t => { if (t) { mat.map = t; mat.needsUpdate = true; this.poke(); } });

@@ -379,8 +379,12 @@ function invMailText(cid, list) {
   const cl = clients[cid], x = t => String(t || '').replace(/×/g, 'x');
   const fin = s => s.a4 ? s.v : (FIN_VAR[s.key] ? FIN_VAR[s.key].map(v => v.f[0]) : s.f || []).join(' / ');   // finitura non scelta: le possibili (come i codici), separate da /
   // espositori dello stesso tipo (es. girevole 120×120 DX + SX) in un solo blocco, pezzi sommati
-  const groups = new Map();
-  list.forEach(c => { const g = groups.get(c.disp) || groups.set(c.disp, []).get(c.disp); c.slots.forEach(k => { const s = k && SAMPLE[k]; if (s) g.push({ s, c }); }); });
+  const groups = new Map(), boxes = list.filter(c => DISP[c.disp].mode === 'box' && c.slots.some(Boolean));
+  list.forEach(c => { if (DISP[c.disp].mode === 'box') return; const g = groups.get(c.disp) || groups.set(c.disp, []).get(c.disp); c.slots.forEach(k => { const s = k && SAMPLE[k]; if (s) g.push({ s, c }); }); });
+  // box in posa: per ogni superficie il prodotto, i metri quadri e i pezzi (contati anche quelli tagliati)
+  const boxParts = boxes.map(c => { const b = boxOf(c), d = DISP[c.disp]; return [`Materiale per ${/^box/i.test(c.name) ? x(c.name) : 'box in posa ' + x(c.name)} (${b.L}x${b.H} cm):`, ``,
+    ...c.slots.map((k, i) => { const s = k && SAMPLE[k]; if (!s) return null; const [W, H] = boxSurf(c, i), l = boxLay(c, i), n = boxPieces(W, H, l.tw, l.th, l.off).length;
+      return `${slotName(d, i, c.slots.length)}: ${s.nuovo ? '[NOVITÀ] ' : ''}${s.s} ${s.c}${fin(s) ? ' ' + fin(s) : ''} ${x(s.z)} - ${(s.k || []).join(' / ') || 'codice da definire'} · ${(W * H / 10000).toLocaleString('it-IT', { maximumFractionDigits: 2 })} m² (${n} ${n === 1 ? 'pezzo' : 'pezzi'})`; }).filter(Boolean)].join('\n'); });
   const parts = [...groups].map(([did, rows]) => {
     const d = DISP[did], nm = d.name.charAt(0).toLowerCase() + d.name.slice(1);
     const ord = new Map(); rows.forEach(r => { if (!ord.has(r.s.b + '|' + r.s.s)) ord.set(r.s.b + '|' + r.s.s, ord.size); });   // righe raggruppate per serie
@@ -390,7 +394,7 @@ function invMailText(cid, list) {
   });
   return {
     subject: `Ordine campioni — ${cl.name}`,
-    body: [`Ordinare i seguenti campioni per ${cl.name},`, ``, parts.join('\n\n')].join('\n')
+    body: [`Ordinare i seguenti campioni per ${cl.name},`, ``, parts.concat(boxParts).join('\n\n')].join('\n')
   };
 }
 function exportInventoryCSV(cid) {

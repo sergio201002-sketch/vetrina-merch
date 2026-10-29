@@ -679,6 +679,7 @@ function accepts(d, s) {
   if (a.tozzetto) return !!s.toz;
   if (s.toz) return false;
   const sz = parseSize(s.z); if (!sz) return false;
+  if (a.any) return true;                                  // box in posa: qualsiasi formato
   const [s0, s1] = sorted2(sz);
   if (a.sizes) return a.sizes.some(z => { const [a0, a1] = sorted2(parseSize(z)); return a0 === s0 && a1 === s1; });
   if (a.fit) { const [f0, f1] = sorted2(a.fit); return s0 <= f0 && s1 <= f1; }
@@ -708,6 +709,7 @@ function acceptLabel(d, c) {
     out.push('tozzetto ' + faces.map(f => fmt(f.join('x').replace(/\./g, ','))).join(' / ') + ' (tutte le serie)');
   }
   if (a.small) out.push('piccoli formati ≤ ' + a.small + ' cm');
+  if (a.any) out.push('tutti i formati, posati');
   if (a.thick) out.push('spessore ' + a.thick.join(' / ') + ' mm');
   if (a.noThick) out.push('escluso spessore ' + a.noThick.join(' / ') + ' mm');
   return out;
@@ -864,6 +866,9 @@ function a4For(c, x) {
 function fillWithCodes(targets, text, all) {
   const rows = parseCodeList(text), out = { put: 0, fixed: 0, missing: [], bad: [], over: [], disp: [] };
   const taken = new Set(), memo = new Map();
+  // i box in posa accettano tutto: ci vanno solo i codici incollati proprio nei box (non quelli avanzati dagli espositori)
+  const isBox = tg => DISP[comps[tg.cid].disp].mode === 'box', boxOnly = targets.every(isBox);
+  if (!boxOnly) targets = targets.filter(tg => !isBox(tg));
   const pick = (c, r) => {   // il campione di quel codice che entra in questo espositore (o niente)
     const k = c.id + '|' + r.code; if (memo.has(k)) return memo.get(k);
     const a4 = usesA4(DISP[c.disp], c);
@@ -1176,6 +1181,7 @@ function tileBody(d, c, i, fw, fh, tiled, k) {
   return thickHTML(fw * k, fh * k, Math.max(0.5, tileThickCm(d, c, i)) * k, back);
 }
 function slotName(d, i, n) {
+  if (d.slotNames) return d.slotNames[i] || String(i + 1);   // box in posa: parete di fondo, pavimento, pareti laterali
   if ((d.mode === 'book' || d.mode === 'swing') && d.sides === 2) { const L = n / 2, [a, b] = d.sideNames || ['A', 'B']; return (i < L ? a : b) + (d.sideNames ? ' ' : '') + ((i % L) + 1); }
   if (d.mode === 'wall' && d.sides === 2) return i === 0 ? 'Fronte' : 'Retro';
   return String(i + 1);
@@ -1204,7 +1210,7 @@ function renderStage() {
   st.style.setProperty('--lblk', 1);
   st.classList.toggle('teca-nozoom', ['teca', 'shelf', 'culla', 'cassettiera'].includes(d.mode) && !ui.zoom);
   const W = st.clientWidth, H = st.clientHeight;
-  ({ swing: renderSwing, slide: renderSlide, cassettiera: renderCassettiera, colonna: renderColonna, teca: renderTeca, culla: renderCulla, shelf: renderShelf, book: renderModel3D, slide45: renderModel3D, drawers: renderModel3D, rack: renderModel3D, wall: renderModel3D, grid: renderModel3D })[d.mode](d, c, sc, W, H, st);
+  ({ swing: renderSwing, slide: renderSlide, cassettiera: renderCassettiera, colonna: renderColonna, teca: renderTeca, culla: renderCulla, shelf: renderShelf, book: renderModel3D, slide45: renderModel3D, box: renderModel3D, drawers: renderModel3D, rack: renderModel3D, wall: renderModel3D, grid: renderModel3D })[d.mode](d, c, sc, W, H, st);
   // occhio: nasconde/mostra tutte le scritte sulle piastrelle (numero posto e descrizione)
   let info = st.querySelector('.pageinfo');
   if (!info) { info = document.createElement('div'); info.className = 'pageinfo'; st.appendChild(info); }

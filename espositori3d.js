@@ -12,6 +12,13 @@
    ════════════════════════════════════════════════════════════ */
 
 const bx3 = (x, y, z, w, h, dd) => box3d(x, y, z, w, h, dd, METAL);
+document.head.insertAdjacentHTML('beforeend', `<style>
+.boxghost { border: 2px dashed rgba(200,16,46,.55); background: rgba(255,255,255,.55); display: flex; align-items: center; justify-content: center; text-align: center; cursor: pointer; box-sizing: border-box; }
+.boxghost span { font: 800 13px var(--font-body); color: #8a8780; line-height: 1.3; }
+.boxghost small { font-weight: 600; font-size: 11px; }
+.boxbar label { display: inline-flex; align-items: center; gap: 3px; color: #ddd; font-size: 11.5px; font-weight: 700; }
+.boxbar input { width: 54px; padding: 3px 5px; border-radius: 6px; border: none; font: 700 12px var(--font-body); }
+</style>`);
 /* piastrella con faccia (senza scritte) e spessore; i = posto → animabile e cliccabile */
 const tileOf = (d, c, i, w, h, tiled, tf, extra) =>
   tileDiv(w, h, tf + (extra || ''), rface(d, c, i, w, h, tiled) + tileBody(d, c, i, w, h, tiled, 1), i);
@@ -329,6 +336,126 @@ function megaSlide(d, c, op) {
 }
 MODELS.slide45 = megaSlide;
 
+/* ── Box in posa: parete di fondo con la mattonella posata e, se le scegli, pavimento e pareti laterali ──
+   Posti: 0 parete di fondo, 1 pavimento, 2 parete sinistra, 3 parete destra (posto vuoto = quella superficie non c'è;
+   nel configuratore resta tratteggiata per sceglierla). Pezzi in griglia con la fuga, tagliati ai bordi, posati da terra
+   e dall'angolo. La grafica di ogni pezzo è girata o specchiata in modo diverso dai vicini: la posa non sembra fatta
+   di pezzi tutti uguali (c.box.seed cambia la disposizione). Misure in c.box: L, P, H (altezza della posa). */
+const BOX_T = 10, BOX_BAND = 20, BOX_GAP = 0.3;    // spessore delle pareti, fascia bianca sopra la posa, fuga (cm)
+const BOX_WHITE = { front: '#f3f2ee', top: '#e8e6e1', side: '#e2e0da' };
+const BOX_VAR = ['', 'rotate(180deg)', 'scaleX(-1)', 'scaleY(-1)'];
+const BOX_VAR_SQ = BOX_VAR.concat(['rotate(90deg)', 'rotate(270deg)', 'rotate(90deg) scaleX(-1)', 'rotate(90deg) scaleY(-1)']);
+// le stesse trasformazioni come matrici 2×2 [a, b, c, d] (x' = a x + b y, y' = c x + d y; y verso il basso come nel CSS)
+const BOX_M = { '': [1, 0, 0, 1], 'rotate(180deg)': [-1, 0, 0, -1], 'scaleX(-1)': [-1, 0, 0, 1], 'scaleY(-1)': [1, 0, 0, -1], 'rotate(90deg)': [0, -1, 1, 0],
+  'rotate(270deg)': [0, 1, -1, 0], 'rotate(90deg) scaleX(-1)': [0, -1, -1, 0], 'rotate(90deg) scaleY(-1)': [0, 1, 1, 0] };
+const mmul = (A, B) => [A[0] * B[0] + A[1] * B[2], A[0] * B[1] + A[1] * B[3], A[2] * B[0] + A[3] * B[2], A[2] * B[1] + A[3] * B[3]];
+/* posa di un posto: o = 'v' (lato lungo in verticale) / 'h'; off = sfalsamento tra le file (0, 1/2, 1/3);
+   tw × th = il pezzo come sta sulla superficie (larghezza × altezza; sul pavimento: lungo la larghezza × verso il fronte) */
+function boxLay(c, i) {
+  const s = SAMPLE[c.slots[i]], l = ((c.box || {}).lay || {})[i] || {};
+  const [a, z] = s && parseSize(s.z) ? sorted2(parseSize(s.z)) : [60, 60];
+  const o = l.o || (i !== 1 && z >= 200 ? 'v' : 'h');
+  const off = l.off != null ? l.off : i === 1 && z / a >= 4 ? 1 / 3 : 0;   // listoni a pavimento: sfalsati di un terzo
+  return { o, off, tw: o === 'v' ? a : z, th: o === 'v' ? z : a, sq: Math.abs(a - z) < 0.5 };
+}
+/* misure del box: finché non le cambi seguono la mattonella della parete (pezzi interi: 120×278 → 240 × 278) */
+function boxOf(c) {
+  const b = (c && c.box) || {};
+  if (b.fit === false) return { L: b.L, P: b.P, H: b.H, seed: b.seed || 1, fit: false };
+  let L = 240, H = 278;
+  if (c && SAMPLE[c.slots[0]]) { const { tw, th } = boxLay(c, 0); L = tw * Math.max(1, Math.round(240 / tw)); H = th > 280 ? th : th * Math.max(1, Math.floor(280 / th)); }
+  return { L, P: b.P || 150, H, seed: b.seed || 1, fit: true };
+}
+/* larghezza × altezza di ogni superficie */
+const boxSurf = (c, i) => { const { L, P, H } = boxOf(c); return [[L, H], [L, P], [P, H], [P, H]][i]; };
+/* pezzi della posa su una superficie W×H: file da sotto (bottom) o da sopra, colonne da destra (right) o da sinistra */
+function boxPieces(W, H, tw, th, off, bottom, right) {
+  const out = [], rows = Math.ceil(H / th - 1e-6);
+  for (let r = 0; r < rows; r++) {
+    const y0 = bottom ? H - (r + 1) * th : r * th, y1 = y0 + th, sh = off ? ((r * off) % 1) * tw : 0;
+    for (let k = 0, x = -sh; x < W - 0.01; k++, x += tw) {
+      let a = Math.max(0, x), b = Math.min(W, x + tw);
+      const c0 = Math.max(0, y0), c1 = Math.min(H, y1);
+      if (b - a < 0.3 || c1 - c0 < 0.3) continue;
+      if (right) [a, b] = [W - b, W - a];
+      out.push({ r, k, x: a, y: c0, w: b - a, h: c1 - c0, full: b - a > tw - 0.05 && c1 - c0 > th - 0.05 });
+    }
+  }
+  return out;
+}
+/* una superficie posata: contenitore (colore della fuga) con i pezzi; tf = dove sta nel box */
+function boxSurfaceHTML(c, i, W, H, tf, bottom, right, sel) {
+  const s = SAMPLE[c.slots[i]], { L } = boxOf(c);
+  const box = (cls, inner, st) => `<div class="bx${cls}" data-slot="${i}" style="width:${rn(W)}px;height:${rn(H)}px;transform:${tf};transform-style:preserve-3d;${st || ''}">${inner}</div>`;
+  const ring = sel ? `<div class="bx" style="width:${rn(W)}px;height:${rn(H)}px;box-shadow:inset 0 0 0 ${Math.max(2, L / 90)}px #c8102e;transform:translateZ(0.5px)"></div>` : '';
+  if (!s) return LITE3D ? '' : box(' empty boxghost', `<span>${esc(slotName(DISP.BOX || {}, i, 4))}<br><small>scegli la mattonella</small></span>${ring}`);
+  const lay = boxLay(c, i), { tw, th } = lay, k = photoKey(s), url = hasPhoto(s) ? imgFor(k) : null;
+  const t = backTint(s), grout = t ? `rgb(${t.split(',').map(v => Math.round(v * 0.72)).join(',')})` : '#a9a49b';
+  const turn = !!url && photoTurn(k, th > tw), r = LITE3D ? ROOM_RES : FACE_RES, g = BOX_GAP / 2;
+  const seed = boxOf(c).seed, hash = (a, b) => { let x = Math.imul(a + 1, 73856093) ^ Math.imul(b + 1, 19349663) ^ Math.imul(seed * 7 + i + 1, 83492791); x = Math.imul(x ^ (x >>> 13), 1274126177); return (x ^ (x >>> 16)) >>> 0; };
+  let ps = boxPieces(W, H, tw, th, lay.off, bottom, right);
+  if (ps.length > 600) return box('', '', `background-color:${grout};${faceBg(s, W, H, true)}`);   // formati piccolissimi: posa ripetuta, senza variare i pezzi
+  // ogni pezzo: mai uguale al pezzo accanto e a quello della fila prima, e mai il loro specchio sulla fuga in comune
+  // (si vedrebbe la "V" delle venature che si specchiano); conta come appare davvero (anche la foto girata di 90°)
+  const got = new Map(), out = [], TM = BOX_M[turn ? 'rotate(90deg)' : ''];
+  ps.forEach(p => {
+    const vars = p.full && lay.sq ? BOX_VAR_SQ : BOX_VAR, lf = got.get(p.r + '|' + (p.k - 1)), dn = got.get((p.r - 1) + '|' + p.k), bad = new Set();
+    if (lf) bad.add(lf.join()).add(mmul(BOX_M['scaleX(-1)'], lf).join());
+    if (dn) bad.add(dn.join()).add(mmul(BOX_M['scaleY(-1)'], dn).join());
+    let v = hash(p.r, p.k) % vars.length;
+    for (let n = 0; n < vars.length && bad.has(mmul(TM, BOX_M[vars[v]]).join()); n++) v = (v + 1) % vars.length;
+    got.set(p.r + '|' + p.k, mmul(TM, BOX_M[vars[v]]));
+    const w = p.w - 2 * g, h = p.h - 2 * g, fx = p.w / tw, fy = p.h / th;
+    const [ew, eh, sx, sy] = turn ? [h, w, fy, fx] : [w, h, fx, fy];     // foto girata di 90°: il pezzo si disegna coricato e si gira
+    const bg = url ? `background-image:url(${url});background-size:${rn(100 / sx)}% ${rn(100 / sy)}%;background-position:0 0;background-repeat:no-repeat;background-color:${grout}`
+      : `background:${rgb(placeholderRGB(s), (hash(p.k, p.r) % 15) - 7)}`;
+    out.push(`<div class="bx" style="width:${rn(ew * r)}px;height:${rn(eh * r)}px;${bg};transform:translate3d(${rn(p.x + g)}px,${rn(p.y + g)}px,0.1px) scale(${(1 / r).toFixed(5)}) translate(${rn(w * r / 2)}px,${rn(h * r / 2)}px)${turn ? ' rotate(90deg)' : ''} ${vars[v]} translate(${rn(-ew * r / 2)}px,${rn(-eh * r / 2)}px)"></div>`);
+  });
+  return box('', out.join('') + ring, `background-color:${grout}`);
+}
+function boxModel(d, c, op) {
+  const { L, P, H } = boxOf(c), t = BOX_T, WH = H + BOX_BAND, has = i => !!SAMPLE[c.slots[i]];
+  const wl = has(2), wr = has(3), x0 = wl ? -t : 0, x1 = L + (wr ? t : 0), cx = (x0 + x1) / 2, cz = (P - t) / 2;
+  const X = x => x - cx, Z = z => z - cz, sel = i => !LITE3D && op === i;
+  // muri bianchi del box (con la fascia sopra la posa)
+  let h = box3d(X(x0), -WH, Z(0), x1 - x0, WH, t, BOX_WHITE);
+  if (wl) h += box3d(X(-t), -WH, Z(P), t, WH, P, BOX_WHITE);
+  if (wr) h += box3d(X(L), -WH, Z(P), t, WH, P, BOX_WHITE);
+  if (has(1)) h += box3d(X(0), -1.2, Z(P), L, 1.2, P, { front: '#cdcac3', top: '#d9d6d0', side: '#c8c5be' });   // pedana del pavimento
+  // superfici posate: parete di fondo e laterali da terra e dall'angolo in fondo, pavimento dal fondo a sinistra
+  h += boxSurfaceHTML(c, 0, L, H, tr(X(0), -H, Z(0) + 0.1), true, false, sel(0));
+  h += boxSurfaceHTML(c, 1, L, P, tr(X(0), has(1) ? -1.3 : -0.3, Z(0), 'rotateX(90deg)'), false, false, sel(1));
+  h += boxSurfaceHTML(c, 2, P, H, tr(X(0) + 0.1, -H, Z(P), 'rotateY(90deg)'), true, true, sel(2));
+  h += boxSurfaceHTML(c, 3, P, H, tr(X(L) - 0.1, -H, Z(0), 'rotateY(-90deg)'), true, false, sel(3));
+  const m = { html: h, L: x1 - x0, P: P + t, H: WH, fitW: x1 - x0 };
+  if (op >= 0) m.focus = [
+    { x: X(L / 2), y: -H / 2, z: Z(0), w: L, h: H, yaw: 0, tilt: 6 },
+    { x: X(L / 2), y: -1, z: Z(P / 2), w: L, h: P, yaw: 0, tilt: 50, flatTilt: 86 },
+    { x: X(0), y: -H / 2, z: Z(P / 2), w: P, h: H, yaw: -60, flatYaw: -90, tilt: 6 },
+    { x: X(L), y: -H / 2, z: Z(P / 2), w: P, h: H, yaw: 60, flatYaw: 90, tilt: 6 },
+  ][op];
+  return m;
+}
+MODELS.box = boxModel;
+/* configuratore del box: misure, posa del posto scelto, grafiche rimescolate */
+function boxEdit(fn) { const c = comp(), cur = boxOf(c); c.box = Object.assign({}, c.box); fn(c.box, cur); touch(); renderStage(); }
+function setBoxDim(k, v) { boxEdit((b, cur) => { Object.assign(b, { fit: false, L: cur.L, P: cur.P, H: cur.H }); b[k] = Math.max(20, Math.min(1500, Math.round(+v) || cur[k])); }); }
+function fitBox() { boxEdit(b => { b.fit = true; delete b.L; delete b.H; }); toast('Misure adattate alla mattonella della parete: solo pezzi interi'); }
+function setBoxLay(i, k, v) { boxEdit(b => { b.lay = Object.assign({}, b.lay); b.lay[i] = Object.assign({}, b.lay[i], { [k]: v }); }); }
+function shuffleBox() { boxEdit(b => { b.seed = (b.seed || 1) + 1; }); toast('Grafiche dei pezzi girate in un altro modo'); }
+function boxBar(d, c, st, op) {
+  const b = boxOf(c), s = SAMPLE[c.slots[op]], lay = boxLay(c, op);
+  const btn = (txt, on, fn, tip) => `<button class="${on ? 'on' : ''}" title="${esc(tip || '')}" onclick="event.stopPropagation(); ${fn}">${txt}</button>`;
+  const num = (k, lbl, tip) => `<label title="${tip}">${lbl} <input type="number" min="20" max="1500" step="1" value="${b[k]}" onclick="event.stopPropagation()" onchange="setBoxDim('${k}', this.value)"></label>`;
+  const bar = document.createElement('div'); bar.className = 'cullabar boxbar';
+  bar.innerHTML = `<span class="g"><span class="l">Misure cm</span>${num('L', 'L', 'Larghezza della parete posata')}${num('H', 'H', 'Altezza della posa (sopra resta una fascia bianca)')}${num('P', 'P', 'Profondità del pavimento e delle pareti laterali')}
+      ${b.fit ? '' : btn('Adatta', false, 'fitBox()', 'Misure con solo pezzi interi della mattonella della parete')}</span>
+    ${s ? `<span class="g"><span class="l">${esc(slotName(d, op, c.slots.length))}</span>${lay.sq ? '' : btn('Verticale', lay.o === 'v', `setBoxLay(${op},'o','v')`, op === 1 ? 'Lato lungo verso il fronte' : 'Lato lungo in verticale') + btn('Orizzontale', lay.o === 'h', `setBoxLay(${op},'o','h')`, op === 1 ? 'Lato lungo lungo la parete' : 'Lato lungo in orizzontale')}
+      ${btn('Dritta', !lay.off, `setBoxLay(${op},'off',0)`, 'Fughe allineate')}${btn('Sfalsata ½', lay.off === 0.5, `setBoxLay(${op},'off',0.5)`, 'Ogni fila spostata di mezzo pezzo')}${btn('⅓', Math.abs(lay.off - 1 / 3) < 0.01, `setBoxLay(${op},'off',${1 / 3})`, 'Ogni fila spostata di un terzo')}</span>` : ''}
+    <span class="g">${btn('<svg class="ic"><use href="#i-sync"/></svg> Gira le grafiche', false, 'shuffleBox()', 'Ogni pezzo con la grafica girata in un altro modo')}</span>`;
+  st.appendChild(bar);
+}
+
 MODELS.rack = (d, c, op) => (d.id === 'PP2' ? rackPlanks : d.id === 'PMK' ? drawerCabinet : d.id === 'OYQ' || d.id === 'PEX' ? cartHolders : rackStack)(d, c, op);
 MODELS.grid = benchTray;
 
@@ -343,6 +470,7 @@ const GVIEWS = {
   PMV: [['front', 'Di fronte', -14, 16], ['top', "Dall'alto", 0, 88]],
   Q8T: [['front', 'Di fronte', 45, 6], ['side', 'Di sbieco', 16, 14]],
   Q8U: [['front', 'Di fronte', -45, 6], ['side', 'Di sbieco', -16, 14]],
+  BOX: [['front', 'Di fronte', 0, 6], ['pl', 'Da sinistra', -32, 16], ['pr', 'Da destra', 32, 16], ['alto', "Dall'alto", 0, 64]],
 };
 function setGView(id) {
   const v = (GVIEWS[gcam.mode] || []).find(x => x[0] === id); if (!v) return;
@@ -363,7 +491,7 @@ function renderModel3D(d, c, sc, W, H, st) {
     ? (kz => `translate3d(${W / 2}px,${H * 0.4}px,0) rotateX(${-gcam.tilt}deg) rotateY(${gcam.yaw}deg) scale3d(${kz},${kz},${kz}) translate3d(${-ov.x}px,${-ov.y}px,${-ov.z}px)`)
         ((gcam.zoom * Math.min(W * 0.8 / ov.w, H * 0.8 / (ov.d * Math.sin(ta) + ov.h * Math.cos(ta)))).toFixed(4))
     : f
-    ? (kz => `translate3d(${W / 2}px,${H * 0.5}px,0) rotateX(${gcam.view === 'top' ? -88 : -4}deg) rotateY(${f.flatYaw != null ? f.flatYaw : Math.abs(f.yaw) > 45 ? (gcam.yaw < 0 ? -88 : 88) : 0}deg) scale3d(${kz},${kz},${kz}) translate3d(${-f.x}px,${-f.y}px,${-f.z}px)`)(Math.min(H * 0.8 / f.h, W * 0.8 / f.w).toFixed(4))
+    ? (kz => `translate3d(${W / 2}px,${H * 0.5}px,0) rotateX(${f.flatTilt != null ? -f.flatTilt : gcam.view === 'top' ? -88 : -4}deg) rotateY(${f.flatYaw != null ? f.flatYaw : Math.abs(f.yaw) > 45 ? (gcam.yaw < 0 ? -88 : 88) : 0}deg) scale3d(${kz},${kz},${kz}) translate3d(${-f.x}px,${-f.y}px,${-f.z}px)`)(Math.min(H * 0.8 / f.h, W * 0.8 / f.w).toFixed(4))
     : `translate3d(${W / 2}px,${H * 0.86}px,0) rotateX(${-gcam.tilt}deg) rotateY(${gcam.yaw}deg) scale3d(${k.toFixed(4)},${k.toFixed(4)},${k.toFixed(4)})`;
   sc.innerHTML = `<div class="sw-root room-scene" id="m3d" style="transform:${camT()}">
     <div class="bx" style="width:${fw}px;height:${fd}px;background:radial-gradient(ellipse at 50% 50%, rgba(0,0,0,.26), rgba(0,0,0,0) 62%);transform:translate3d(${-fw / 2}px,0.5px,${fd / 2}px) rotateX(-90deg)"></div>${m.html}</div>`;
@@ -391,7 +519,7 @@ function renderModel3D(d, c, sc, W, H, st) {
     });
     const end = () => { s = null; setTimeout(() => { window._dragMoved = false; }, 0); };
     st.addEventListener('pointerup', end); st.addEventListener('pointercancel', end);
-    st.addEventListener('wheel', e => { if (!['book', 'drawers', 'rack', 'wall', 'grid', 'slide45'].includes(disp().mode)) return; e.preventDefault(); gcam.zoom = Math.max(0.6, Math.min(2.4, gcam.zoom * (e.deltaY < 0 ? 1.1 : 0.9))); renderStage(); }, { passive: false });
+    st.addEventListener('wheel', e => { if (!['book', 'drawers', 'rack', 'wall', 'grid', 'slide45', 'box'].includes(disp().mode)) return; e.preventDefault(); gcam.zoom = Math.max(0.6, Math.min(2.4, gcam.zoom * (e.deltaY < 0 ? 1.1 : 0.9))); renderStage(); }, { passive: false });
   }
   const sm = SAMPLE[c.slots[op]], info = document.createElement('div'); info.className = 'pageinfo';
   info.textContent = `${slotName(d, op, n)} · ${sm ? sm.s + ' ' + sm.c : 'vuoto'} — trascina per girare`;
@@ -408,4 +536,5 @@ function renderModel3D(d, c, sc, W, H, st) {
     z.onclick = e => { e.stopPropagation(); ui.zoom = !ui.zoom; saveUI(); renderStage(); };
     bar.appendChild(z); st.appendChild(bar);
   }
+  if (d.mode === 'box') boxBar(d, c, st, op);
 }

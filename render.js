@@ -91,6 +91,7 @@ async function renderRealistic() {
     if (!texCache[k]) {
       const t = new T.Texture(im); t.encoding = T.sRGBEncoding; t.anisotropy = 16; t.needsUpdate = true;
       if (rx > 1.02 || ry > 1.02) { t.wrapS = t.wrapT = T.RepeatWrapping; t.repeat.set(rx, ry); }
+      else if (rx < 0.98 || ry < 0.98) { t.repeat.set(rx, ry); t.offset.set(0, 1 - ry); }   // pezzo tagliato (box in posa)
       else if (sx < 1 || sy < 1) { t.repeat.set(sx, sy); t.offset.set((1 - sx) / 2, (1 - sy) / 2); }
       texCache[k] = t;
     }
@@ -117,7 +118,7 @@ async function renderRealistic() {
     if (url) {
       const sz = cs.backgroundSize.split(',').pop().trim().split(/\s+/);
       let rx = 1, ry = 1;
-      if (/%$/.test(sz[0]) && /%$/.test(sz[1] || '')) { rx = Math.round(100 / parseFloat(sz[0]) * 100) / 100; ry = Math.round(100 / parseFloat(sz[1]) * 100) / 100; }   // foto ripetuta
+      if (/%$/.test(sz[0]) && /%$/.test(sz[1] || '')) { rx = Math.round(100 / parseFloat(sz[0]) * 1000) / 1000; ry = Math.round(100 / parseFloat(sz[1]) * 1000) / 1000; }   // foto ripetuta (o, sotto 1, un pezzo tagliato)
       const cover = sz[0] === 'cover';
       pending.push(loadImg(url).then(im => { if (im) { mat.map = texFor(im, rx, ry, cover, w, h); mat.needsUpdate = true; } }));
       if (/retro_/.test(url) && ccol) { const c2 = ccol.c.clone(); c2.lerp(new T.Color(1, 1, 1), 0.45); mat.color = c2; }   // retro tinto col colore del davanti
