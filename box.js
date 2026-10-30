@@ -406,9 +406,10 @@ function openBoxDetail(i) {
    Si aggiunge dal pulsante "Arredi", si sceglie toccandolo e si sposta trascinandolo lungo la parete. Anche in sala mostra. */
 let bxF = null, bxShowF = (() => { try { return localStorage.getItem('vm_bx_arredi') !== '0'; } catch (e) { return true; } })();
 const BXF = {
-  lavabo: { n: 'Mobile lavabo', sub: 'sospeso, con specchio', sz: [[60, 46], [80, 46], [100, 46], [120, 46]], fins: ['bianco', 'rovere', 'noce', 'grigio', 'nero'], f: 'rovere', at: 'c' },
-  vasca: { n: 'Vasca', sub: 'a parete', sz: [[160, 75], [170, 75], [180, 80]], at: 'l' },
-  doccia: { n: 'Piatto doccia', sub: 'con vetro walk-in', sz: [[90, 90], [120, 80], [140, 90]], fins: ['bianco', 'grigio', 'nero'], f: 'bianco', at: 'r' },
+  // rw / rd: larghezza e profondità libere (da, a) in cm
+  lavabo: { n: 'Mobile lavabo', sub: 'sospeso, con specchio', sz: [[60, 46], [80, 46], [100, 46], [120, 46]], rw: [50, 240], fins: ['bianco', 'rovere', 'noce', 'grigio', 'nero'], f: 'rovere', at: 'c' },
+  vasca: { n: 'Vasca', sub: 'a parete', sz: [[160, 75], [170, 75], [180, 80]], rw: [140, 200], at: 'l' },
+  doccia: { n: 'Doccia', sub: 'piatto e box in vetro', sz: [[90, 90], [120, 80], [140, 90]], rw: [70, 200], rd: [70, 140], fins: ['bianco', 'grigio', 'nero'], f: 'bianco', at: 'r' },
   wc: { n: 'WC sospeso', sub: 'con placca', sz: [[36, 54]], fins: ['bianco', 'nero'], f: 'bianco', at: 'c' },
   bidet: { n: 'Bidet sospeso', sub: 'con miscelatore', sz: [[36, 52]], fins: ['bianco', 'nero'], f: 'bianco', at: 'c' },
   termo: { n: 'Scaldasalviette', sub: 'a parete', sz: [[50, 6]], fins: ['bianco', 'nero', 'cromo'], f: 'bianco', at: 'c' },
@@ -441,7 +442,14 @@ function bxfTf(c, it, fr) {
   if (it.wall === 3) return `translate3d(${rn(fr.X(fr.L) - 0.3)}px,${y}px,${rn(fr.Z(u - it.w / 2))}px) rotateY(-90deg)`;
   return `translate3d(${rn(fr.X(u - it.w / 2))}px,${y}px,${rn(fr.Z(0) + 0.3)}px)`;
 }
-function bxfParts(it, WH) {
+/* lati del pezzo (sinistro e destro, guardandolo di fronte) contro un muro del box: lì la doccia non ha il vetro */
+function bxfSides(c, it) {
+  const { L } = boxOf(c), has = i => !!SAMPLE[c.slots[i]], u = bxfU(c, it), back = u - it.w / 2 <= 1;
+  if (it.wall === 2) return [false, back];          // sulla parete sinistra il lato destro è quello verso il fondo
+  if (it.wall === 3) return [back, false];
+  return [back && has(2), u + it.w / 2 >= L - 1 && has(3)];
+}
+function bxfParts(it, WH, sd) {
   const { w, d } = it, fin = (BXF_FIN[it.f] || BXF_FIN.bianco)[1], cer = it.f === 'nero' ? BXF_CER_N : BXF_CER;
   if (it.t === 'lavabo') {            // cassettone sospeso, top in ceramica con il lavabo, miscelatore, specchio sopra
     const bw = Math.min(w - 16, 56), mt = Math.min(190, WH - 6), mw = Math.round(w * 0.9);
@@ -455,15 +463,26 @@ function bxfParts(it, WH) {
   if (it.t === 'vasca') return bxB(0, -56, d, w, 56, d, BXF_CER)
     + bxP(7, -56.05, d - 7, w - 14, d - 14, 'background:linear-gradient(180deg,#cdd2d5,#e4e7e9 55%,#dbdfe1);border-radius:18px', 'rotateX(-90deg)')
     + bxB(w / 2 - 4, -74, 1.6, 8, 8, 1.6, BXF_CHR) + bxB(w / 2 - 1.2, -71, 15, 2.4, 2.4, 13.4, BXF_CHR);
-  if (it.t === 'doccia') {           // piatto, piletta, vetro fisso sul davanti con la barra al muro, miscelatore e soffione
-    const tray = { grigio: { front: '#a9a7a2', top: '#b9b7b2', side: '#96948f' }, nero: BXF_CER_N }[it.f] || BXF_CER;
-    const gh = Math.min(200, WH - 8), gw = Math.round(w * 0.62), gx = it.side === 'l' ? 0 : w - gw, bx = it.side === 'l' ? gw - 1.2 : gx, hh = Math.min(205, WH - 14);
-    return bxB(0, -4, d, w, 4, d, tray)
-      + bxP(w / 2 - 14, -4.05, 13, 28, 2.6, 'background:linear-gradient(90deg,#8d9398,#c9cdd1,#8d9398)', 'rotateX(-90deg)')
-      + bxP(gx, -4 - gh, d - 1.5, gw, gh, 'background:linear-gradient(115deg,rgba(210,230,236,.34),rgba(255,255,255,.12) 42%,rgba(200,222,230,.36));border:1px solid rgba(120,140,148,.6);box-sizing:border-box;pointer-events:none')   // vetro: si tocca quello che c'è dietro
-      + bxB(bx, -4 - gh, d - 1.5, 1.2, 1.2, d - 1.5, BXF_FIN.nero[1])
-      + bxB(w / 2 - 4.5, -112, 2.2, 9, 9, 2.2, BXF_CHR)
-      + bxB(w / 2 - 1, -hh, 32, 2, 2, 32, BXF_CHR) + bxB(w / 2 - 13, -hh + 2, 45, 26, 1.2, 26, BXF_CHR);
+  if (it.t === 'doccia') {           // piatto e box doccia in vetro a misura del piatto: davanti il vetro fisso e la porta scorrevole,
+                                     // sui lati il vetro dove non c'è un muro (sd); profili neri, piletta, miscelatore e soffione
+    const tray = { grigio: { front: '#a9a7a2', top: '#b9b7b2', side: '#96948f' }, nero: BXF_CER_N }[it.f] || BXF_CER, PR = BXF_FIN.nero[1];
+    const gh = Math.min(200, WH - 8), top = -4 - gh, hh = Math.min(205, WH - 14), [wl, wr] = sd || [false, false], m = w / 2, dl = it.side === 'l';
+    // vetro: non prende i tocchi, così si tocca quello che c'è dietro
+    const GL = 'background:linear-gradient(115deg,rgba(210,230,236,.30),rgba(255,255,255,.10) 42%,rgba(200,222,230,.32));border:1px solid rgba(120,140,148,.5);box-sizing:border-box;pointer-events:none';
+    let h = bxB(0, -4, d, w, 4, d, tray)
+      + bxP(m - 14, -4.05, 13, 28, 2.6, 'background:linear-gradient(90deg,#8d9398,#c9cdd1,#8d9398)', 'rotateX(-90deg)')
+      + bxB(m - 4.5, -112, 2.2, 9, 9, 2.2, BXF_CHR)
+      + bxB(m - 1, -hh, 32, 2, 2, 32, BXF_CHR) + bxB(m - 13, -hh + 2, 45, 26, 1.2, 26, BXF_CHR);
+    // davanti: metà vetro fisso e metà porta (che scorre un po' più avanti), si sovrappongono di 4 cm; binario sopra, maniglia sulla porta
+    h += (dl ? bxP(m - 2, top, d - 1.6, w - 1.2 - (m - 2), gh, GL) + bxP(1.2, top, d - 0.4, m + 2 - 1.2, gh, GL)
+             : bxP(1.2, top, d - 1.6, m + 2 - 1.2, gh, GL) + bxP(m - 2, top, d - 0.4, w - 1.2 - (m - 2), gh, GL))
+      + bxB(0, top - 1.6, d + 0.4, w, 1.6, 2.8, PR)
+      + bxB(dl ? m - 5 : m + 3.8, top + gh * 0.4, d + 1.2, 1.2, 34, 1.4, PR)
+      + bxB(0, top, d + 0.4, 1.2, gh, 2.8, PR) + bxB(w - 1.2, top, d + 0.4, 1.2, gh, 2.8, PR);
+    // lati senza muro: vetro dal muro al davanti, con il profilo sopra
+    if (!wl) h += bxP(0.6, top, d - 1.6, d - 1.6, gh, GL, 'rotateY(90deg)') + bxB(0, top - 1.6, d - 1.6, 1.2, 1.6, d - 1.6, PR);
+    if (!wr) h += bxP(w - 0.6, top, d - 1.6, d - 1.6, gh, GL, 'rotateY(90deg)') + bxB(w - 1.2, top - 1.6, d - 1.6, 1.2, 1.6, d - 1.6, PR);
+    return h;
   }
   if (it.t === 'wc' || it.t === 'bidet') {
     const h = bxB(0, -40, d, w, 15, d, cer) + bxB(5, -25, d - 8, w - 10, 7, d - 14, cer);
@@ -488,7 +507,7 @@ function boxFurnHTML(c) {
   return fs.filter(it => BXF[it.t]).map(it => {
     const on = !LITE3D && it.id === bxF;
     const fp = on ? bxP(-1, -0.2, it.d + 1, it.w + 2, it.d + 1, 'border:1.6px dashed rgba(200,16,46,.95);background:rgba(200,16,46,.08);border-radius:3px;box-sizing:border-box', 'rotateX(-90deg)').replace('class="bx"', 'class="bx fp"') : '';
-    return `<div class="bx bxf${on ? ' on' : ''}" data-f="${it.id}" style="transform:${bxfTf(c, it, fr)};transform-style:preserve-3d">${bxfParts(it, fr.WH)}${fp}</div>`;
+    return `<div class="bx bxf${on ? ' on' : ''}" data-f="${it.id}" style="transform:${bxfTf(c, it, fr)};transform-style:preserve-3d">${bxfParts(it, fr.WH, bxfSides(c, it))}${fp}</div>`;
   }).join('');
 }
 /* posto libero lungo le pareti (o solo su quella data): angolo per vasca e doccia, centro per gli altri; i mobili delle pareti
@@ -525,10 +544,16 @@ function bxfAdd(t) {
 }
 function bxfSet(k, v) {
   const c = comp(), it = bxfMine(c).find(o => o.id === bxF); if (!it) return;
+  const len = bxfLen(c, it.wall), u0 = bxfU(c, it), atA = u0 - it.w / 2 <= 1, atB = u0 + it.w / 2 >= len - 1;   // era in un angolo?
   if (k === 'sz') { const [w, d] = v.split('x').map(Number); it.w = w; it.d = d; }
   else if (k === 'wall') { if (v !== it.wall && !bxfPlace(c, it, v)) toast('Su quella parete non c\'è un posto libero: spostalo tu dove vuoi'); }
+  else if (k === 'w' || k === 'd') {           // misura libera: dentro i limiti del pezzo e della parete
+    const [mn, mx] = BXF[it.t]['r' + k], lim = k === 'w' ? Math.min(mx, bxfLen(c, it.wall)) : mx, n = Math.round(+v) || it[k];
+    it[k] = Math.max(mn, Math.min(lim, n)); if (it[k] !== n) toast(`${k === 'w' ? 'Larghezza' : 'Profondità'} possibile: da ${mn} a ${lim} cm`);
+  }
   else if (k === 'u') it.u = +v;
   else it[k] = v;
+  if (k === 'sz' || k === 'w') it.u = atA ? it.w / 2 : atB ? len - it.w / 2 : it.u;   // cambiando la larghezza resta nel suo angolo
   it.u = Math.round(bxfU(c, it)); touch(); renderStage();
 }
 /* cursore della posizione: il mobile si sposta subito, si salva quando lo lasci */
@@ -559,15 +584,18 @@ function bxFurnBar(c, host) {
   const T = BXF[it.t], has = i => !!SAMPLE[c.slots[i]], len = bxfLen(c, it.wall);
   const seg = items => `<span class="seg">${items.map(([txt, on, fn, tip, dis]) => `<button class="${on ? 'on' : ''}"${tip ? ` title="${esc(tip)}"` : ''}${dis ? ' disabled' : ''} onclick="${fn}">${txt}</button>`).join('')}</span>`;
   const walls = [[0, 'Fondo'], [2, 'Sinistra'], [3, 'Destra']].filter(([w]) => w === 0 || has(w) || it.wall === w);
-  host.innerHTML = `<span class="g"><span class="l"><b>${esc(T.n)}</b></span>${T.sz.length > 1
-      ? seg(T.sz.map(([w, d]) => [it.t === 'doccia' ? `${w}×${d}` : `${w}`, it.w === w && it.d === d, `bxfSet('sz','${w}x${d}')`, `${w}×${d} cm`])) + ' cm'
+  // misura: scritta a mano (larghezza, e profondità per la doccia) o una di quelle pronte
+  const num = (k, lab, tip) => `<label title="${tip}">${lab}<input type="number" step="1" min="${T['r' + k][0]}" max="${T['r' + k][1]}" value="${it[k]}" onchange="bxfSet('${k}', this.value)"></label>`;
+  host.innerHTML = `<span class="g"><span class="l"><b>${esc(T.n)}</b></span>${T.rw
+      ? num('w', 'L', 'Larghezza in cm (scrivila tu)') + (T.rd ? `<span class="x">×</span>${num('d', 'P', 'Profondità in cm (scrivila tu)')}` : '') + ' cm'
+        + seg(T.sz.map(([w, d]) => [it.t === 'doccia' ? `${w}×${d}` : `${w}`, it.w === w && it.d === d, `bxfSet('sz','${w}x${d}')`, `${w}×${d} cm`]))
       : `<span class="em">${it.w}×${it.d} cm</span>`}</span>
     <span class="sep"></span>
     <span class="g"><span class="l t">Parete</span>${seg(walls.map(([w, n]) => [n, it.wall === w, `bxfSet('wall',${w})`, w === 0 ? 'Parete di fondo' : 'Parete ' + n.toLowerCase(), it.w > bxfLen(c, w)]))}</span>
     <span class="g"><span class="l t">Posizione</span><input type="range" class="rg" min="${it.w / 2}" max="${Math.max(it.w / 2, len - it.w / 2)}" step="1" value="${bxfU(c, it)}" oninput="bxfSlide(this.value)" onchange="bxfSet('u', this.value)" title="Sposta lungo la parete (o trascina il mobile)"></span>
     ${T.fins ? `<span class="sep"></span><span class="g"><span class="l t">Finitura</span>${seg(T.fins.map(f => [`<i class="fsw" style="background:${BXF_FIN[f][1].front}"></i><span class="t">${BXF_FIN[f][0]}</span>`, it.f === f, `bxfSet('f','${f}')`, BXF_FIN[f][0]]))}</span>` : ''}
-    ${it.t === 'lavabo' ? seg([['Specchio', it.mir !== false, `bxfSet('mir',${it.mir === false})`, 'Specchio sopra il lavabo']]) : ''}
-    ${it.t === 'doccia' ? `<span class="g"><span class="l t">Vetro</span>${seg([['a sinistra', it.side === 'l', `bxfSet('side','l')`], ['a destra', it.side !== 'l', `bxfSet('side','r')`]])}</span>` : ''}
+    ${it.t === 'lavabo' ? seg([['Con specchio', it.mir !== false, `bxfSet('mir',true)`, 'Specchio sopra il lavabo'], ['Senza', it.mir === false, `bxfSet('mir',false)`, 'Niente specchio: si vede tutta la posa']]) : ''}
+    ${it.t === 'doccia' ? seg([['Porta a sinistra', it.side === 'l', `bxfSet('side','l')`, 'Porta scorrevole a sinistra'], ['a destra', it.side !== 'l', `bxfSet('side','r')`, 'Porta scorrevole a destra']]) : ''}
     <span class="sp"></span>
     <button class="bt" onclick="bxfDup()" title="Un altro uguale"><svg class="ic"><use href="#i-copy"/></svg><span class="t"> Duplica</span></button>
     <button class="bt" onclick="bxfDel()" title="Togli questo arredo (Canc)"><svg class="ic"><use href="#i-trash"/></svg><span class="t"> Togli</span></button>
