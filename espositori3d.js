@@ -485,6 +485,38 @@ function setGView(id) {
   const v = (GVIEWS[gcam.mode] || []).find(x => x[0] === id); if (!v) return;
   gcam.view = id; gcam.yaw = v[2]; gcam.tilt = v[3]; renderStage();
 }
+/* box: telecamera che inquadra sempre tutto il box al centro dello spazio libero (tra la scritta in alto e i pulsanti in basso),
+   con la prospettiva vera della scena: si proiettano gli 8 spigoli e si aggiustano scala e posizione */
+function boxFrame(m, W, H, st) {
+  const ya = gcam.yaw * Math.PI / 180, ta = gcam.tilt * Math.PI / 180, cy = Math.cos(ya), sy = Math.sin(ya), ct = Math.cos(ta), stt = Math.sin(ta);
+  const pts = [];
+  for (const x of [-m.L / 2, m.L / 2]) for (const y of [-m.H, 0]) for (const z of [-m.P / 2, m.P / 2]) {
+    const z1 = -x * sy + z * cy;
+    pts.push([x * cy + z * sy, y * ct + z1 * stt, -y * stt + z1 * ct]);
+  }
+  if (!st._persp || st._persp.W !== W || st._persp.H !== H) {
+    const cs = getComputedStyle(st), o = cs.perspectiveOrigin.split(' ').map(parseFloat);
+    st._persp = { W, H, D: parseFloat(cs.perspective) || 1800, ox: isNaN(o[0]) ? W / 2 : o[0], oy: isNaN(o[1]) ? H * 0.35 : o[1] };
+  }
+  const { D, ox, oy } = st._persp, top = 44, bot = W < 720 ? 58 : 66, aw = W * 0.86, ah = Math.max(80, H - top - bot) * 0.9, tx = W / 2, ty = top + Math.max(80, H - top - bot) / 2;
+  const ext = (k, X, Y, persp) => {
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    pts.forEach(([x, y, z]) => {
+      const f = persp ? D / Math.max(D * 0.2, D - k * z) : 1, px = ox + (X + k * x - ox) * f, py = oy + (Y + k * y - oy) * f;
+      x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py);
+    });
+    return { w: x1 - x0, h: y1 - y0, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 };
+  };
+  let e = ext(1, 0, 0, false), k = Math.min(aw / Math.max(1, e.w), ah / Math.max(1, e.h)), X = tx - k * e.cx, Y = ty - k * e.cy;
+  for (let i = 0; i < 4; i++) {   // la prospettiva ingrandisce ciò che è vicino: si corregge in pochi passi
+    e = ext(k, X, Y, true);
+    const s = Math.min(aw / Math.max(1, e.w), ah / Math.max(1, e.h));
+    X = tx + (X - tx) * s; Y = ty + (Y - ty) * s; k *= s;
+    e = ext(k, X, Y, true); X += tx - e.cx; Y += ty - e.cy;
+  }
+  const z = gcam.zoom; k *= z; X = tx - (tx - X) * z; Y = ty - (ty - Y) * z;   // zoom attorno al centro della vista
+  return `translate3d(${X.toFixed(1)}px,${Y.toFixed(1)}px,0) rotateX(${-gcam.tilt}deg) rotateY(${gcam.yaw}deg) scale3d(${k.toFixed(4)},${k.toFixed(4)},${k.toFixed(4)})`;
+}
 function renderModel3D(d, c, sc, W, H, st) {
   const n = c.slots.length, op = Math.max(0, Math.min(n - 1, selSlot)), views = GVIEWS[d.id];
   if (gcam.mode !== d.id) {
@@ -501,7 +533,9 @@ function renderModel3D(d, c, sc, W, H, st) {
         ((gcam.zoom * Math.min(W * 0.8 / ov.w, H * 0.8 / (ov.d * Math.sin(ta) + ov.h * Math.cos(ta)))).toFixed(4))
     : f
     ? (kz => `translate3d(${W / 2}px,${H * 0.5}px,0) rotateX(${f.flatTilt != null ? -f.flatTilt : gcam.view === 'top' ? -88 : -4}deg) rotateY(${f.flatYaw != null ? f.flatYaw : Math.abs(f.yaw) > 45 ? (gcam.yaw < 0 ? -88 : 88) : 0}deg) scale3d(${kz},${kz},${kz}) translate3d(${-f.x}px,${-f.y}px,${-f.z}px)`)((Math.min(H * 0.8 / f.h, W * 0.8 / f.w) * (big ? gcam.zoom : 1)).toFixed(4))
-    : `translate3d(${W / 2}px,${H * (big ? 0.88 : 0.86)}px,0) rotateX(${-gcam.tilt}deg) rotateY(${gcam.yaw}deg) scale3d(${k.toFixed(4)},${k.toFixed(4)},${k.toFixed(4)})`;
+    : big ? boxFrame(m, W, H, st)
+    : `translate3d(${W / 2}px,${H * 0.86}px,0) rotateX(${-gcam.tilt}deg) rotateY(${gcam.yaw}deg) scale3d(${k.toFixed(4)},${k.toFixed(4)},${k.toFixed(4)})`;
+  st._cam = big && !f ? camT : null;   // box: anche mentre si trascina resta inquadrato al centro
   sc.innerHTML = `<div class="sw-root room-scene" id="m3d" style="transform:${camT()}">
     <div class="bx" style="width:${fw}px;height:${fd}px;background:radial-gradient(ellipse at 50% 50%, rgba(0,0,0,.26), rgba(0,0,0,0) 62%);transform:translate3d(${-fw / 2}px,0.5px,${fd / 2}px) rotateX(-90deg)"></div>${m.html}</div>`;
   const token = ++gToken;
@@ -524,7 +558,7 @@ function renderModel3D(d, c, sc, W, H, st) {
       if (!s.moved && Math.hypot(dx, dy) < 5) return;
       s.moved = true; window._dragMoved = true; gcam.view = null;
       gcam.yaw = Math.max(-80, Math.min(80, s.yaw + dx * 0.4)); gcam.tilt = Math.max(0, Math.min(90, s.tilt + dy * 0.3));
-      const r = root(); if (r) { r.style.transition = 'none'; r.style.transform = r.style.transform.replace(/rotateX\([^)]*\) rotateY\([^)]*\)/, `rotateX(${-gcam.tilt}deg) rotateY(${gcam.yaw}deg)`); }
+      const r = root(); if (r) { r.style.transition = 'none'; r.style.transform = st._cam ? st._cam() : r.style.transform.replace(/rotateX\([^)]*\) rotateY\([^)]*\)/, `rotateX(${-gcam.tilt}deg) rotateY(${gcam.yaw}deg)`); }
     });
     const end = () => { s = null; setTimeout(() => { window._dragMoved = false; }, 0); };
     st.addEventListener('pointerup', end); st.addEventListener('pointercancel', end);
