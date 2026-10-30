@@ -114,6 +114,16 @@ body[data-studio="box"] .bxdraw-h { display: flex; align-items: center; gap: 8px
   body[data-view="config"][data-studio="box"] aside.side { top: auto; height: 80vh; width: 100%; border-radius: 16px 16px 0 0; transform: translateY(102%); }
 }
 /* dettaglio del materiale */
+/* il piano della scena (trasparente, a metà profondità del box) non deve coprire i tocchi sulla metà dietro: fondo e mobili */
+body[data-studio="box"] #scene, body[data-studio="box"] #scene .sw-root { pointer-events: none; }
+body[data-studio="box"] #scene .bx { pointer-events: auto; }
+/* arredo bagno */
+.bxf { cursor: grab; }
+.bxf.on > .bx:not(.fp) { box-shadow: inset 0 0 0 .9px rgba(200,16,46,.9); }
+.bxtools .fsw { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(0,0,0,.18); flex: none; }
+.bxtools input.rg { width: 130px; padding: 0; border: none; background: none; accent-color: var(--red); }
+.bxmenu .hd { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--mid); padding: 6px 10px 4px; }
+.bxmenu small { margin-left: auto; padding-left: 14px; color: var(--mid); font-weight: 500; font-size: 11.5px; }
 .bxdet { position: fixed; inset: 0; z-index: 400; background: #121214; display: flex; flex-direction: column; color: #fff; }
 .bxdet .top { display: flex; align-items: center; gap: 12px; padding: 10px 14px 10px 18px; border-bottom: 1px solid rgba(255,255,255,.08); flex: none; }
 .bxdet .ttl { flex: 1; min-width: 0; }
@@ -171,12 +181,12 @@ function renderBoxGrid() {
     `<div class="card ccard newcard" onclick="bxNew()"><svg class="ic"><use href="#i-plus"/></svg> Nuovo box</div>`;
 }
 function bxCardHTML(c) {
-  const cl = clients[c.client], b = boxOf(c), names = DISP[c.disp].slotNames || [], n = c.slots.filter(k => SAMPLE[k]).length;
+  const cl = clients[c.client], b = boxOf(c), names = DISP[c.disp].slotNames || [], n = c.slots.filter(k => SAMPLE[k]).length, nf = ((c.box && c.box.furn) || []).length;
   const surf = c.slots.map((k, i) => { const s = SAMPLE[k]; return s ? `<div><i style="${swatchStyle(s)}"></i><span><small>${esc(names[i] || '')}</small> · ${esc(s.s)} ${esc(s.c)} <small>${esc(fmt(s.z))}</small></span></div>` : ''; }).join('');
   return `<div class="card ccard bx-card" onclick="bxOpen('${c.id}')">
     <div class="bx-th">${bxThumb(c)}</div>
     <div class="in"><h3>${esc(c.name)}</h3>
-      <div class="sub">${cl ? esc(cl.name) : 'Senza cliente'} · ${b.L}×${b.H} cm · ${n} di ${c.slots.length} superfici</div>
+      <div class="sub">${cl ? esc(cl.name) : 'Senza cliente'} · ${b.L}×${b.H} cm · ${n} di ${c.slots.length} superfici${nf ? ` · ${nf} ${nf === 1 ? 'arredo' : 'arredi'}` : ''}</div>
       <div class="bx-surf">${surf || '<div><i></i><span><small>Ancora nessun materiale</small></span></div>'}</div>
       <div class="bx-acts"><button class="btn red" onclick="event.stopPropagation(); bxOpen('${c.id}')">Apri</button>
         <button class="btn" title="Duplica il box" onclick="event.stopPropagation(); bxDup('${c.id}')"><svg class="ic"><use href="#i-copy"/></svg></button>
@@ -236,12 +246,13 @@ function renderBoxHead() {
       <input class="nm" id="bxName" title="Nome del box" oninput="renameComp(this.value)">
       <span class="who" id="bxWho"></span><span class="sp"></span>
       <button class="tb" onclick="bxDrawer(!document.body.classList.contains('bxpick'))" title="Materiali della superficie scelta"><svg class="ic"><use href="#i-tiles"/></svg><span class="lbl2"> Materiali</span></button>
+      <button class="tb" onclick="bxFurnMenu(this)" title="Arredo bagno: mobile lavabo, vasca, doccia, sanitari"><svg class="ic"><use href="#i-bath"/></svg><span class="lbl2"> Arredi</span></button>
       <button class="tb" onclick="pasteCodes()" title="Incolla i codici: vanno nelle superfici vuote (fondo, pavimento, sinistra, destra)"><svg class="ic"><use href="#i-paste"/></svg><span class="lbl2"> Incolla codici</span></button>
       <button class="tb" onclick="exportSchedaPDF()" title="Scheda PDF del box con i materiali"><svg class="ic"><use href="#i-download"/></svg><span class="lbl2"> Scheda PDF</span></button>
       <button class="tb on" onclick="compPlaceDialog()" title="Metti il box nella sala mostra di un cliente"><svg class="ic"><use href="#i-store"/></svg><span class="lbl2"> Metti in sala mostra</span></button>
       <button class="tb" onclick="bxPresent()" title="Vista a schermo intero"><svg class="ic"><use href="#i-maximize"/></svg></button>
       <button class="tb" onclick="bxMenu(this)" title="Altre azioni"><svg class="ic"><use href="#i-more"/></svg></button>`;
-    bxDrawer(!c.slots[selSlot]);                    // box nuovo: si parte scegliendo il materiale della parete di fondo
+    bxF = null; bxDrawer(!c.slots[selSlot]);        // box nuovo: si parte scegliendo il materiale della parete di fondo
   }
   const back = rt === '#/box' ? 'Box' : rt.startsWith('#/salamostra/') ? 'Sala mostra' : rt.startsWith('#/ambiente/') ? 'Ambientazione'
     : rt.startsWith('#/pacchetti/') ? 'Pacchetto' : cl ? cl.name : 'Box';
@@ -259,28 +270,30 @@ function bxDrawer(open) {
   document.body.classList.toggle('bxpick', !!open);
   if (open && ui.tab !== 'pick') setTab('pick');
 }
-function bxMenu(btn) {
+/* menu a comparsa sotto un pulsante della riga in alto: act riceve i data- del pulsante scelto */
+function bxPop(btn, html, act) {
   document.querySelector('.bxmenu')?.remove();
-  const m = document.createElement('div'); m.className = 'bxmenu';
-  m.innerHTML = `<button data-a="copy"><svg class="ic"><use href="#i-copy"/></svg> Copia codici per l'ordine</button>
-    <button data-a="pack"><svg class="ic"><use href="#i-box"/></svg> Aggiungi a un pacchetto</button>
-    <button data-a="dup"><svg class="ic"><use href="#i-copy"/></svg> Duplica il box</button><hr>
-    <button data-a="clear"><svg class="ic"><use href="#i-undo"/></svg> Togli tutti i materiali</button>
-    <button data-a="del" class="red"><svg class="ic"><use href="#i-trash"/></svg> Elimina il box</button>`;
+  const m = document.createElement('div'); m.className = 'bxmenu'; m.innerHTML = html;
   document.body.appendChild(m);
   const r = btn.getBoundingClientRect();
   m.style.top = (r.bottom + 6) + 'px'; m.style.left = Math.max(8, Math.min(window.innerWidth - m.offsetWidth - 8, r.right - m.offsetWidth)) + 'px';
   const close = () => { m.remove(); document.removeEventListener('pointerdown', out, true); };
   const out = e => { if (!m.contains(e.target)) close(); };
   setTimeout(() => document.addEventListener('pointerdown', out, true), 0);
-  m.onclick = async e => {
-    const a = e.target.closest('button')?.dataset.a; if (!a) return; close();
+  m.onclick = e => { const b = e.target.closest('button'); if (!b) return; close(); act(b.dataset); };
+}
+function bxMenu(btn) {
+  bxPop(btn, `<button data-a="copy"><svg class="ic"><use href="#i-copy"/></svg> Copia codici per l'ordine</button>
+    <button data-a="pack"><svg class="ic"><use href="#i-box"/></svg> Aggiungi a un pacchetto</button>
+    <button data-a="dup"><svg class="ic"><use href="#i-copy"/></svg> Duplica il box</button><hr>
+    <button data-a="clear"><svg class="ic"><use href="#i-undo"/></svg> Togli tutti i materiali</button>
+    <button data-a="del" class="red"><svg class="ic"><use href="#i-trash"/></svg> Elimina il box</button>`, async ({ a }) => {
     if (a === 'copy') copyCodes();
     if (a === 'pack') compToPackDialog();
     if (a === 'dup') { dupComp(); document.getElementById('bxHead').dataset.cid = ''; renderToolbar(); toast('Box duplicato: ora stai lavorando sulla copia'); }
     if (a === 'clear') clearComp();
     if (a === 'del' && await bxDel(comp().id)) { ui.returnTo = ui.returnTo || (ctxClient() ? '' : '#/box'); bxClose(); }
-  };
+  });
 }
 function bxPresent() {
   const st = document.getElementById('stage');
@@ -300,9 +313,12 @@ document.addEventListener('fullscreenchange', () => { if (document.body.dataset.
   }).observe(st);
 })();
 document.addEventListener('keydown', e => {
+  const studio = document.body.dataset.view === 'config' && document.body.dataset.studio === 'box' && !document.querySelector('.modal.open');
+  if ((e.key === 'Delete' || e.key === 'Backspace') && studio && bxF && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) { e.preventDefault(); bxfDel(); return; }
   if (e.key !== 'Escape') return;
   const det = document.querySelector('.bxdet'); if (det) { det._close(); return; }
-  if (document.body.dataset.view === 'config' && document.body.dataset.studio === 'box' && document.body.classList.contains('bxpick') && !document.querySelector('.modal.open')) bxDrawer(false);
+  if (studio && bxF) { bxfPick(null); return; }
+  if (studio && document.body.classList.contains('bxpick')) bxDrawer(false);
 });
 
 /* ── dettaglio del materiale: la mattonella (la foto vera, nitida) o la posa della superficie, da ingrandire ── */
@@ -383,3 +399,210 @@ function openBoxDetail(i) {
   o.querySelector('.cl').onclick = o._close;
   show(url ? 'pezzo' : 'posa');
 }
+
+/* ── arredo bagno: mobili in 3D, in scala vera (cm), appoggiati a una parete del box (c.box.furn) ──
+   Ogni pezzo: { id, t, wall (0 fondo, 2 sinistra, 3 destra), u (centro lungo la parete: da sinistra sul fondo, dal fondo sulle
+   laterali), w × d (larghezza lungo la parete × sporgenza), f (finitura), mir (specchio del lavabo), side (lato del vetro della doccia) }.
+   Si aggiunge dal pulsante "Arredi", si sceglie toccandolo e si sposta trascinandolo lungo la parete. Anche in sala mostra. */
+let bxF = null, bxShowF = (() => { try { return localStorage.getItem('vm_bx_arredi') !== '0'; } catch (e) { return true; } })();
+const BXF = {
+  lavabo: { n: 'Mobile lavabo', sub: 'sospeso, con specchio', sz: [[60, 46], [80, 46], [100, 46], [120, 46]], fins: ['bianco', 'rovere', 'noce', 'grigio', 'nero'], f: 'rovere', at: 'c' },
+  vasca: { n: 'Vasca', sub: 'a parete', sz: [[160, 75], [170, 75], [180, 80]], at: 'l' },
+  doccia: { n: 'Piatto doccia', sub: 'con vetro walk-in', sz: [[90, 90], [120, 80], [140, 90]], fins: ['bianco', 'grigio', 'nero'], f: 'bianco', at: 'r' },
+  wc: { n: 'WC sospeso', sub: 'con placca', sz: [[36, 54]], fins: ['bianco', 'nero'], f: 'bianco', at: 'c' },
+  bidet: { n: 'Bidet sospeso', sub: 'con miscelatore', sz: [[36, 52]], fins: ['bianco', 'nero'], f: 'bianco', at: 'c' },
+  termo: { n: 'Scaldasalviette', sub: 'a parete', sz: [[50, 6]], fins: ['bianco', 'nero', 'cromo'], f: 'bianco', at: 'c' },
+};
+const BXF_FIN = {
+  bianco: ['Bianco', { front: '#f3f1ec', top: '#f9f8f5', side: '#dfdcd5' }],
+  rovere: ['Rovere', { front: 'linear-gradient(90deg,#c8a87d,#b8966a 22%,#c9aa80 47%,#b28e62 74%,#c4a378)', top: '#cdae85', side: '#a6845b' }],
+  noce: ['Noce', { front: 'linear-gradient(90deg,#7c5b40,#684a33 30%,#80603f 58%,#634630)', top: '#856546', side: '#57402c' }],
+  grigio: ['Grigio', { front: '#a3a19b', top: '#b1afa9', side: '#8d8b85' }],
+  nero: ['Nero', { front: '#2c2c2e', top: '#3a3a3d', side: '#1f1f21' }],
+  cromo: ['Cromo', { front: 'linear-gradient(90deg,#9aa0a5,#eef0f2 45%,#a5aaaf)', top: '#d8dbde', side: '#8e9398' }],
+};
+const BXF_CER = { front: '#fbfbfa', top: '#ffffff', side: '#e5e4e0' }, BXF_CER_N = { front: '#303032', top: '#3d3d40', side: '#242426' };
+const BXF_CHR = { front: 'linear-gradient(90deg,#8f959a,#f1f3f4 50%,#9ba1a6)', top: '#e2e4e6', side: '#8a9095' };
+const BXF_MIR = { front: 'linear-gradient(155deg,#dfe7ea 0%,#c9d4d8 36%,#f2f6f7 50%,#c4cfd3 100%)', top: '#c2c8cb', side: '#a9afb2' };
+const bxB = (x, y, z, w, h, d, col) => box3d(rn(x), rn(y), rn(z), rn(w), rn(h), rn(d), col);
+const bxP = (x, y, z, w, h, css, tf) => `<div class="bx" style="width:${rn(w)}px;height:${rn(h)}px;${css};transform:translate3d(${rn(x)}px,${rn(y)}px,${rn(z)}px)${tf ? ' ' + tf : ''}"></div>`;
+/* il box come lo disegna boxModel: centro, filo del pavimento, altezza dei muri */
+function bxfFrame(c) {
+  const { L, P, H } = boxOf(c), t = BOX_T, has = i => !!SAMPLE[c.slots[i]];
+  const x0 = has(2) ? -t : 0, x1 = L + (has(3) ? t : 0), cx = (x0 + x1) / 2, cz = (P - t) / 2;
+  return { L, P, WH: H + BOX_BAND, X: x => x - cx, Z: z => z - cz, yF: has(1) ? -1.35 : -0.35 };
+}
+const bxfLen = (c, wall) => { const { L, P } = boxOf(c); return wall === 0 ? L : P; };
+const bxfU = (c, it) => Math.max(it.w / 2, Math.min(bxfLen(c, it.wall) - it.w / 2, it.u));
+/* il pezzo si disegna con la schiena sul muro (z = 0 sul muro, z = d il davanti) e poi si porta sulla sua parete */
+function bxfTf(c, it, fr) {
+  fr = fr || bxfFrame(c); const u = bxfU(c, it), y = rn(fr.yF);
+  if (it.wall === 2) return `translate3d(${rn(fr.X(0) + 0.3)}px,${y}px,${rn(fr.Z(u + it.w / 2))}px) rotateY(90deg)`;
+  if (it.wall === 3) return `translate3d(${rn(fr.X(fr.L) - 0.3)}px,${y}px,${rn(fr.Z(u - it.w / 2))}px) rotateY(-90deg)`;
+  return `translate3d(${rn(fr.X(u - it.w / 2))}px,${y}px,${rn(fr.Z(0) + 0.3)}px)`;
+}
+function bxfParts(it, WH) {
+  const { w, d } = it, fin = (BXF_FIN[it.f] || BXF_FIN.bianco)[1], cer = it.f === 'nero' ? BXF_CER_N : BXF_CER;
+  if (it.t === 'lavabo') {            // cassettone sospeso, top in ceramica con il lavabo, miscelatore, specchio sopra
+    const bw = Math.min(w - 16, 56), mt = Math.min(190, WH - 6), mw = Math.round(w * 0.9);
+    return bxB(0.5, -73, d - 1.5, w - 1, 41, d - 2, fin)
+      + bxP(1.5, -53, d - 1.45, w - 3, 0.6, 'background:rgba(0,0,0,.32)') + bxP(1.5, -72.6, d - 1.45, w - 3, 1.6, 'background:rgba(0,0,0,.2)')
+      + bxB(0, -85, d, w, 12, d, BXF_CER)
+      + bxP((w - bw) / 2, -85.05, d - 6, bw, 31, 'background:radial-gradient(ellipse at 50% 45%,#c3c9cc,#dce0e2 55%,#eceeef);border-radius:8px', 'rotateX(-90deg)')
+      + bxB(w / 2 - 1.3, -100, 7, 2.6, 15, 2.6, BXF_CHR) + bxB(w / 2 - 1, -100, 16, 2, 2, 9, BXF_CHR)
+      + (it.mir !== false && mt - 98 >= 25 ? bxB((w - mw) / 2, -mt, 2.5, mw, mt - 98, 2, BXF_MIR) : '');
+  }
+  if (it.t === 'vasca') return bxB(0, -56, d, w, 56, d, BXF_CER)
+    + bxP(7, -56.05, d - 7, w - 14, d - 14, 'background:linear-gradient(180deg,#cdd2d5,#e4e7e9 55%,#dbdfe1);border-radius:18px', 'rotateX(-90deg)')
+    + bxB(w / 2 - 4, -74, 1.6, 8, 8, 1.6, BXF_CHR) + bxB(w / 2 - 1.2, -71, 15, 2.4, 2.4, 13.4, BXF_CHR);
+  if (it.t === 'doccia') {           // piatto, piletta, vetro fisso sul davanti con la barra al muro, miscelatore e soffione
+    const tray = { grigio: { front: '#a9a7a2', top: '#b9b7b2', side: '#96948f' }, nero: BXF_CER_N }[it.f] || BXF_CER;
+    const gh = Math.min(200, WH - 8), gw = Math.round(w * 0.62), gx = it.side === 'l' ? 0 : w - gw, bx = it.side === 'l' ? gw - 1.2 : gx, hh = Math.min(205, WH - 14);
+    return bxB(0, -4, d, w, 4, d, tray)
+      + bxP(w / 2 - 14, -4.05, 13, 28, 2.6, 'background:linear-gradient(90deg,#8d9398,#c9cdd1,#8d9398)', 'rotateX(-90deg)')
+      + bxP(gx, -4 - gh, d - 1.5, gw, gh, 'background:linear-gradient(115deg,rgba(210,230,236,.34),rgba(255,255,255,.12) 42%,rgba(200,222,230,.36));border:1px solid rgba(120,140,148,.6);box-sizing:border-box;pointer-events:none')   // vetro: si tocca quello che c'è dietro
+      + bxB(bx, -4 - gh, d - 1.5, 1.2, 1.2, d - 1.5, BXF_FIN.nero[1])
+      + bxB(w / 2 - 4.5, -112, 2.2, 9, 9, 2.2, BXF_CHR)
+      + bxB(w / 2 - 1, -hh, 32, 2, 2, 32, BXF_CHR) + bxB(w / 2 - 13, -hh + 2, 45, 26, 1.2, 26, BXF_CHR);
+  }
+  if (it.t === 'wc' || it.t === 'bidet') {
+    const h = bxB(0, -40, d, w, 15, d, cer) + bxB(5, -25, d - 8, w - 10, 7, d - 14, cer);
+    if (it.t === 'wc') {
+      const pt = Math.min(110, WH - 22);
+      return h + bxB(0.3, -41.6, d - 0.3, w - 0.6, 1.6, d - 3, it.f === 'nero' ? { front: '#3a3a3d', top: '#454548', side: '#2c2c2e' } : { front: '#fdfdfc', top: '#ffffff', side: '#eceae6' })
+        + bxP(w / 2 - 11, -pt, 0.7, 22, 15, `background:${it.f === 'nero' ? '#2c2c2e' : 'linear-gradient(180deg,#fafafa,#e6e6e6)'};box-shadow:inset 0 0 0 1px rgba(0,0,0,.14);border-radius:1.5px`)
+        + bxP(w / 2 - 0.3, -pt + 2, 0.75, 0.6, 11, 'background:rgba(120,120,120,.5)');
+    }
+    return h + bxP(5, -40.05, d - 5, w - 10, d - 18, `background:${it.f === 'nero' ? 'radial-gradient(ellipse at 50% 55%,#1b1b1d,#2a2a2c 70%)' : 'radial-gradient(ellipse at 50% 55%,#c4c9cc,#dce0e2 60%,#eceeef)'};border-radius:10px`, 'rotateX(-90deg)')
+      + bxB(w / 2 - 1.2, -48, 7, 2.4, 8, 2.4, BXF_CHR) + bxB(w / 2 - 1, -48, 12, 2, 2, 5, BXF_CHR);
+  }
+  const th = Math.max(40, Math.min(120, WH - 40)), y0 = -20 - th;     // scaldasalviette: due montanti e i tubi
+  let h = bxB(0, y0, 6, 3, th, 3, fin) + bxB(w - 3, y0, 6, 3, th, 3, fin);
+  for (let y = y0 + 4; y < -23; y += 9) h += bxB(3, y, 5.5, w - 6, 1.8, 2, fin);
+  return h;
+}
+/* chiamata da boxModel: nel configuratore il pezzo scelto ha i bordi rossi e l'impronta tratteggiata a terra */
+function boxFurnHTML(c) {
+  const fs = (c.box && c.box.furn) || []; if (!fs.length || (!LITE3D && !bxShowF)) return '';
+  const fr = bxfFrame(c);
+  return fs.filter(it => BXF[it.t]).map(it => {
+    const on = !LITE3D && it.id === bxF;
+    const fp = on ? bxP(-1, -0.2, it.d + 1, it.w + 2, it.d + 1, 'border:1.6px dashed rgba(200,16,46,.95);background:rgba(200,16,46,.08);border-radius:3px;box-sizing:border-box', 'rotateX(-90deg)').replace('class="bx"', 'class="bx fp"') : '';
+    return `<div class="bx bxf${on ? ' on' : ''}" data-f="${it.id}" style="transform:${bxfTf(c, it, fr)};transform-style:preserve-3d">${bxfParts(it, fr.WH)}${fp}</div>`;
+  }).join('');
+}
+/* posto libero lungo le pareti (o solo su quella data): angolo per vasca e doccia, centro per gli altri; i mobili delle pareti
+   accanto occupano l'angolo con la loro sporgenza */
+function bxfPlace(c, it, only) {
+  const { L } = boxOf(c), has = i => !!SAMPLE[c.slots[i]], all = ((c.box && c.box.furn) || []).filter(o => o.id !== it.id);
+  const walls = only != null ? [only] : [0, 2, 3].filter(w => w === 0 || has(w)), at = BXF[it.t].at;
+  for (const wl of walls) {
+    const len = bxfLen(c, wl); if (it.w > len) continue;
+    const busy = all.filter(o => o.wall === wl).map(o => [bxfU(c, o) - o.w / 2 - 6, bxfU(c, o) + o.w / 2 + 6]);
+    if (wl === 0) all.forEach(o => { if (o.wall !== 0 && bxfU(c, o) - o.w / 2 < it.d) busy.push(o.wall === 2 ? [-1, o.d + 4] : [L - o.d - 4, L + 1]); });
+    else all.forEach(o => { if (o.wall === 0 && (wl === 2 ? bxfU(c, o) - o.w / 2 < it.d : bxfU(c, o) + o.w / 2 > L - it.d)) busy.push([-1, o.d + 4]); });
+    const key = u => at === 'c' ? Math.abs(u - len / 2) : wl !== 0 || at === 'l' ? u : -u;
+    const cands = [len / 2, len - it.w / 2]; for (let u = it.w / 2; u <= len - it.w / 2; u += 5) cands.push(u);
+    const u = cands.sort((a, b) => key(a) - key(b)).find(u => busy.every(([a, b]) => u + it.w / 2 <= a || u - it.w / 2 >= b));
+    if (u != null) { it.wall = wl; it.u = u; return true; }
+  }
+  if (only != null) { it.wall = only; it.u = bxfU(c, it); } else { it.wall = 0; it.u = L / 2; }
+  return false;
+}
+/* i pezzi del box di adesso, copiati prima di cambiarli (un box duplicato non deve cambiare con questo) */
+function bxfMine(c) { c.box = Object.assign({}, c.box); c.box.furn = ((c.box.furn) || []).map(o => Object.assign({}, o)); return c.box.furn; }
+const bxfCur = c => ((c.box && c.box.furn) || []).find(o => o.id === bxF);
+const bxfNewId = () => 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+function bxfShow(on) { bxShowF = on; try { localStorage.setItem('vm_bx_arredi', on ? '1' : '0'); } catch (e) {} if (!on) bxF = null; renderStage(); }
+function bxfPick(id) { bxF = id; if (id) document.body.classList.remove('bxpick'); renderStage(); }
+function bxfAdd(t) {
+  const c = comp(), T = BXF[t], [w, d] = T.sz[Math.min(1, T.sz.length - 1)];
+  const it = { id: bxfNewId(), t, w, d, wall: 0, u: 0 }; if (T.f) it.f = T.f; if (t === 'doccia') it.side = 'r';
+  const ok = bxfPlace(c, it); bxfMine(c).push(it);
+  bxF = it.id; bxShowF = true; try { localStorage.setItem('vm_bx_arredi', '1'); } catch (e) {}
+  document.body.classList.remove('bxpick'); touch(); renderStage();
+  toast(ok ? `${T.n}: trascinalo per spostarlo lungo la parete` : `${T.n}: non c'era più spazio libero, l'ho messo al centro della parete di fondo`);
+}
+function bxfSet(k, v) {
+  const c = comp(), it = bxfMine(c).find(o => o.id === bxF); if (!it) return;
+  if (k === 'sz') { const [w, d] = v.split('x').map(Number); it.w = w; it.d = d; }
+  else if (k === 'wall') { if (v !== it.wall && !bxfPlace(c, it, v)) toast('Su quella parete non c\'è un posto libero: spostalo tu dove vuoi'); }
+  else if (k === 'u') it.u = +v;
+  else it[k] = v;
+  it.u = Math.round(bxfU(c, it)); touch(); renderStage();
+}
+/* cursore della posizione: il mobile si sposta subito, si salva quando lo lasci */
+function bxfSlide(v) {
+  const c = comp(), it = bxfCur(c); if (!it) return;
+  const el = document.querySelector(`#m3d [data-f="${it.id}"]`); if (el) el.style.transform = bxfTf(c, Object.assign({}, it, { u: +v }));
+}
+function bxfDel() { const c = comp(); c.box = Object.assign({}, c.box, { furn: ((c.box && c.box.furn) || []).filter(o => o.id !== bxF) }); bxF = null; touch(); renderStage(); }
+function bxfDup() {
+  const c = comp(), o = bxfCur(c); if (!o) return;
+  const it = Object.assign({}, o, { id: bxfNewId() });
+  if (!bxfPlace(c, it, o.wall) && !bxfPlace(c, it)) toast('Non c\'era più spazio libero: spostalo dove vuoi');
+  bxfMine(c).push(it); bxF = it.id; touch(); renderStage();
+}
+function bxFurnMenu(btn) {
+  const n = ((comp().box || {}).furn || []).length;
+  bxPop(btn, `<div class="hd">Arredo bagno</div>` + Object.entries(BXF).map(([t, T]) => `<button data-t="${t}"><svg class="ic"><use href="#i-plus"/></svg> ${T.n}<small>${T.sub}</small></button>`).join('')
+    + (n ? `<hr><button data-a="show"><svg class="ic"><use href="#i-${bxShowF ? 'x' : 'check'}"/></svg> ${bxShowF ? 'Nascondi gli arredi' : 'Mostra gli arredi'}<small>per vedere la posa</small></button>
+      <button data-a="clear" class="red"><svg class="ic"><use href="#i-trash"/></svg> Togli tutti gli arredi</button>` : ''), async ({ t, a }) => {
+    if (t) bxfAdd(t);
+    if (a === 'show') bxfShow(!bxShowF);
+    if (a === 'clear' && await ask('Togliere tutti gli arredi da questo box?')) { const c = comp(); c.box = Object.assign({}, c.box, { furn: [] }); bxF = null; touch(); renderStage(); }
+  });
+}
+/* striscia sottile del pezzo scelto (al posto di misure e posa): misura, parete, posizione, finitura */
+function bxFurnBar(c, host) {
+  const it = bxShowF && bxfCur(c); if (!it || !BXF[it.t]) { bxF = null; return false; }
+  const T = BXF[it.t], has = i => !!SAMPLE[c.slots[i]], len = bxfLen(c, it.wall);
+  const seg = items => `<span class="seg">${items.map(([txt, on, fn, tip, dis]) => `<button class="${on ? 'on' : ''}"${tip ? ` title="${esc(tip)}"` : ''}${dis ? ' disabled' : ''} onclick="${fn}">${txt}</button>`).join('')}</span>`;
+  const walls = [[0, 'Fondo'], [2, 'Sinistra'], [3, 'Destra']].filter(([w]) => w === 0 || has(w) || it.wall === w);
+  host.innerHTML = `<span class="g"><span class="l"><b>${esc(T.n)}</b></span>${T.sz.length > 1
+      ? seg(T.sz.map(([w, d]) => [it.t === 'doccia' ? `${w}×${d}` : `${w}`, it.w === w && it.d === d, `bxfSet('sz','${w}x${d}')`, `${w}×${d} cm`])) + ' cm'
+      : `<span class="em">${it.w}×${it.d} cm</span>`}</span>
+    <span class="sep"></span>
+    <span class="g"><span class="l t">Parete</span>${seg(walls.map(([w, n]) => [n, it.wall === w, `bxfSet('wall',${w})`, w === 0 ? 'Parete di fondo' : 'Parete ' + n.toLowerCase(), it.w > bxfLen(c, w)]))}</span>
+    <span class="g"><span class="l t">Posizione</span><input type="range" class="rg" min="${it.w / 2}" max="${Math.max(it.w / 2, len - it.w / 2)}" step="1" value="${bxfU(c, it)}" oninput="bxfSlide(this.value)" onchange="bxfSet('u', this.value)" title="Sposta lungo la parete (o trascina il mobile)"></span>
+    ${T.fins ? `<span class="sep"></span><span class="g"><span class="l t">Finitura</span>${seg(T.fins.map(f => [`<i class="fsw" style="background:${BXF_FIN[f][1].front}"></i><span class="t">${BXF_FIN[f][0]}</span>`, it.f === f, `bxfSet('f','${f}')`, BXF_FIN[f][0]]))}</span>` : ''}
+    ${it.t === 'lavabo' ? seg([['Specchio', it.mir !== false, `bxfSet('mir',${it.mir === false})`, 'Specchio sopra il lavabo']]) : ''}
+    ${it.t === 'doccia' ? `<span class="g"><span class="l t">Vetro</span>${seg([['a sinistra', it.side === 'l', `bxfSet('side','l')`], ['a destra', it.side !== 'l', `bxfSet('side','r')`]])}</span>` : ''}
+    <span class="sp"></span>
+    <button class="bt" onclick="bxfDup()" title="Un altro uguale"><svg class="ic"><use href="#i-copy"/></svg><span class="t"> Duplica</span></button>
+    <button class="bt" onclick="bxfDel()" title="Togli questo arredo (Canc)"><svg class="ic"><use href="#i-trash"/></svg><span class="t"> Togli</span></button>
+    <button class="bt dk" onclick="bxfPick(null)" title="Torna alle superfici (Esc)"><svg class="ic"><use href="#i-check"/></svg> Fatto</button>`;
+  const inf = document.querySelector('#stage .pageinfo');
+  if (inf) inf.textContent = `${T.n} ${it.t === 'doccia' ? it.w + '×' + it.d : it.w} cm — trascinalo per spostarlo lungo la parete`;
+  return true;
+}
+/* tocco su un mobile: lo sceglie; trascinandolo scorre lungo la sua parete (la direzione si misura sullo schermo, con la telecamera di adesso) */
+(() => {
+  const st = document.getElementById('stage'); if (!st) return;
+  let dr = null;
+  st.addEventListener('pointerdown', e => {
+    const el = e.target.closest('.bxf'); if (!el || e.button > 0 || document.body.dataset.studio !== 'box') return;
+    const c = comp(), it = ((c.box && c.box.furn) || []).find(o => o.id === el.dataset.f); if (!it) return;
+    const u0 = bxfU(c, it), s = u0 + 10 <= bxfLen(c, it.wall) - it.w / 2 ? 10 : -10, t0 = el.style.transform, p0 = el.getBoundingClientRect();
+    el.style.transform = bxfTf(c, Object.assign({}, it, { u: u0 + s })); const p1 = el.getBoundingClientRect(); el.style.transform = t0;
+    let ax = (p1.left - p0.left) / s, ay = (p1.top - p0.top) / s;
+    const k = +((document.getElementById('m3d') || {}).style.transform.match(/scale3d\(([\d.]+)/) || [0, 1])[1], mn = 0.35 * k, ln = Math.hypot(ax, ay);
+    if (ln < mn) { if (ln < 1e-3) { ax = mn; ay = 0; } else { ax *= mn / ln; ay *= mn / ln; } }   // parete vista di taglio: si trascina comunque
+    dr = { el, id: it.id, x: e.clientX, y: e.clientY, u0, ax, ay, moved: false };
+  });
+  st.addEventListener('pointermove', e => {
+    if (!dr) return;
+    const dx = e.clientX - dr.x, dy = e.clientY - dr.y;
+    if (!dr.moved) { if (Math.hypot(dx, dy) < 4) return; dr.moved = true; window._dragMoved = true; bxfMine(comp()); try { st.setPointerCapture(e.pointerId); } catch (er) {} }
+    const c = comp(), it = c.box.furn.find(o => o.id === dr.id); if (!it) return;
+    it.u = bxfU(c, Object.assign({}, it, { u: dr.u0 + (dx * dr.ax + dy * dr.ay) / (dr.ax * dr.ax + dr.ay * dr.ay) }));
+    dr.el.style.transform = bxfTf(c, it);
+    const rg = document.querySelector('#bxTools .rg'); if (rg && bxF === dr.id) rg.value = it.u;
+  });
+  const end = () => {
+    if (!dr) return; const d = dr; dr = null;
+    if (d.moved) { const it = (comp().box.furn || []).find(o => o.id === d.id); if (it) it.u = Math.round(it.u); touch(); setTimeout(() => { window._dragMoved = false; }, 0); }
+    bxF = d.id; document.body.classList.remove('bxpick'); renderStage();
+  };
+  st.addEventListener('pointerup', end); st.addEventListener('pointercancel', end);
+})();

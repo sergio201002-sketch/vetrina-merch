@@ -427,6 +427,7 @@ function boxModel(d, c, op) {
   h += boxSurfaceHTML(c, 1, L, P, tr(X(0), has(1) ? -1.3 : -0.3, Z(0), 'rotateX(90deg)'), false, false, sel(1));
   h += boxSurfaceHTML(c, 2, P, H, tr(X(0) + 0.1, -H, Z(P), 'rotateY(90deg)'), true, true, sel(2));
   h += boxSurfaceHTML(c, 3, P, H, tr(X(L) - 0.1, -H, Z(0), 'rotateY(-90deg)'), true, false, sel(3));
+  if (typeof boxFurnHTML === 'function') h += boxFurnHTML(c);   // arredo bagno (box.js)
   const m = { html: h, L: x1 - x0, P: P + t, H: WH, fitW: x1 - x0 };
   if (op >= 0) m.focus = [
     { x: X(L / 2), y: -H / 2, z: Z(0), w: L, h: H, yaw: 0, tilt: 6 },
@@ -446,6 +447,7 @@ function shuffleBox() { boxEdit(b => { b.seed = (b.seed || 1) + 1; }); toast('Gr
 /* striscia sottile sopra la vista (box.js): misure, posa della superficie scelta, materiale, grafiche, dettaglio */
 function boxBar(d, c, st, op) {
   const host = document.getElementById('bxTools'); if (!host) return;
+  if (typeof bxFurnBar === 'function' && bxFurnBar(c, host)) return;   // un arredo scelto: la striscia è sua
   const b = boxOf(c), s = SAMPLE[c.slots[op]], lay = boxLay(c, op), fk = document.activeElement && document.activeElement.dataset.bk;
   const seg = items => `<span class="seg">${items.map(([txt, on, fn, tip]) => `<button class="${on ? 'on' : ''}" title="${esc(tip)}" onclick="${fn}">${txt}</button>`).join('')}</span>`;
   const num = (k, tip) => `<label title="${tip}">${k}<input type="number" min="20" max="1500" step="1" data-bk="${k}" value="${b[k]}" onchange="setBoxDim('${k}', this.value)"></label>`;
@@ -551,7 +553,7 @@ function renderModel3D(d, c, sc, W, H, st) {
     st._orbit = true;
     let s = null;
     const root = () => document.getElementById('m3d');
-    st.addEventListener('pointerdown', e => { if (e.target.closest('.nav,.pageinfo,.ctrlbar,.eyebtn')) return; s = { x: e.clientX, y: e.clientY, yaw: gcam.yaw, tilt: gcam.tilt, moved: false }; });
+    st.addEventListener('pointerdown', e => { if (e.target.closest('.nav,.pageinfo,.ctrlbar,.eyebtn,.bxf')) return; s = { x: e.clientX, y: e.clientY, yaw: gcam.yaw, tilt: gcam.tilt, moved: false }; });
     st.addEventListener('pointermove', e => {
       if (!s) return;
       const dx = e.clientX - s.x, dy = e.clientY - s.y;
