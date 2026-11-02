@@ -220,6 +220,11 @@ def load_products():
     return products
 
 
+# pezzi speciali del listino (mosaici…) che entrano lo stesso nella vetrina, come i fondi: il colore prende il nome
+# del pezzo ("Perla Mosaico Provenzale Evo"), così la sua foto non si confonde con quella del fondo liscio
+EXTRA_CODES = {'ENVH'}
+
+
 def build_samples(products):
     """Un campione = marca + serie + colore + formato (finiture e codici raggruppati)."""
     groups = {}
@@ -247,7 +252,8 @@ def build_samples(products):
     alias = {}
     gorder = {}                                                  # ordine delle grafiche di ogni serie, come nel listino
     for p in products:
-        if p.get('type') != 'fondo':
+        extra = p.get('code') in EXTRA_CODES
+        if p.get('type') != 'fondo' and not extra:
             continue
         brand = BRAND_NAMES.get(p['brand'], p['brand'].title())
         series = (p.get('series') or '').strip()
@@ -262,7 +268,7 @@ def build_samples(products):
                 color = (color + ' ' + sub.title()).strip()
         elif p.get('series') in graf and sub:
             color = (graf[p['series']][sub] + ' ' + color).strip()
-        elif sub and (p.get('series'), color, p.get('size')) in plain and sub.lower() not in color.lower():
+        elif sub and ((p.get('series'), color, p.get('size')) in plain or extra) and sub.lower() not in color.lower():
             color = (color + ' ' + sub.title()).strip()
         if not series or not size:
             continue

@@ -365,7 +365,7 @@ function boxOf(c) {
   if (b.fit === false) return Object.assign({ L: b.L, P, H: b.H, seed: b.seed || 1, fit: false }, side);
   let L = 240, H = 278;
   if (c && SAMPLE[c.slots[0]]) { const { tw, th } = boxLay(c, 0); L = tw * Math.max(1, Math.round(240 / tw)); H = th > 280 ? th : th * Math.max(1, Math.floor(280 / th)); }
-  return Object.assign({ L, P, H, seed: b.seed || 1, fit: true }, side);
+  return Object.assign({ L: +L.toFixed(1), P, H: +H.toFixed(1), seed: b.seed || 1, fit: true }, side);   // 33,2 × 7 = 232,4 (non 232,40000000000003)
 }
 /* profondità di tutto il box: il pavimento o la parete laterale più lunga (nel configuratore anche quella ancora vuota) */
 const boxDeep = (c, b) => Math.max(b.P, SAMPLE[c.slots[2]] || !LITE3D ? b.P2 : 0, SAMPLE[c.slots[3]] || !LITE3D ? b.P3 : 0);
