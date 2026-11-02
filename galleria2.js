@@ -140,8 +140,9 @@ function renderGallery2Home() {
 /* completezza di una serie in tutta la sala mostra del cliente: colori che ha / colori del listino */
 function g2Complete(all, b, s) {
   const has = new Set(), tot = new Set();
-  all.forEach(c => c.slots.forEach(k => { const x = k && SAMPLE[k]; if (x && x.b === b && x.s === s) has.add(glCid(x)); }));
-  SAMPLES.forEach(x => { if (x.b === b && x.s === s && !x.toz) tot.add(glCid(x)); });
+  // i pezzi speciali (s.sp, es. il mosaico Provenzale) non sono colori della serie: non contano né mancano
+  all.forEach(c => c.slots.forEach(k => { const x = k && SAMPLE[k]; if (x && x.b === b && x.s === s && !x.sp) has.add(glCid(x)); }));
+  SAMPLES.forEach(x => { if (x.b === b && x.s === s && !x.toz && !x.sp) tot.add(glCid(x)); });
   has.forEach(c => tot.add(c));
   return { has: has.size, tot: tot.size };
 }
@@ -386,7 +387,7 @@ function g2Families(names) {
 function g2SeriesGroups(b, s) {
   const byC = new Map();
   SAMPLES.forEach(x => {
-    if (x.b !== b || x.s !== s || x.toz) return;
+    if (x.b !== b || x.s !== s || x.toz || x.sp) return;
     const e = byC.get(glCid(x)) || { c: x.c, id: glCid(x), list: [], g: x.g || '', gi: x.gi || 0 };
     e.list.push(x); byC.set(glCid(x), e);
   });
@@ -586,7 +587,7 @@ function g2DetRender() { if (document.getElementById('g2dMain')) g2dShow(); }
 function g2dAllMissing() {
   const g = g2DetCtx.allSeries.find(x => g2Key(x.b, x.s) === g2dSel.k), p = g2Prop(g2DetCtx.cid);
   const own = new Set(); g2DetCtx.allC.forEach(c => c.slots.forEach(k => { const x = k && SAMPLE[k]; if (x && x.b === g.b && x.s === g.s) own.add(glCid(x)); }));
-  const byC = new Map(); SAMPLES.forEach(x => { if (x.b === g.b && x.s === g.s && !x.toz && !own.has(glCid(x))) { if (!byC.has(glCid(x))) byC.set(glCid(x), []); byC.get(glCid(x)).push(x); } });
+  const byC = new Map(); SAMPLES.forEach(x => { if (x.b === g.b && x.s === g.s && !x.toz && !x.sp && !own.has(glCid(x))) { if (!byC.has(glCid(x))) byC.set(glCid(x), []); byC.get(glCid(x)).push(x); } });
   let n = 0; byC.forEach(l => { if (l.some(x => p.includes(x.key))) return; p.push((l.find(x => x.z === '60x120') || l[0]).key); n++; });
   clients[g2DetCtx.cid].upd = Date.now(); saveClients(); g2dShow();
   toast(n ? `${n} colori aggiunti alla proposta` : 'Erano già tutti nella proposta');

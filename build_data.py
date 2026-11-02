@@ -280,6 +280,8 @@ def build_samples(products):
                 alias.setdefault(broken, set()).add('|'.join([brand, series, color, size]))
         key = '|'.join([brand, series, color, size])
         g = groups.setdefault(key, dict(b=brand, s=series, c=color, z=size, f=[], k=[], t=[]))
+        if extra:                                                # pezzo speciale: non è un colore della serie (niente mancanti né tozzetto)
+            g['sp'] = 1
         if p.get('code') in CONTINUOUS:
             g['cont'] = 1
         if sub and '' in subs.get(p.get('series'), set()):       # decoro (Dune, Rilievi, Onde…): la serie ha anche i fondi lisci

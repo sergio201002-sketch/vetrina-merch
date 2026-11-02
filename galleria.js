@@ -134,7 +134,7 @@ function addMissingColors(g, all) {
   const zc = {}; g.items.forEach(x => { zc[x.s.z] = (zc[x.s.z] || 0) + 1; });
   const zPref = Object.keys(zc).sort((a, b) => zc[b] - zc[a])[0];
   const byColor = new Map();
-  SAMPLES.filter(x => x.b === g.b && x.s === g.s && !x.toz && !here.has(glCid(x))).forEach(x => {
+  SAMPLES.filter(x => x.b === g.b && x.s === g.s && !x.toz && !x.sp && !here.has(glCid(x))).forEach(x => {   // pezzi speciali: mai tra i mancanti
     const cur = byColor.get(glCid(x)), score = (x.z === zPref ? 2 : 0) + (hasPhoto(x) ? 1 : 0);
     if (!cur || score > cur.score) byColor.set(glCid(x), { s: x, score });
   });
@@ -363,7 +363,7 @@ async function glExportPDF(cid, scope, withMissing) {
     const zs = new Set(g.items.filter(x => !x.s.toz).flatMap(x => x.sizes || [x.s.z]));
     const byC = new Map();
     SAMPLES.forEach(x => {
-      if (x.b !== g.b || x.s !== g.s || x.toz || !zs.has(x.z) || ownAll.has(glCid(x))) return;
+      if (x.b !== g.b || x.s !== g.s || x.toz || x.sp || !zs.has(x.z) || ownAll.has(glCid(x))) return;
       const e = byC.get(glCid(x)) || { s: x, missing: true, mz: [] };
       if (!e.mz.includes(x.z)) e.mz.push(x.z);
       if (!hasPhoto(e.s) && hasPhoto(x)) e.s = x;

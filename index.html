@@ -614,8 +614,9 @@ const SAMPLE = Object.fromEntries(SAMPLES.map(s => [s.key, s]));
 const TOZ = '19,5x29,5 tozzetto';
 
 /* Campioni "tozzetto": uno per ogni prodotto da cui si ricava (marca+serie+colore+formato),
-   con la foto e i codici di quel formato (es. PIGMENTO Verde Salvia da 60×120 cardboard e da 120×278) */
-const TOZ_SAMPLES = SAMPLES.map(s => ({ b: s.b, s: s.s, c: s.c, z: TOZ, f: s.f.slice(), k: s.k.slice(), t: s.t.slice(),
+   con la foto e i codici di quel formato (es. PIGMENTO Verde Salvia da 60×120 cardboard e da 120×278); i pezzi speciali (s.sp,
+   es. il mosaico Provenzale) no */
+const TOZ_SAMPLES = SAMPLES.filter(s => !s.sp).map(s => ({ b: s.b, s: s.s, c: s.c, z: TOZ, f: s.f.slice(), k: s.k.slice(), t: s.t.slice(),
   key: s.key + '|' + TOZ, ik: s.ik, pkey: s.key, toz: true, from: [s.z] }));
 TOZ_SAMPLES.forEach(s => SAMPLE[s.key] = s);
 /* Varianti per codice: un campione con più codici d'ordine (es. 60×120 Silktech R10 / Silktech Plus R11, oppure la stessa
