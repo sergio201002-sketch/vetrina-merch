@@ -166,6 +166,7 @@ function renderBoxes() {
       <input class="search" id="bxQ" placeholder="Cerca box, cliente, materiale…" value="${esc(bxQ)}">
       <select class="tb bx-sel" id="bxCl"><option value="">Tutti i clienti</option><option value="-"${bxCl === '-' ? ' selected' : ''}>Senza cliente</option>
         ${cls.map(id => `<option value="${id}"${bxCl === id ? ' selected' : ''}>${esc(clients[id].name)}</option>`).join('')}</select>
+      <button class="btn" onclick="bxProposta()" title="Proposta PDF come i progetti (A3) con i box dell'elenco: scegli prima il cliente"><svg class="ic"><use href="#i-clipboard"/></svg> Proposta PDF</button>
       <button class="btn red" onclick="bxNew()"><svg class="ic"><use href="#i-plus"/></svg> Nuovo box</button></div>
     <div class="bx-intro">La mattonella posata come in negozio: parete di fondo, pavimento e, se vuoi, le pareti laterali.
       Apri un box per sceglierne materiali e posa, guardarlo da ogni lato e avvicinarti al materiale.</div>
@@ -174,11 +175,22 @@ function renderBoxes() {
   document.getElementById('bxCl').onchange = e => { bxCl = e.target.value; renderBoxGrid(); };
   renderBoxGrid();
 }
-function renderBoxGrid() {
+/* i box che si vedono nell'elenco (cliente scelto e ricerca) */
+function bxListed() {
   const q = bxQ.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const txt = c => [c.name, clients[c.client] ? clients[c.client].name : 'senza cliente', ...c.slots.map(k => SAMPLE[k] ? `${SAMPLE[k].s} ${SAMPLE[k].c} ${SAMPLE[k].z}` : '')].join(' ').toLowerCase();
-  const list = bxAll().filter(c => (!bxCl || (bxCl === '-' ? !clients[c.client] : c.client === bxCl)) && q.every(w => txt(c).includes(w)))
+  return bxAll().filter(c => (!bxCl || (bxCl === '-' ? !clients[c.client] : c.client === bxCl)) && q.every(w => txt(c).includes(w)))
     .sort((a, b) => (b.upd || 0) - (a.upd || 0));
+}
+/* proposta con i box dell'elenco, dal più vecchio (come sono stati fatti) */
+function bxProposta() {
+  const list = bxListed().filter(c => c.slots.some(k => SAMPLE[k])).reverse();
+  if (!list.length) return toast("Nessun box con materiali nell'elenco");
+  if (!bxCl && new Set(list.map(c => c.client || '')).size > 1) return toast('Scegli prima il cliente: la proposta è per un cliente');
+  exportProposta(list);
+}
+function renderBoxGrid() {
+  const list = bxListed();
   document.getElementById('bxGrid').innerHTML = list.map(bxCardHTML).join('') +
     `<div class="card ccard newcard" onclick="bxNew()"><svg class="ic"><use href="#i-plus"/></svg> Nuovo box</div>`;
 }
@@ -252,6 +264,7 @@ function renderBoxHead() {
       <button class="tb" id="bxLock" onclick="bxfEdit(!bxFEdit)"></button>
       <button class="tb" onclick="pasteCodes()" title="Incolla i codici: vanno nelle superfici vuote (fondo, pavimento, sinistra, destra)"><svg class="ic"><use href="#i-paste"/></svg><span class="lbl2"> Incolla codici</span></button>
       <button class="tb" onclick="exportSchedaPDF()" title="Scheda PDF del box con i materiali"><svg class="ic"><use href="#i-download"/></svg><span class="lbl2"> Scheda PDF</span></button>
+      <button class="tb" onclick="exportProposta([comp()])" title="Proposta PDF come i progetti (A3): copertina col cliente, render del box con i numeri sulle superfici e i prodotti"><svg class="ic"><use href="#i-clipboard"/></svg><span class="lbl2"> Proposta</span></button>
       <button class="tb on" onclick="compPlaceDialog()" title="Metti il box nella sala mostra di un cliente"><svg class="ic"><use href="#i-store"/></svg><span class="lbl2"> Metti in sala mostra</span></button>
       <button class="tb" onclick="bxPresent()" title="Vista a schermo intero"><svg class="ic"><use href="#i-maximize"/></svg></button>
       <button class="tb" onclick="bxMenu(this)" title="Altre azioni"><svg class="ic"><use href="#i-more"/></svg></button>`;

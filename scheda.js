@@ -121,8 +121,10 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .sch-wait { position: fixed; inset: 0; z-index: 600; background: rgba(10,10,12,.82); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 15px; }
 </style>`);
 
-/* due render dell'espositore da due angolazioni (davanti-sinistra e davanti-destra), con luce e ombre */
-async function renderDisplayViews(c, views) {
+/* due render dell'espositore da due angolazioni (davanti-sinistra e davanti-destra), con luce e ombre.
+   opt: bg = sfondo (bianco: a terra solo l'ombra), size = [larghezza, altezza] in px, marks = dove mettere i numeri delle
+   superfici del box (out.marks: per ogni vista [{ s posto, x, y }] in frazioni dell'immagine, in un punto che si vede) */
+async function renderDisplayViews(c, views, opt = {}) {
   await loadThree();
   const T = window.THREE;
   const it = { id: 'sch_' + c.id, comp: c.id, disp: c.disp, x: 0, z: 0, rot: 0 };
@@ -135,7 +137,7 @@ async function renderDisplayViews(c, views) {
   document.body.appendChild(host);
   try {
     const FLIP = new DOMMatrix().scale(1, -1, 1);
-    const scene = new T.Scene(); scene.background = new T.Color('#f3f2ef');
+    const scene = new T.Scene(); scene.background = new T.Color(opt.bg || '#f3f2ef');
     const imgs = {}, pending = [];
     const loadImg = url => imgs[url] || (imgs[url] = new Promise(r => { const im = new Image(); im.onload = () => r(im); im.onerror = () => r(null); im.src = url; }));
     const rev = {}; [window.FOTO_ROOM, window.FOTO_GAL, window.FOTO_MINI].forEach(mp => Object.entries(mp || {}).forEach(([o, v]) => { rev[v] = o; }));
@@ -184,7 +186,7 @@ async function renderDisplayViews(c, views) {
     const box = new T.Box3().setFromObject(scene), ctr = box.getCenter(new T.Vector3()), size = box.getSize(new T.Vector3());
     const R = Math.max(size.x, size.y, size.z);
     // pavimento chiaro con ombra morbida
-    const floor = new T.Mesh(new T.PlaneGeometry(R * 12, R * 12), new T.MeshStandardMaterial({ color: new T.Color(0xeeece8).convertSRGBToLinear(), roughness: 0.9 }));
+    const floor = new T.Mesh(new T.PlaneGeometry(R * 12, R * 12), opt.bg ? new T.ShadowMaterial({ opacity: 0.16 }) : new T.MeshStandardMaterial({ color: new T.Color(0xeeece8).convertSRGBToLinear(), roughness: 0.9 }));
     floor.rotation.x = -Math.PI / 2; floor.position.set(ctr.x, box.min.y - 0.2, ctr.z); floor.receiveShadow = true; scene.add(floor);
     scene.add(new T.HemisphereLight(0xffffff, 0xb9b4aa, 0.75));
     const key = new T.DirectionalLight(0xfff6ec, 0.85);
@@ -193,14 +195,26 @@ async function renderDisplayViews(c, views) {
     const sc = key.shadow.camera; sc.left = sc.bottom = -R * 1.4; sc.right = sc.top = R * 1.4; sc.near = 1; sc.far = R * 6;
     scene.add(key, key.target);
     const fill = new T.DirectionalLight(0xffffff, 0.35); fill.position.set(ctr.x + R, box.max.y + R, ctr.z + R * 1.5); scene.add(fill);
-    const Wpx = 1620, Hpx = 1200;
+    const [Wpx, Hpx] = opt.size || [1620, 1200];
     const rdr = new T.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     rdr.setPixelRatio(1); rdr.setSize(Wpx, Hpx);
     rdr.shadowMap.enabled = true; rdr.shadowMap.type = T.PCFSoftShadowMap;
     rdr.outputEncoding = T.sRGBEncoding; rdr.toneMapping = T.ACESFilmicToneMapping; rdr.toneMappingExposure = 1.15;
     scene.environment = showroomEnv(T, rdr);
     const cam = new T.PerspectiveCamera(28, Wpx / Hpx, 1, R * 40);
-    const out = [];
+    const out = []; out.marks = [];
+    // numeri del box: per ogni superficie posata (anche ogni fascia) alcuni punti, dal preferito (in alto sulle pareti, verso il
+    // davanti sul pavimento); si usa il primo che non è coperto da un arredo
+    const meshes = scene.children.filter(o => o.isMesh && o !== floor), ray = new T.Raycaster();
+    const spots = opt.marks ? [...root.querySelectorAll('[data-slot]')].filter(el => !el.classList.contains('empty') && el.offsetWidth > 1).map(el => {
+      const s = +el.dataset.slot, w = el.offsetWidth, h = el.offsetHeight, M = FLIP.multiply(relMatrix(el, root));
+      const at = s === 1 ? [[0.5, 0.62], [0.5, 0.82], [0.25, 0.72], [0.75, 0.72], [0.5, 0.4]] : [[0.5, 0.28], [0.5, 0.16], [0.3, 0.28], [0.7, 0.28], [0.5, 0.5]];
+      return { s, pts: at.map(([fx, fy]) => { const q = M.transformPoint(new DOMPoint(w * fx, h * fy, 0.1)); return new T.Vector3(q.x, q.y, q.z); }) };
+    }) : [];
+    const markOf = cam => spots.map(sp => {
+      const ok = sp.pts.find(v => { const d = v.distanceTo(cam.position); ray.set(cam.position, v.clone().sub(cam.position).normalize()); const hit = ray.intersectObjects(meshes, false)[0]; return !hit || hit.distance > d - 2; }) || sp.pts[0];
+      const q = ok.clone().project(cam); return { s: sp.s, x: (q.x + 1) / 2, y: (1 - q.y) / 2 };
+    });
     const corners = [];
     for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) corners.push(new T.Vector3(x, y, z));
     for (const [yaw, pitch, flat] of views) {
@@ -215,7 +229,7 @@ async function renderDisplayViews(c, views) {
         const asp = hw / hh; rdr.setSize(asp >= 1 ? Wpx : Math.round(Wpx * asp), asp >= 1 ? Math.round(Wpx / asp) : Wpx);
         oc.left = cx - hw; oc.right = cx + hw; oc.top = cy + hh; oc.bottom = cy - hh; oc.updateProjectionMatrix();
         rdr.render(scene, oc);
-        out.push(rdr.domElement.toDataURL('image/jpeg', 0.9));
+        out.push(rdr.domElement.toDataURL('image/jpeg', 0.9)); out.marks.push(markOf(oc));
         rdr.setSize(Wpx, Hpx);
         continue;
       }
@@ -225,7 +239,7 @@ async function renderDisplayViews(c, views) {
       for (let k = 0; k < 28; k++) { const mid = (lo + hi) / 2; place(mid); if (fits()) hi = mid; else lo = mid; }
       place(hi);
       rdr.render(scene, cam);
-      out.push(rdr.domElement.toDataURL('image/jpeg', 0.9));
+      out.push(rdr.domElement.toDataURL('image/jpeg', opt.bg ? 0.92 : 0.9)); out.marks.push(markOf(cam));
     }
     rdr.dispose(); scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } });
     return out;
@@ -625,8 +639,13 @@ async function schMakePDF(el, real, name, wait, title) {
     }
   } catch (e) { console.error(e); el.classList.remove('pdfpass'); el.style.cssText = ''; return false; }
   el.classList.remove('pdfpass'); el.style.cssText = '';
-  const blob = pdf.output('blob'), url = URL.createObjectURL(blob);
   wait.remove();
+  return schDeliver(pdf, name, title);
+}
+/* il PDF fatto: sul computer si scarica, sul telefono si condivide (Salva su File, WhatsApp…) con un tocco */
+function schDeliver(pdf, name, title) {
+  const blob = pdf.output('blob'), url = URL.createObjectURL(blob);
+  const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
   const download = () => { const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); };
   if (!mobile) { download(); toast('PDF scaricato: ' + name); return true; }
   // telefono: condividi (Salva su File, WhatsApp…) con un tocco
@@ -647,4 +666,98 @@ async function schMakePDF(el, real, name, wait, title) {
   o.querySelector('#pdfOpen').onclick = () => { window.open(url, '_blank') || download(); };
   o.querySelector('#pdfNo').onclick = () => o.remove();
   return true;
+}
+
+/* ── Proposta PDF (a parte dalla scheda), come i progetti dell'ufficio tecnico: A3 orizzontale, copertina con il cliente e
+   la data, poi una pagina per box con il render, i numeri sulle superfici e l'elenco dei prodotti numerati ── */
+const PROP_NOTE = ["IL PRESENTE PROGETTO HA IL SOLO SCOPO DI FAR VISUALIZZARE ESTETICAMENTE L'ALLESTIMENTO DEGLI SPAZI.",
+  "LA VERIFICA DELLA CORRISPONDENZA DELLE STRUTTURE FISSE (MURI, CARTONGESSI, PARETI ATTREZZATE ECC. ECC.) ALLE NORMATIVE IN MATERIA DI SICUREZZA E DELLA COMPATIBILITÀ DELLE STESSE ALLE TIPOLOGIE DI ESPOSITORI",
+  'PROPOSTE DA EMILCERAMICA È A ESCLUSIVO CARICO DEL CLIENTE.',
+  "IL CLIENTE, QUINDI, SI ASSUME OGNI RESPONSABILITÀ IN ORDINE ALL'ESECUZIONE DEI LAVORI E ALLA CORRISPONDENZA DEGLI STESSI ALLE NORME IN MATERIA DI SICUREZZA, ESONERANDO EMILCERAMICA DA OGNI POSSIBILE RESPONSABILITÀ."];
+const PROP_INK = [35, 31, 32], PROP_RED = [124, 6, 18];
+/* i prodotti del box, ognuno una volta: pareti (fondo, sinistra, destra; le fasce da sinistra a destra), poi il pavimento */
+function propProducts(c) {
+  const order = []; [0, 2, 3].forEach(i => boxBands(c, i, boxSurf(c, i)[0]).forEach(p => order.push(p.s))); order.push(1);
+  const keys = []; order.forEach(s => { const k = c.slots[s]; if (k && SAMPLE[k] && !keys.includes(k)) keys.push(k); });
+  return keys;
+}
+/* finitura corta come nei progetti (Naturale → Nat, Lappato → Lapp); se non è stata scelta, tutte quelle possibili */
+const propFin = s => (s.a4 ? [s.v] : FIN_VAR[s.key] ? FIN_VAR[s.key].map(v => v.f[0]) : s.f || []).map(f => String(f).replace(/\s*Rett\./, '')
+  .replace(/Naturale/i, 'Nat').replace(/Lappat[oa]/i, 'Lapp').replace(/Levigat[oa]/i, 'Lev').replace(/Strutturat[oa]/i, 'Strutt')).join(' / ');
+async function exportProposta(list) {
+  list = list.filter(c => c && DISP[c.disp] && DISP[c.disp].mode === 'box' && c.slots.some(k => k && SAMPLE[k]));
+  if (!list.length) return toast('Nel box non ci sono ancora materiali');
+  const wait = document.createElement('div'); wait.className = 'sch-wait'; wait.textContent = 'Preparo la proposta…'; document.body.appendChild(wait);
+  try {
+    await loadPdfLibs();
+    const [logo, mark] = await Promise.all(['img/prop_logo.png', 'img/prop_mark.png'].map(schLoadImg)), shots = [];
+    for (const [n, c] of list.entries()) {   // render dal lato aperto, su fondo bianco, con i punti dove vanno i numeri
+      wait.textContent = list.length > 1 ? `Preparo il render ${n + 1} di ${list.length}: ${c.name}…` : 'Preparo il render del box…';
+      const l = boxHas(c, 2), r = boxHas(c, 3);
+      const out = await renderDisplayViews(c, [[l && !r ? 30 : l ? 0 : -30, l && r ? 12 : 16]], { bg: '#ffffff', marks: true, size: [1700, 1600] });
+      shots.push({ img: out[0], marks: out.marks[0], im: await schLoadImg(out[0]) });
+    }
+    wait.textContent = 'Creo il PDF…';
+    const cls = [...new Set(list.map(c => c.client).filter(id => id && clients[id]))], cl = cls.length === 1 ? clients[cls[0]] : null;
+    const now = new Date(), dd = String(now.getDate()).padStart(2, '0'), mo = String(now.getMonth() + 1).padStart(2, '0'), yy = now.getFullYear();
+    const pdf = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3', compress: true }), W = 420;
+    const font = (size, bold) => { pdf.setFont('helvetica', bold ? 'bold' : 'normal'); pdf.setFontSize(size); };
+    const fit = (t, size, maxW, bold) => { font(size, bold); const w = pdf.getTextWidth(t); if (w > maxW) pdf.setFontSize(size * maxW / w); };   // si stringe solo se non ci sta
+    const ink = () => { pdf.setDrawColor(...PROP_INK); pdf.setTextColor(...PROP_INK); };
+    // copertina: logo, linee tratteggiate, cliente, data
+    const name0 = cl ? cl.name : list.length === 1 ? list[0].name : 'Box in posa', who = name0.toUpperCase();
+    if (logo) pdf.addImage(logo, 'PNG', 108.4, 60.3, 203.2, 203.2 * logo.naturalHeight / logo.naturalWidth, 'logo', 'SLOW');
+    pdf.setDrawColor(150, 150, 150); pdf.setLineWidth(0.25); pdf.setLineDashPattern([1.2, 0.9], 0);
+    pdf.line(23.6, 128, 396.4, 128); pdf.line(23.6, 198.5, 396.4, 198.5); pdf.setLineDashPattern([], 0);
+    ink(); fit(who, 40, 360, true); pdf.text(who, W / 2, 164, { align: 'center' });
+    font(25); pdf.text(`${dd}.${mo}.${yy} - PROPOSTA`, W / 2, 220.5, { align: 'center' });
+    list.forEach((c, j) => {
+      const shot = shots[j], keys = propProducts(c), num = new Map(keys.map((k, i) => [k, i + 1]));
+      const ser = [...new Set(keys.map(k => glTitle(SAMPLE[k].s)))], title = (/^box\s*\d*$/i.test(c.name.trim()) ? 'Box ' + ser.join(' - ') : c.name).toUpperCase();
+      pdf.addPage('a3', 'landscape'); ink(); pdf.setLineWidth(0.18);
+      // in alto: logo, cliente, nome del box tra le linee
+      pdf.line(17.6, 5, 402.4, 5); pdf.line(17.6, 22.1, 402.4, 22.1); pdf.line(43.4, 4.85, 43.4, 22); pdf.line(87.1, 4.85, 87.1, 22);
+      if (mark) pdf.addImage(mark, 'PNG', 20.7, 5.4, 16.65, 16.2, 'mark', 'SLOW');
+      const head = (cl ? cl.name : c.client && clients[c.client] ? clients[c.client].name : 'Proposta').toUpperCase();
+      fit(head, 11.5, 35, true); pdf.text(head, 49.6, 15.3);
+      fit(title, 15, 300); pdf.text(title, 95.4, 15.2);
+      // il render più grande possibile nel suo spazio, con i numeri delle superfici (una volta sola se due sono vicini)
+      const A = { x: 14.6, y: 34.4, w: 245, h: 229.6 }, iw = shot.im ? shot.im.naturalWidth : 1700, ih = shot.im ? shot.im.naturalHeight : 1600;
+      const k = Math.min(A.w / iw, A.h / ih), dw = iw * k, dh = ih * k, dx = A.x + (A.w - dw) / 2, dy = A.y + (A.h - dh) / 2;
+      pdf.addImage(shot.img, 'JPEG', dx, dy, dw, dh, 'box' + j, 'NONE');
+      const put = [];
+      (shot.marks || []).forEach(m => {
+        const n = num.get(c.slots[m.s]), x = dx + m.x * dw, y = dy + m.y * dh;
+        if (!n || x < dx || x > dx + dw || y < dy || y > dy + dh || put.some(p => p.n === n && Math.hypot(p.x - x, p.y - y) < 30)) return;
+        put.push({ n, x, y });
+        pdf.setFillColor(255, 255, 255); pdf.setDrawColor(110, 110, 110); pdf.setLineWidth(0.15); pdf.circle(x, y, 2.6, 'FD');
+        ink(); font(9, true); pdf.text(String(n), x, y + 1.1, { align: 'center' });
+      });
+      // a destra: il box e i prodotti numerati (codice in grassetto); la serie si scrive se non è già nel titolo
+      const X = 273.8; font(13.5, true); const tl = pdf.splitTextToSize(title, 128);
+      ink(); pdf.text(tl, X, 96.7); const ty = 96.7 + (tl.length - 1) * 5.6;
+      pdf.setLineWidth(0.35); pdf.line(X, ty + 3.2, 383, ty + 3.2);
+      font(10); pdf.text('PRODOTTI:', X, ty + 13.4, { charSpace: 0.25 });
+      const bare = t => t.toUpperCase().replace(/[^A-Z0-9]+/g, ''), sole = ser.length === 1 && bare(title).includes(bare(ser[0]));   // "DUAL TRAVERTINE" = DUALTRAVERTINE
+      let y = ty + 24.8;
+      keys.forEach((key, i) => {
+        const s = SAMPLE[key], code = (s.k || []).join('/'), rest = [sole ? '' : s.s, s.c, propFin(s), s.z].filter(Boolean).join(' ').toUpperCase();
+        font(10); pdf.text(`${i + 1}.`, X, y, { charSpace: 0.2 });
+        let x = X + 7.2;
+        if (code) { font(10, true); pdf.text(code + '_', x, y, { charSpace: 0.2 }); x += pdf.getTextWidth(code + '_') + 0.2 * (code.length + 1) + 1.6; }
+        font(10); const ls = pdf.splitTextToSize(rest, 402 - x - rest.length * 0.2);
+        ls.forEach((ln, li) => { pdf.text(ln, li ? X + 7.2 : x, y, { charSpace: 0.2 }); y += 5.08; });
+      });
+      // in fondo: la nota in rosso e il numero della pagina
+      ink(); pdf.setLineWidth(0.18); pdf.line(16.4, 274.9, 405, 274.9); pdf.line(16.4, 292, 405, 292);
+      pdf.setTextColor(...PROP_RED);
+      fit(PROP_NOTE[0], 8, 354); pdf.text(PROP_NOTE[0], 17.3, 279.4);
+      font(6.4); pdf.setFontSize(Math.min(6.4, ...PROP_NOTE.slice(1).map(t => 6.4 * 354 / pdf.getTextWidth(t))));
+      PROP_NOTE.slice(1).forEach((t, i) => pdf.text(t, 17.3, 284 + i * 2.8));
+      pdf.setFillColor(...PROP_INK); pdf.rect(375.6, 275.8, 29.4, 15.5, 'F');
+      pdf.setTextColor(255, 255, 255); font(19, true); pdf.text(String(j + 2), 390.3, 286.6, { align: 'center' });
+    });
+    wait.remove();
+    return schDeliver(pdf, `${yy}${mo}${dd}_${name0.replace(/[^\w]+/g, '') || 'Box'}_Proposta.pdf`, 'La proposta è pronta');
+  } catch (e) { console.error(e); wait.remove(); say('Non riesco a creare la proposta (serve internet per il motore 3D e il PDF). Riprova.'); }
 }
