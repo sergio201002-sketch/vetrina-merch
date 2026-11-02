@@ -123,7 +123,9 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 
 /* due render dell'espositore da due angolazioni (davanti-sinistra e davanti-destra), con luce e ombre.
    opt: bg = sfondo (bianco: a terra solo l'ombra), size = [larghezza, altezza] in px, marks = dove mettere i numeri delle
-   superfici del box (out.marks: per ogni vista [{ s posto, x, y }] in frazioni dell'immagine, in un punto che si vede) */
+   superfici del box (out.marks: per ogni vista [{ s posto, x, y }] in frazioni dell'immagine, in un punto che si vede),
+   probes = punti del modello [{ k, x, y, z }] (px come le transform del modello) da ritrovare nelle immagini (out.probes: per ogni
+   vista { k: { x, y } }, per le quote) */
 async function renderDisplayViews(c, views, opt = {}) {
   await loadThree();
   const T = window.THREE;
@@ -134,6 +136,7 @@ async function renderDisplayViews(c, views, opt = {}) {
   host.innerHTML = `<div class="room-scene"><div class="ritem">${m.html}</div></div>`;
   const root = host.firstChild;
   (m.pose || []).forEach(([sel, tf]) => { const el = root.querySelector(sel); if (el) { el.style.transition = 'none'; el.style.transform = tf; } });   // posa da catalogo (Megastone: una lastra fuori)
+  (opt.probes || []).forEach(p => root.querySelector('.ritem').insertAdjacentHTML('beforeend', `<div class="bx" data-probe="${p.k}" style="width:0;height:0;transform:translate3d(${p.x}px,${p.y}px,${p.z}px)"></div>`));   // senza misura: non diventano pezzi
   document.body.appendChild(host);
   try {
     const FLIP = new DOMMatrix().scale(1, -1, 1);
@@ -202,7 +205,9 @@ async function renderDisplayViews(c, views, opt = {}) {
     rdr.outputEncoding = T.sRGBEncoding; rdr.toneMapping = T.ACESFilmicToneMapping; rdr.toneMappingExposure = 1.15;
     scene.environment = showroomEnv(T, rdr);
     const cam = new T.PerspectiveCamera(28, Wpx / Hpx, 1, R * 40);
-    const out = []; out.marks = [];
+    const out = []; out.marks = []; out.probes = [];
+    const probes = [...root.querySelectorAll('[data-probe]')].map(el => { const q = FLIP.multiply(relMatrix(el, root)).transformPoint(new DOMPoint(0, 0, 0)); return [el.dataset.probe, new T.Vector3(q.x, q.y, q.z)]; });
+    const probeOf = cam => Object.fromEntries(probes.map(([k, v]) => { const q = v.clone().project(cam); return [k, { x: (q.x + 1) / 2, y: (1 - q.y) / 2 }]; }));
     // numeri del box: per ogni superficie posata (anche ogni fascia) alcuni punti, dal preferito (in alto sulle pareti, verso il
     // davanti sul pavimento); si usa il primo che non è coperto da un arredo
     const meshes = scene.children.filter(o => o.isMesh && o !== floor), ray = new T.Raycaster();
@@ -230,7 +235,7 @@ async function renderDisplayViews(c, views, opt = {}) {
         const asp = hw / hh; rdr.setSize(asp >= 1 ? Wpx : Math.round(Wpx * asp), asp >= 1 ? Math.round(Wpx / asp) : Wpx);
         oc.left = cx - hw; oc.right = cx + hw; oc.top = cy + hh; oc.bottom = cy - hh; oc.updateProjectionMatrix();
         rdr.render(scene, oc);
-        out.push(rdr.domElement.toDataURL('image/jpeg', 0.9)); out.marks.push(markOf(oc));
+        out.push(rdr.domElement.toDataURL('image/jpeg', opt.bg ? 0.92 : 0.9)); out.marks.push(markOf(oc)); out.probes.push(probeOf(oc));
         rdr.setSize(Wpx, Hpx);
         continue;
       }
@@ -240,7 +245,7 @@ async function renderDisplayViews(c, views, opt = {}) {
       for (let k = 0; k < 28; k++) { const mid = (lo + hi) / 2; place(mid); if (fits()) hi = mid; else lo = mid; }
       place(hi);
       rdr.render(scene, cam);
-      out.push(rdr.domElement.toDataURL('image/jpeg', opt.bg ? 0.92 : 0.9)); out.marks.push(markOf(cam));
+      out.push(rdr.domElement.toDataURL('image/jpeg', opt.bg ? 0.92 : 0.9)); out.marks.push(markOf(cam)); out.probes.push(probeOf(cam));
     }
     rdr.dispose(); scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } });
     return out;
@@ -692,17 +697,23 @@ async function exportProposta(list) {
   try {
     await loadPdfLibs();
     const [logo, mark] = await Promise.all(['img/prop_logo.png', 'img/prop_mark.png'].map(schLoadImg)), shots = [];
-    for (const [n, c] of list.entries()) {   // tre angolazioni su fondo bianco, con i punti dove vanno i numeri: la prima dal lato aperto
+    for (const [n, c] of list.entries()) {
       wait.textContent = list.length > 1 ? `Preparo i render ${n + 1} di ${list.length}: ${c.name}…` : 'Preparo i render del box…';
-      const l = boxHas(c, 2), r = boxHas(c, 3);
-      const vs = l && r ? [[-28, 14], [28, 14], [0, 48]] : l ? [[30, 16], [0, 10], [14, 48]] : r ? [[-30, 16], [0, 10], [-14, 48]] : [[-26, 14], [26, 14], [0, 45]];
-      const out = await renderDisplayViews(c, vs, { bg: '#ffffff', marks: true, size: [1500, 1500] });
-      shots.push(await Promise.all(out.map(async (img, v) => ({ img, marks: out.marks[v], im: await schLoadImg(img) }))));
+      // angolazioni su fondo bianco: la prima (pagina dei prodotti) dal lato aperto, due per la pagina delle viste,
+      // poi dall'alto e di fronte senza prospettiva (per le quote); i punti o, x, y, z ritrovano le misure del box nelle immagini
+      const l = boxHas(c, 2), r = boxHas(c, 3), b = boxOf(c);
+      const vs = (l && r ? [[0, 12], [-28, 14], [28, 14]] : l ? [[30, 16], [0, 10], [14, 45]] : r ? [[-30, 16], [0, 10], [-14, 45]] : [[-26, 14], [26, 14], [0, 42]])
+        .concat([[0, 89.5, true], [0, 0, true]]);
+      const was = LITE3D; let fr; LITE3D = true; try { fr = bxfFrame(c); } finally { LITE3D = was; }   // il box come lo disegna il render
+      const probes = [['o', 0, 0, 0], ['x', b.L, 0, 0], ['y', 0, -b.H, 0], ['z', 0, 0, b.P]].map(([k, x, y, z]) => ({ k, x: fr.X(x), y, z: fr.Z(z) }));
+      const out = await renderDisplayViews(c, vs, { bg: '#ffffff', marks: true, size: [1800, 1700], probes });
+      shots.push(await Promise.all(out.map(async (img, v) => ({ img, marks: out.marks[v], probes: out.probes[v], im: await schLoadImg(img) }))));
     }
     wait.textContent = 'Creo il PDF…';
     const cls = [...new Set(list.map(c => c.client).filter(id => id && clients[id]))], cl = cls.length === 1 ? clients[cls[0]] : null;
     const now = new Date(), dd = String(now.getDate()).padStart(2, '0'), mo = String(now.getMonth() + 1).padStart(2, '0'), yy = now.getFullYear();
-    const pdf = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3', compress: true }), W = 420;
+    const pdf = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3', compress: true }), W = 420, RED = [215, 25, 32];
+    let pn = 1;
     const font = (size, bold) => { pdf.setFont('helvetica', bold ? 'bold' : 'normal'); pdf.setFontSize(size); };
     const fit = (t, size, maxW, bold) => { font(size, bold); const w = pdf.getTextWidth(t); if (w > maxW) pdf.setFontSize(size * maxW / w); };   // si stringe solo se non ci sta
     const ink = () => { pdf.setDrawColor(...PROP_INK); pdf.setTextColor(...PROP_INK); };
@@ -713,41 +724,64 @@ async function exportProposta(list) {
     pdf.line(23.6, 128, 396.4, 128); pdf.line(23.6, 198.5, 396.4, 198.5); pdf.setLineDashPattern([], 0);
     ink(); fit(who, 40, 360, true); pdf.text(who, W / 2, 164, { align: 'center' });
     font(25); pdf.text(`${dd}.${mo}.${yy} - PROPOSTA`, W / 2, 220.5, { align: 'center' });
-    list.forEach((c, j) => {
-      const shot = shots[j], keys = propProducts(c), num = new Map(keys.map((k, i) => [k, i + 1]));
-      const ser = [...new Set(keys.map(k => glTitle(SAMPLE[k].s)))], title = (/^box\s*\d*$/i.test(c.name.trim()) ? 'Box ' + ser.join(' - ') : c.name).toUpperCase();
-      pdf.addPage('a3', 'landscape'); ink(); pdf.setLineWidth(0.18);
-      // in alto: logo, cliente, nome del box tra le linee
+    // ogni pagina: in alto logo, cliente e titolo tra le linee; in fondo la nota in rosso e il numero della pagina
+    const head = (c, title) => {
+      pdf.addPage('a3', 'landscape'); pn++; ink(); pdf.setLineWidth(0.18);
       pdf.line(17.6, 5, 402.4, 5); pdf.line(17.6, 22.1, 402.4, 22.1); pdf.line(43.4, 4.85, 43.4, 22); pdf.line(87.1, 4.85, 87.1, 22);
       if (mark) pdf.addImage(mark, 'PNG', 20.7, 5.4, 16.65, 16.2, 'mark', 'SLOW');
-      const head = (cl ? cl.name : c.client && clients[c.client] ? clients[c.client].name : 'Proposta').toUpperCase();
-      fit(head, 11.5, 35, true); pdf.text(head, 49.6, 15.3);
+      const hd = (cl ? cl.name : c.client && clients[c.client] ? clients[c.client].name : 'Proposta').toUpperCase();
+      fit(hd, 11.5, 35, true); pdf.text(hd, 49.6, 15.3);
       fit(title, 15, 300); pdf.text(title, 95.4, 15.2);
-      // le angolazioni nello spazio del render (245 × 230 mm): la prima grande a sinistra, le altre più piccole una sopra l'altra;
-      // su ognuna i numeri delle superfici che si vedono (una volta sola se due sono vicini)
-      const view = (v, X0, Y0, BW, BH, R, F) => {
-        if (!v) return;
-        const iw = v.im ? v.im.naturalWidth : 1500, ih = v.im ? v.im.naturalHeight : 1500, k = Math.min(BW / iw, BH / ih), dw = iw * k, dh = ih * k, dx = X0 + (BW - dw) / 2, dy = Y0 + (BH - dh) / 2;
-        pdf.addImage(v.img, 'JPEG', dx, dy, dw, dh, `box${j}_${X0}_${Y0}`, 'NONE');
-        const put = [];
-        (v.marks || []).forEach(m => {
-          const n = num.get(c.slots[m.s]), x = dx + m.x * dw, y = dy + m.y * dh;
-          if (!n || x < dx || x > dx + dw || y < dy || y > dy + dh || put.some(p => p.n === n && Math.hypot(p.x - x, p.y - y) < dw / 5)) return;
-          put.push({ n, x, y });
-          pdf.setFillColor(255, 255, 255); pdf.setDrawColor(110, 110, 110); pdf.setLineWidth(0.15); pdf.circle(x, y, R, 'FD');
-          ink(); font(F, true); pdf.text(String(n), x, y + F * 0.122, { align: 'center' });
-        });
-      };
-      const SM = 78, G = 6, MW = 245 - SM - G;
-      view(shot[0], 14.6, 34.4, MW, 229.6, 2.6, 9);
-      view(shot[1], 14.6 + MW + G, 34.4 + (229.6 - 2 * SM - G) / 2, SM, SM, 2, 7);
-      view(shot[2], 14.6 + MW + G, 34.4 + (229.6 - 2 * SM - G) / 2 + SM + G, SM, SM, 2, 7);
-      // a destra: il box e i prodotti numerati (codice in grassetto); la serie si scrive se non è già nel titolo
+    };
+    const foot = () => {
+      ink(); pdf.setLineWidth(0.18); pdf.line(16.4, 274.9, 405, 274.9); pdf.line(16.4, 292, 405, 292);
+      pdf.setTextColor(...PROP_RED);
+      fit(PROP_NOTE[0], 8, 354); pdf.text(PROP_NOTE[0], 17.3, 279.4);
+      font(6.4); pdf.setFontSize(Math.min(6.4, ...PROP_NOTE.slice(1).map(t => 6.4 * 354 / pdf.getTextWidth(t))));
+      PROP_NOTE.slice(1).forEach((t, i) => pdf.text(t, 17.3, 284 + i * 2.8));
+      pdf.setFillColor(...PROP_INK); pdf.rect(375.6, 275.8, 29.4, 15.5, 'F');
+      pdf.setTextColor(255, 255, 255); font(19, true); pdf.text(String(pn), 390.3, 286.6, { align: 'center' });
+    };
+    // un render più grande possibile nel suo riquadro; con num, i numeri delle superfici che si vedono (una volta sola se vicini)
+    const view = (c, num, v, X0, Y0, BW, BH, R, F) => {
+      const iw = v.im ? v.im.naturalWidth : 1800, ih = v.im ? v.im.naturalHeight : 1700, k = Math.min(BW / iw, BH / ih);
+      const g = { dw: iw * k, dh: ih * k }; g.dx = X0 + (BW - g.dw) / 2; g.dy = Y0 + (BH - g.dh) / 2;
+      pdf.addImage(v.img, 'JPEG', g.dx, g.dy, g.dw, g.dh, `v${pn}_${X0}`, 'NONE');
+      const put = [];
+      if (num) (v.marks || []).forEach(m => {
+        const n = num.get(c.slots[m.s]), x = g.dx + m.x * g.dw, y = g.dy + m.y * g.dh;
+        if (!n || x < g.dx || x > g.dx + g.dw || y < g.dy || y > g.dy + g.dh || put.some(p => p.n === n && Math.hypot(p.x - x, p.y - y) < g.dw / 5)) return;
+        put.push({ n, x, y });
+        pdf.setFillColor(255, 255, 255); pdf.setDrawColor(110, 110, 110); pdf.setLineWidth(0.15); pdf.circle(x, y, R, 'FD');
+        ink(); font(F, true); pdf.text(String(n), x, y + F * 0.122, { align: 'center' });
+      });
+      return g;
+    };
+    // quote in rosso come nelle piante: linea, trattini alle estremità, misura in cm; linee di richiamo sottili
+    const cm = v => String(Math.round(v * 10) / 10).replace('.', ',') + ' CM';
+    const red = w => { pdf.setDrawColor(...RED); pdf.setTextColor(...RED); pdf.setLineWidth(w); };
+    const label = (t, len, fs) => { font(fs); const tw = pdf.getTextWidth(t); if (tw + 2 > len) pdf.setFontSize(fs * Math.max(0.55, (len - 2) / tw)); return pdf.getTextWidth(t); };
+    const dimH = (x1, x2, y, v) => { if (Math.abs(x2 - x1) < 1) return; red(0.25); pdf.line(x1, y, x2, y); pdf.line(x1, y - 1.4, x1, y + 1.4); pdf.line(x2, y - 1.4, x2, y + 1.4); label(cm(v), Math.abs(x2 - x1), 9); pdf.text(cm(v), (x1 + x2) / 2, y - 1.3, { align: 'center' }); };
+    const dimV = (x, y1, y2, v) => { if (Math.abs(y2 - y1) < 1) return; red(0.25); pdf.line(x, y1, x, y2); pdf.line(x - 1.4, y1, x + 1.4, y1); pdf.line(x - 1.4, y2, x + 1.4, y2); const tw = label(cm(v), Math.abs(y2 - y1), 9); pdf.text(cm(v), x - 1.3, (y1 + y2) / 2 + tw / 2, { angle: 90 }); };
+    const ext = (x1, y1, x2, y2) => { pdf.setDrawColor(236, 160, 160); pdf.setLineWidth(0.12); pdf.line(x1, y1, x2, y2); };
+    // punto del box (x lungo la parete di fondo, h in altezza, z verso il davanti, in cm) nella pagina: le viste senza prospettiva
+    // sono affini, bastano i quattro punti ritrovati nell'immagine
+    const at = (c, g, pv, x, h, z) => { const b = boxOf(c), { o, x: X, y: Y, z: Z } = pv;
+      return [g.dx + (o.x + (X.x - o.x) * x / b.L + (Y.x - o.x) * h / b.H + (Z.x - o.x) * z / b.P) * g.dw, g.dy + (o.y + (X.y - o.y) * x / b.L + (Y.y - o.y) * h / b.H + (Z.y - o.y) * z / b.P) * g.dh]; };
+    const info = rows => { let y = 52; rows.forEach(([k, v]) => { ink(); font(10, true); pdf.text(k, 322, y); font(10); pdf.text(v, 322, y + 4.6); y += 13; }); };
+    const DA = [50, 50, 250, 196];   // spazio del disegno con le quote (x, y, larghezza, altezza)
+    list.forEach((c, j) => {
+      const shot = shots[j], keys = propProducts(c), num = new Map(keys.map((k, i) => [k, i + 1])), b = boxOf(c), l = boxHas(c, 2), r = boxHas(c, 3), T = BOX_T;
+      const ser = [...new Set(keys.map(k => glTitle(SAMPLE[k].s)))], title = (/^box\s*\d*$/i.test(c.name.trim()) ? 'Box ' + ser.join(' - ') : c.name).toUpperCase();
+      const z0 = boxZones(c, 0) ? boxBands(c, 0, b.L) : null;
+      // 1) il box e i prodotti numerati, come nei progetti
+      head(c, title);
+      view(c, num, shot[0], 14.6, 34.4, 245, 229.6, 2.6, 9);
       const X = 273.8; font(13.5, true); const tl = pdf.splitTextToSize(title, 128);
       ink(); pdf.text(tl, X, 96.7); const ty = 96.7 + (tl.length - 1) * 5.6;
       pdf.setLineWidth(0.35); pdf.line(X, ty + 3.2, 383, ty + 3.2);
       font(10); pdf.text('PRODOTTI:', X, ty + 13.4, { charSpace: 0.25 });
-      const bare = t => t.toUpperCase().replace(/[^A-Z0-9]+/g, ''), sole = ser.length === 1 && bare(title).includes(bare(ser[0]));   // "DUAL TRAVERTINE" = DUALTRAVERTINE
+      const bare = t => t.toUpperCase().replace(/[^A-Z0-9]+/g, ''), sole = ser.length === 1 && bare(title).includes(bare(ser[0]));   // la serie si scrive se non è già nel titolo
       let y = ty + 24.8;
       keys.forEach((key, i) => {
         const s = SAMPLE[key], code = (s.k || []).join('/'), rest = [sole ? '' : s.s, s.c, propFin(s), s.z].filter(Boolean).join(' ').toUpperCase();
@@ -757,14 +791,42 @@ async function exportProposta(list) {
         font(10); const ls = pdf.splitTextToSize(rest, 402 - x - rest.length * 0.2);
         ls.forEach((ln, li) => { pdf.text(ln, li ? X + 7.2 : x, y, { charSpace: 0.2 }); y += 5.08; });
       });
-      // in fondo: la nota in rosso e il numero della pagina
-      ink(); pdf.setLineWidth(0.18); pdf.line(16.4, 274.9, 405, 274.9); pdf.line(16.4, 292, 405, 292);
-      pdf.setTextColor(...PROP_RED);
-      fit(PROP_NOTE[0], 8, 354); pdf.text(PROP_NOTE[0], 17.3, 279.4);
-      font(6.4); pdf.setFontSize(Math.min(6.4, ...PROP_NOTE.slice(1).map(t => 6.4 * 354 / pdf.getTextWidth(t))));
-      PROP_NOTE.slice(1).forEach((t, i) => pdf.text(t, 17.3, 284 + i * 2.8));
-      pdf.setFillColor(...PROP_INK); pdf.rect(375.6, 275.8, 29.4, 15.5, 'F');
-      pdf.setTextColor(255, 255, 255); font(19, true); pdf.text(String(j + 2), 390.3, 286.6, { align: 'center' });
+      foot();
+      // 2) le altre angolazioni, grandi una accanto all'altra
+      head(c, title + ' - VISTE');
+      view(c, num, shot[1], 14.6, 34.4, 192, 229.6, 2.6, 9); view(c, num, shot[2], 212.6, 34.4, 192, 229.6, 2.6, 9);
+      foot();
+      // 3) dall'alto con le misure: larghezza (e fasce) dietro, pareti laterali ai lati
+      head(c, title + ' - PIANTA');
+      let g = view(c, null, shot[3], ...DA), pv = shot[3].probes;
+      const P = (x, z) => at(c, g, pv, x, 0, z), top = g.dy - 3;
+      if (z0) z0.forEach(p => dimH(P(p.x, 0)[0], P(p.x + p.w, 0)[0], top, p.w));
+      dimH(P(0, 0)[0], P(b.L, 0)[0], z0 ? top - 8 : top, b.L);
+      [0, b.L].concat(z0 ? z0.map(p => p.x) : []).forEach(x => { const [px, py] = P(x, -T); ext(px, py, px, z0 ? top - 8 : top); });
+      const side = (wall, x, len, xo, dir) => {   // una parete laterale: le sue fasce vicino al disegno, la lunghezza più fuori
+        const zs = boxZones(c, wall) ? boxBands(c, wall, len) : null, line = xo + dir * (zs ? 8 : 0);
+        if (zs) zs.forEach(p => { const a = wall === 2 ? len - p.x - p.w : p.x; dimV(xo, P(x, a)[1], P(x, a + p.w)[1], p.w); });
+        dimV(line, P(x, 0)[1], P(x, len)[1], len);
+        [0, len].forEach(zz => { const [px, py] = P(x + (wall === 2 ? -T : wall === 3 ? T : 0), zz); ext(px, py, line, py); });
+      };
+      if (l) side(2, 0, b.P2, g.dx - 3, -1); else if (boxHas(c, 1)) side(1, 0, b.P, g.dx - 3, -1);   // 1 = il pavimento (senza fasce)
+      if (r) side(3, b.L, b.P3, g.dx + g.dw + 7, 1); else if (l && boxHas(c, 1) && b.P !== b.P2) side(1, b.L, b.P, g.dx + g.dw + 7, 1);
+      info([['LARGHEZZA', cm(b.L)], ...(boxHas(c, 1) ? [['PAVIMENTO', `${cm(b.L)} × ${cm(b.P)}`]] : []), ...(l ? [['PARETE SINISTRA', 'P ' + cm(b.P2)]] : []),
+        ...(r ? [['PARETE DESTRA', 'P ' + cm(b.P3)]] : []), ['ALTEZZA POSA', 'H ' + cm(b.H)], ['ALTEZZA MURI', 'H ' + cm(b.H + BOX_BAND)]]);
+      foot();
+      // 4) di fronte con le misure: larghezza e fasce sotto, altezza della posa e dei muri a sinistra
+      head(c, title + ' - VISTA FRONTALE');
+      g = view(c, null, shot[4], ...DA); pv = shot[4].probes;
+      const F = (x, h) => at(c, g, pv, x, h, 0), bot = g.dy + g.dh + 6, [, yf] = F(0, 0);
+      if (z0) z0.forEach(p => dimH(F(p.x, 0)[0], F(p.x + p.w, 0)[0], bot, p.w));
+      dimH(F(0, 0)[0], F(b.L, 0)[0], z0 ? bot + 8 : bot, b.L);
+      [0, b.L].concat(z0 ? z0.map(p => p.x) : []).forEach(x => ext(F(x, 0)[0], yf, F(x, 0)[0], z0 ? bot + 8 : bot));
+      const xl = g.dx - 3;
+      dimV(xl, yf, F(0, b.H)[1], b.H); dimV(xl - 8, yf, F(0, b.H + BOX_BAND)[1], b.H + BOX_BAND);
+      [b.H, b.H + BOX_BAND].forEach(h => { const [px, py] = F(l ? -T : 0, h); ext(px, py, xl - 8, py); });
+      info([['LARGHEZZA', cm(b.L)], ...(z0 ? [['FASCE DELLA PARETE', z0.map(p => String(Math.round(p.w * 10) / 10).replace('.', ',')).join(' + ') + ' CM']] : []),
+        ['ALTEZZA POSA', 'H ' + cm(b.H)], ['ALTEZZA MURI', 'H ' + cm(b.H + BOX_BAND)]]);
+      foot();
     });
     wait.remove();
     return schDeliver(pdf, `${yy}${mo}${dd}_${name0.replace(/[^\w]+/g, '') || 'Box'}_Proposta.pdf`, 'La proposta è pronta');
