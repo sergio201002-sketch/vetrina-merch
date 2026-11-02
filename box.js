@@ -442,12 +442,19 @@ function bxfFrame(c) {
 }
 const bxfLen = (c, wall) => { const b = boxOf(c); return wall === 0 ? b.L : b['P' + wall]; };
 const bxfU = (c, it) => Math.max(it.w / 2, Math.min(bxfLen(c, it.wall) - it.w / 2, it.u));
-/* il pezzo si disegna con la schiena sul muro (z = 0 sul muro, z = d il davanti) e poi si porta sulla sua parete */
+/* il pezzo si disegna con la schiena sul muro (z = 0 sul muro, z = d il davanti) e poi si porta sulla sua parete;
+   davanti a una lastra staccata dal muro si appoggia sulla lastra */
 function bxfTf(c, it, fr) {
-  fr = fr || bxfFrame(c); const u = bxfU(c, it), y = rn(fr.yF);
-  if (it.wall === 2) return `translate3d(${rn(fr.X(0) + 0.3)}px,${y}px,${rn(fr.Z(u + it.w / 2))}px) rotateY(90deg)`;
-  if (it.wall === 3) return `translate3d(${rn(fr.X(fr.L) - 0.3)}px,${y}px,${rn(fr.Z(u - it.w / 2))}px) rotateY(-90deg)`;
-  return `translate3d(${rn(fr.X(u - it.w / 2))}px,${y}px,${rn(fr.Z(0) + 0.3)}px)`;
+  fr = fr || bxfFrame(c); const u = bxfU(c, it), y = rn(fr.yF), off = bxfOff(c, it), o = off ? ` translate3d(0,0,${off}px)` : '';
+  if (it.wall === 2) return `translate3d(${rn(fr.X(0) + 0.3)}px,${y}px,${rn(fr.Z(u + it.w / 2))}px) rotateY(90deg)${o}`;
+  if (it.wall === 3) return `translate3d(${rn(fr.X(fr.L) - 0.3)}px,${y}px,${rn(fr.Z(u - it.w / 2))}px) rotateY(-90deg)${o}`;
+  return `translate3d(${rn(fr.X(u - it.w / 2))}px,${y}px,${rn(fr.Z(0) + 0.3)}px)${o}`;
+}
+/* quanto sta staccata dal muro la posa dietro al pezzo (la fascia staccata più avanti tra quelle che ha dietro; 0 = al muro).
+   Le fasce vanno da sinistra a destra guardando la parete: sulla parete sinistra al contrario di u (che parte dal fondo) */
+function bxfOff(c, it) {
+  const len = bxfLen(c, it.wall), u = bxfU(c, it), a = it.wall === 2 ? len - u - it.w / 2 : u - it.w / 2, b = a + it.w;
+  return boxBands(c, it.wall, len).reduce((m, p) => p.x < b - 0.5 && p.x + p.w > a + 0.5 && SAMPLE[c.slots[p.s]] && boxLay(c, p.s).st ? Math.max(m, BOX_OFF) : m, 0);
 }
 /* lati del pezzo (sinistro e destro, guardandolo di fronte) contro un muro del box: lì la doccia non ha il vetro */
 function bxfSides(c, it) {
