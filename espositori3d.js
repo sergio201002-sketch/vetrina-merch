@@ -363,7 +363,10 @@ function boxLay(c, i) {
   const o = l.o || (wh ? (wh[1] > wh[0] ? 'v' : 'h') : i >= 4 || (i !== 1 && z >= 200) ? 'v' : 'h');   // fasce: lato lungo in verticale
   const off = cont ? 0 : l.off != null ? l.off : i === 1 && z / a >= 4 ? 1 / 3 : 0;   // listoni a pavimento: sfalsati di un terzo
   return { o, off, cont, tw: o === 'v' ? a : z, th: o === 'v' ? z : a, sq: Math.abs(a - z) < 0.5, st: i !== 1 && l.st || 0,
-    ls: l.ls != null ? l.ls : 'lrt', lc: l.lc === 'c' ? 'c' : 'w', mid: !!l.mid };   // mid: un pezzo intero al centro   // LED: lati accesi (l sinistra, t sopra, r destra), luce calda / fredda
+    ls: l.ls != null ? l.ls : 'lrt', lc: l.lc === 'c' ? 'c' : 'w',   // LED: lati accesi (l sinistra, t sopra, r destra), luce calda / fredda
+    // avanzo (il pezzo tagliato) scelto: cx 'l' a sinistra, 'r' a destra, 'c' ai due lati (un pezzo intero al centro);
+    // cy sulle pareti 't' sopra / 'b' sotto, sul pavimento 'f' davanti / 'b' dietro (contro la parete di fondo)
+    cx: l.cx || (l.mid ? 'c' : ''), cy: l.cy || '', mid: (l.cx || (l.mid ? 'c' : '')) === 'c' };
 }
 /* misure del box: finché non le cambi seguono la mattonella della parete (pezzi interi: 120×278 → 240 × 278) */
 function boxOf(c) {
@@ -455,7 +458,9 @@ function boxSurfaceHTML(c, i, W, H, tf, bottom, right, sel, salt) {
   const wh = cont && url && dimOf(k), turn = wh ? Math.abs(wh[0] - wh[1]) > 1 && (wh[1] > wh[0]) !== (th > tw) : !!url && photoTurn(k, th > tw);
   const r = LITE3D ? ROOM_RES : FACE_RES, g = cont ? 0 : BOX_GAP / 2;
   const seed = boxOf(c).seed, hash = (a, b) => { let x = Math.imul(a + 1, 73856093) ^ Math.imul(b + 1, 19349663) ^ Math.imul(seed * 7 + i + 1 + (salt || 0) * 131, 83492791); x = Math.imul(x ^ (x >>> 13), 1274126177); return (x ^ (x >>> 16)) >>> 0; };
-  let ps = boxPieces(W, H, tw, th, lay.off, bottom, right, lay.mid);
+  // dove va l'avanzo, se l'hai scelto (altrimenti come dice chi disegna la superficie: dall'angolo o dal bordo della fascia)
+  const R = lay.cx === 'l' ? true : lay.cx === 'r' ? false : right, B = !lay.cy ? bottom : i === 1 ? lay.cy === 'b' : lay.cy !== 'b';
+  let ps = boxPieces(W, H, tw, th, lay.off, B, R, lay.mid);
   if (ps.length > 600) return box('', '', `background-color:${grout};${faceBg(s, W, H, true)}`);   // formati piccolissimi: posa ripetuta, senza variare i pezzi
   // ogni pezzo: mai uguale al pezzo accanto e a quello della fila prima, e mai il loro specchio sulla fuga in comune
   // (si vedrebbe la "V" delle venature che si specchiano); conta come appare davvero (anche la foto girata di 90°)
@@ -481,11 +486,19 @@ function boxSurfaceHTML(c, i, W, H, tf, bottom, right, sel, salt) {
    Posto staccato dal muro (lay.st: 1 staccato, 2 con i LED dietro): la lastra sta BOX_OFF cm davanti al muro, se ne vede
    lo spessore sui lati e in alto; coi LED il muro dietro si illumina attorno (in alto e ai lati, sotto c'è il pavimento) */
 const BOX_OFF = 5, BOX_SLAB = 1.2, BOX_LED = 20;
+const boxBandRight = (p, W, right) => p.w > W - 0.5 ? right : !p.x ? false : p.x + p.w > W - 0.5 ? true : right;   // posata da destra?
+/* dove va l'avanzo se non l'hai scelto: 'r' a destra, 'l' a sinistra ('' = le due fasce ai lati, ognuna verso il centro) */
+function boxCutDef(c, s) {
+  const i = boxWallOf(c, s); if (i < 0) return '';
+  if (i === 1) return 'r';
+  const W = boxSurf(c, i)[0], rs = boxBands(c, i, W).filter(p => p.s === s).map(p => boxBandRight(p, W, i === 2));
+  return rs.every(v => v === rs[0]) ? (rs[0] ? 'l' : 'r') : '';
+}
 function boxWallHTML(c, i, W, H, tf, bottom, right, op) {
   const pre = tf === 'none' ? '' : tf + ' ', at = (x, y, z, r) => x || y || z || r ? `${pre}translate3d(${rn(x)}px,${rn(y)}px,${z}px)${r ? ' ' + r : ''}` : tf;
   return boxBands(c, i, W).map(p => {
     const s = SAMPLE[c.slots[p.s]], ly = boxLay(c, p.s), st = s && ly.st, D = st ? BOX_OFF : 0;
-    let h = boxSurfaceHTML(c, p.s, p.w, H, at(p.x, 0, D), bottom, p.w > W - 0.5 ? right : !p.x ? false : p.x + p.w > W - 0.5 ? true : right, !LITE3D && op === p.s, p.n);
+    let h = boxSurfaceHTML(c, p.s, p.w, H, at(p.x, 0, D), bottom, boxBandRight(p, W, right), !LITE3D && op === p.s, p.n);
     if (!D) return h;
     const t = backTint(s), ed = `background:${t ? `rgb(${t.split(',').map(v => Math.round(v * 0.82)).join(',')})` : '#b9b4ab'}`, T = BOX_SLAB;
     h += `<div class="bx" style="width:${T}px;height:${rn(H)}px;${ed};transform:${at(p.x, 0, D - T, 'rotateY(-90deg)')}"></div>`
@@ -622,8 +635,11 @@ function boxBar(d, c, st, op) {
                              ['Orizzontale', lay.o === 'h', `setBoxLay(${op},'o','h')`, op === 1 ? 'Lato lungo lungo la parete' : 'Lato lungo in orizzontale']])) +
         (lay.cont ? '<span class="em">posa continua, senza fughe</span>' : seg([['Dritta', !lay.off, `setBoxLay(${op},'off',0)`, 'Fughe allineate'], ['<span class="t">Sfalsata </span>½', lay.off === 0.5, `setBoxLay(${op},'off',0.5)`, 'Ogni fila spostata di mezzo pezzo'],
              ['⅓', Math.abs(lay.off - 1 / 3) < 0.01, `setBoxLay(${op},'off',${1 / 3})`, 'Ogni fila spostata di un terzo']])) +
-        seg([["Dall'angolo", !lay.mid, `setBoxLay(${op},'mid',false)`, "La posa parte dall'angolo con un pezzo intero: l'eventuale taglio va dall'altra parte"],
-          ['Al centro', lay.mid, `setBoxLay(${op},'mid',true)`, 'Un pezzo intero al centro e i tagli uguali ai due lati']]) +
+        `<span class="l" title="Dove va il pezzo tagliato (se la misura non è un multiplo del pezzo)">Avanzo</span>` + seg([['Sinistra', (lay.cx || boxCutDef(c, op)) === 'l', `setBoxLay(${op},'cx','l')`, 'Il pezzo tagliato va a sinistra'],
+          ['Ai lati', lay.cx === 'c', `setBoxLay(${op},'cx','c')`, 'Un pezzo intero al centro e i tagli uguali ai due lati'],
+          ['Destra', (lay.cx || boxCutDef(c, op)) === 'r', `setBoxLay(${op},'cx','r')`, 'Il pezzo tagliato va a destra']]) +
+        seg(op === 1 ? [['Dietro', lay.cy === 'b', `setBoxLay(${op},'cy','b')`, 'Il pezzo tagliato va dietro, contro la parete di fondo'], ['Davanti', lay.cy !== 'b', `setBoxLay(${op},'cy','f')`, 'Il pezzo tagliato va davanti, verso chi guarda']]
+          : [['Sopra', lay.cy !== 'b', `setBoxLay(${op},'cy','t')`, 'Il pezzo tagliato va in alto: da terra si parte con pezzi interi'], ['Sotto', lay.cy === 'b', `setBoxLay(${op},'cy','b')`, 'Il pezzo tagliato va in basso, a terra: in alto pezzi interi']]) +
         (op === 1 ? '' : seg([['Al muro', !lay.st, `setBoxLay(${op},'st',0)`, 'Posata attaccata al muro'],
           ['Staccata', lay.st === 1, `setBoxLay(${op},'st',1)`, `Staccata dal muro di ${BOX_OFF} cm (si vede lo spessore della lastra)`],
           ['<svg class="ic"><use href="#i-sun"/></svg> LED', lay.st === 2, `setBoxLay(${op},'st',2)`, `Staccata dal muro di ${BOX_OFF} cm con i LED dietro: il muro si illumina attorno`]])) +
