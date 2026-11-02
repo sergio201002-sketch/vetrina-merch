@@ -125,7 +125,8 @@ document.head.insertAdjacentHTML('beforeend', `<style>
    opt: bg = sfondo (bianco: a terra solo l'ombra), size = [larghezza, altezza] in px, marks = dove mettere i numeri delle
    superfici del box (out.marks: per ogni vista [{ s posto, x, y }] in frazioni dell'immagine, in un punto che si vede),
    probes = punti del modello [{ k, x, y, z }] (px come le transform del modello) da ritrovare nelle immagini (out.probes: per ogni
-   vista { k: { x, y } }, per le quote) */
+   vista { k: { x, y } }, per le quote), hq = qualità da progetto: foto originali, piastrelle con la luce e le ombre vere,
+   ao = strisce d'ombra morbida negli angoli [{ a, b, w }] (spigolo da a a b e verso dove sfuma, in px del modello) */
 async function renderDisplayViews(c, views, opt = {}) {
   await loadThree();
   const T = window.THREE;
@@ -144,7 +145,8 @@ async function renderDisplayViews(c, views, opt = {}) {
     const imgs = {}, pending = [];
     const loadImg = url => imgs[url] || (imgs[url] = new Promise(r => { const im = new Image(); im.onload = () => r(im); im.onerror = () => r(null); im.src = url; }));
     const rev = {}; [window.FOTO_ROOM, window.FOTO_GAL, window.FOTO_MINI].forEach(mp => Object.entries(mp || {}).forEach(([o, v]) => { rev[v] = o; }));
-    const bigOf = url => { const i = url.indexOf('foto/'); if (i < 0) return url; const rel = decodeURI(url.slice(i)), o = rev[rel] || rev[url.slice(i)]; return o ? new URL(encodeURI(FOTO_MED[o] || o), location.href).href : url; };
+    const orig = o => opt.hq && ((typeof AVIF_OK !== 'undefined' && AVIF_OK) || !/\.avif$/i.test(o)) ? o : FOTO_MED[o] || o;   // hq: la foto originale
+    const bigOf = url => { const i = url.indexOf('foto/'); if (i < 0) return url; const rel = decodeURI(url.slice(i)), o = rev[rel] || rev[url.slice(i)]; return o ? new URL(encodeURI(orig(o)), location.href).href : url; };
     for (const el of root.querySelectorAll('*')) {
       const w = el.offsetWidth, h = el.offsetHeight; if (w < 0.05 || h < 0.05) continue;
       if (el.classList.contains('empty')) continue;
@@ -154,8 +156,8 @@ async function renderDisplayViews(c, views, opt = {}) {
       if ((!ccol || ccol.a === 0) && bi && bi !== 'none' && !url) { const fc = firstColor(bi); if (fc) ccol = cssColor(fc); }
       if (!url && (!ccol || ccol.a === 0)) continue;
       const face = !!url && !/retro_/.test(url);
-      // davanti delle piastrelle: la foto com'è, con i suoi colori (niente luci che la sbiadiscono)
-      const mat = face ? new T.MeshBasicMaterial({ color: 0xffffff, side: T.DoubleSide, toneMapped: false })
+      // davanti delle piastrelle: la foto com'è, con i suoi colori (niente luci che la sbiadiscono); hq: con la luce e le ombre
+      const mat = face && !opt.hq ? new T.MeshBasicMaterial({ color: 0xffffff, side: T.DoubleSide, toneMapped: false })
         : new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5, metalness: 0, side: T.DoubleSide, envMapIntensity: 0.3 });
       if (url) {
         const retro = !face; if (!retro) url = bigOf(url);
@@ -171,38 +173,59 @@ async function renderDisplayViews(c, views, opt = {}) {
           mat.map = t; mat.needsUpdate = true;
         }));
         if (retro && ccol) { const c2 = ccol.c.clone(); c2.lerp(new T.Color(1, 1, 1), 0.45); mat.color = c2; }
-        mat.roughness = 0.4;
+        mat.roughness = opt.hq && face ? 0.62 : 0.4; if (opt.hq && face) mat.envMapIntensity = 0.1;
       } else {
-        mat.color = ccol.c; const l = ccol.c.r + ccol.c.g + ccol.c.b;
-        if (l < 0.5) { mat.color = new T.Color(0x232327).convertSRGBToLinear(); mat.roughness = 0.85; mat.envMapIntensity = 0.12; }   // metallo nero opaco
+        mat.color = ccol.c; const l = ccol.c.r + ccol.c.g + ccol.c.b, sat = Math.max(ccol.c.r, ccol.c.g, ccol.c.b) - Math.min(ccol.c.r, ccol.c.g, ccol.c.b);
+        if (l < 0.5 && sat < 0.03) { mat.color = new T.Color(0x232327).convertSRGBToLinear(); mat.roughness = 0.85; mat.envMapIntensity = 0.12; }   // metallo nero opaco (solo grigi scuri e nero: il noce resta noce)
+        if (opt.hq && /^(#dfe7ea|#f4f7f8|rgb\(223, 231, 234\)|rgb\(244, 247, 248\))$/i.test(firstColor(bi) || '')) { mat.color = new T.Color(0xd6dee1).convertSRGBToLinear(); mat.metalness = 1; mat.roughness = 0.1; mat.envMapIntensity = 1; }   // specchio del lavabo: riflette
         if (ccol.a < 1) { mat.transparent = true; mat.opacity = ccol.a; }
       }
-      const g = new T.BufferGeometry(), zf = face ? 0.08 : 0;   // la foto sta sullo stesso piano del pannello sotto: la stacco appena, se no resta coperta
-      g.setAttribute('position', new T.Float32BufferAttribute([0, 0, zf, w, 0, zf, w, h, zf, 0, h, zf], 3));
-      g.setAttribute('uv', new T.Float32BufferAttribute([0, 1, 1, 1, 1, 0, 0, 0], 2));
-      g.setIndex([0, 2, 1, 0, 3, 2]);
+      const zf = face ? 0.08 : 0;   // la foto sta sullo stesso piano del pannello sotto: la stacco appena, se no resta coperta
+      let g = typeof roundShape === 'function' && roundShape(T, cs, w, h);   // angoli tondi (specchio tondo, lavabo stondato) come in sala mostra
+      if (g) g.translate(0, 0, zf);
+      else {
+        g = new T.BufferGeometry();
+        g.setAttribute('position', new T.Float32BufferAttribute([0, 0, zf, w, 0, zf, w, h, zf, 0, h, zf], 3));
+        g.setAttribute('uv', new T.Float32BufferAttribute([0, 1, 1, 1, 1, 0, 0, 0], 2));
+        g.setIndex([0, 2, 1, 0, 3, 2]);
+      }
       g.applyMatrix4(new T.Matrix4().fromArray(FLIP.multiply(relMatrix(el, root)).toFloat32Array()));
       g.computeVertexNormals();
       const mesh = new T.Mesh(g, mat); mesh.castShadow = true; mesh.receiveShadow = true; scene.add(mesh);
     }
     await Promise.all(pending);
+    // ombra morbida negli angoli (dove la luce arriva meno): strisce che sfumano dallo spigolo, sopra le piastrelle
+    if (opt.ao && opt.ao.length) {
+      const cv = document.createElement('canvas'); cv.width = 4; cv.height = 256; const gx = cv.getContext('2d');
+      for (let i = 0; i < 256; i++) { const t = i / 255; gx.fillStyle = `rgba(0,0,0,${(0.5 * Math.pow(1 - t, 2.2)).toFixed(4)})`; gx.fillRect(0, i, 4, 1); }
+      const aoMat = new T.MeshBasicMaterial({ map: new T.CanvasTexture(cv), transparent: true, depthWrite: false, side: T.DoubleSide, toneMapped: false });
+      const MW = FLIP.multiply(relMatrix(root.querySelector('.ritem'), root)), W3 = p => { const q = MW.transformPoint(new DOMPoint(p[0], p[1], p[2])); return [q.x, q.y, q.z]; };
+      opt.ao.forEach(({ a, b, w }) => {
+        const pts = [a, b, b.map((v, i) => v + w[i]), a.map((v, i) => v + w[i])].map(W3), g = new T.BufferGeometry();
+        g.setAttribute('position', new T.Float32BufferAttribute(pts.flat(), 3)); g.setAttribute('uv', new T.Float32BufferAttribute([0, 1, 1, 1, 1, 0, 0, 0], 2)); g.setIndex([0, 1, 2, 0, 2, 3]);
+        const mesh = new T.Mesh(g, aoMat); mesh.renderOrder = 5; mesh.userData.ao = true; scene.add(mesh);
+      });
+    }
     const box = new T.Box3().setFromObject(scene), ctr = box.getCenter(new T.Vector3()), size = box.getSize(new T.Vector3());
     const R = Math.max(size.x, size.y, size.z);
     // pavimento chiaro con ombra morbida
     const floor = new T.Mesh(new T.PlaneGeometry(R * 12, R * 12), opt.bg ? new T.ShadowMaterial({ opacity: 0.16 }) : new T.MeshStandardMaterial({ color: new T.Color(0xeeece8).convertSRGBToLinear(), roughness: 0.9 }));
     floor.rotation.x = -Math.PI / 2; floor.position.set(ctr.x, box.min.y - 0.2, ctr.z); floor.receiveShadow = true; if (!opt.bg) scene.add(floor);   // su fondo bianco niente ombra a terra (come nei progetti)
-    scene.add(new T.HemisphereLight(0xffffff, 0xb9b4aa, 0.75));
-    const key = new T.DirectionalLight(0xfff6ec, 0.85);
-    key.position.set(ctr.x - R * 0.6, box.max.y + R * 1.6, ctr.z + R * 1.2); key.target.position.copy(ctr);
-    key.castShadow = true; key.shadow.mapSize.set(2048, 2048); key.shadow.radius = 6; key.shadow.bias = -0.0005;
+    // hq: senza tone mapping, luci che sommate fanno ~1 sulla parete di fondo (la foto col suo colore), le pareti laterali un po'
+    // più scure; luce davanti, in alto e un po' a sinistra: i mobili fanno ombra sul muro e a terra
+    scene.add(new T.HemisphereLight(0xffffff, 0xb9b4aa, opt.hq ? 0.5 : 0.75));
+    const key = new T.DirectionalLight(0xfff6ec, opt.hq ? 0.6 : 0.85);
+    if (opt.hq) key.position.set(ctr.x - R * 0.5, ctr.y + R * 1.25, ctr.z + R * 1.5); else key.position.set(ctr.x - R * 0.6, box.max.y + R * 1.6, ctr.z + R * 1.2);
+    key.target.position.copy(ctr);
+    key.castShadow = true; key.shadow.mapSize.set(opt.hq ? 4096 : 2048, opt.hq ? 4096 : 2048); key.shadow.radius = 6; key.shadow.bias = -0.0005; key.shadow.normalBias = opt.hq ? 0.4 : 0;
     const sc = key.shadow.camera; sc.left = sc.bottom = -R * 1.4; sc.right = sc.top = R * 1.4; sc.near = 1; sc.far = R * 6;
     scene.add(key, key.target);
-    const fill = new T.DirectionalLight(0xffffff, 0.35); fill.position.set(ctr.x + R, box.max.y + R, ctr.z + R * 1.5); scene.add(fill);
+    const fill = new T.DirectionalLight(0xffffff, opt.hq ? 0.12 : 0.35); fill.position.set(ctr.x + R, box.max.y + R, ctr.z + R * 1.5); scene.add(fill);
     const [Wpx, Hpx] = opt.size || [1620, 1200];
     const rdr = new T.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
     rdr.setPixelRatio(1); rdr.setSize(Wpx, Hpx);
     rdr.shadowMap.enabled = true; rdr.shadowMap.type = T.PCFSoftShadowMap;
-    rdr.outputEncoding = T.sRGBEncoding; rdr.toneMapping = T.ACESFilmicToneMapping; rdr.toneMappingExposure = 1.15;
+    rdr.outputEncoding = T.sRGBEncoding; rdr.toneMapping = opt.hq ? T.NoToneMapping : T.ACESFilmicToneMapping; rdr.toneMappingExposure = 1.15;
     scene.environment = showroomEnv(T, rdr);
     const cam = new T.PerspectiveCamera(28, Wpx / Hpx, 1, R * 40);
     const out = []; out.marks = []; out.probes = [];
@@ -210,7 +233,7 @@ async function renderDisplayViews(c, views, opt = {}) {
     const probeOf = cam => Object.fromEntries(probes.map(([k, v]) => { const q = v.clone().project(cam); return [k, { x: (q.x + 1) / 2, y: (1 - q.y) / 2 }]; }));
     // numeri del box: per ogni superficie posata (anche ogni fascia) alcuni punti, dal preferito (in alto sulle pareti, verso il
     // davanti sul pavimento); si usa il primo che non è coperto da un arredo
-    const meshes = scene.children.filter(o => o.isMesh && o !== floor), ray = new T.Raycaster();
+    const meshes = scene.children.filter(o => o.isMesh && o !== floor && !o.userData.ao), ray = new T.Raycaster();
     const spots = opt.marks ? [...root.querySelectorAll('[data-slot]')].filter(el => !el.classList.contains('empty') && el.offsetWidth > 1).map(el => {
       const s = +el.dataset.slot, w = el.offsetWidth, h = el.offsetHeight, M = FLIP.multiply(relMatrix(el, root));
       const at = s === 1 ? [[0.5, 0.62], [0.5, 0.82], [0.25, 0.72], [0.75, 0.72], [0.5, 0.4]] : [[0.5, 0.28], [0.5, 0.16], [0.3, 0.28], [0.7, 0.28], [0.5, 0.5]];
@@ -235,7 +258,7 @@ async function renderDisplayViews(c, views, opt = {}) {
         const asp = hw / hh; rdr.setSize(asp >= 1 ? Wpx : Math.round(Wpx * asp), asp >= 1 ? Math.round(Wpx / asp) : Wpx);
         oc.left = cx - hw; oc.right = cx + hw; oc.top = cy + hh; oc.bottom = cy - hh; oc.updateProjectionMatrix();
         rdr.render(scene, oc);
-        out.push(rdr.domElement.toDataURL('image/jpeg', opt.bg ? 0.92 : 0.9)); out.marks.push(markOf(oc)); out.probes.push(probeOf(oc));
+        out.push(rdr.domElement.toDataURL('image/jpeg', opt.hq ? 0.88 : opt.bg ? 0.92 : 0.9)); out.marks.push(markOf(oc)); out.probes.push(probeOf(oc));
         rdr.setSize(Wpx, Hpx);
         continue;
       }
@@ -245,7 +268,7 @@ async function renderDisplayViews(c, views, opt = {}) {
       for (let k = 0; k < 28; k++) { const mid = (lo + hi) / 2; place(mid); if (fits()) hi = mid; else lo = mid; }
       place(hi);
       rdr.render(scene, cam);
-      out.push(rdr.domElement.toDataURL('image/jpeg', opt.bg ? 0.92 : 0.9)); out.marks.push(markOf(cam)); out.probes.push(probeOf(cam));
+      out.push(rdr.domElement.toDataURL('image/jpeg', opt.hq ? 0.88 : opt.bg ? 0.92 : 0.9)); out.marks.push(markOf(cam)); out.probes.push(probeOf(cam));
     }
     rdr.dispose(); scene.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) { if (o.material.map) o.material.map.dispose(); o.material.dispose(); } });
     return out;
@@ -706,7 +729,15 @@ async function exportProposta(list) {
         .concat([[0, 89.5, true], [0, 0, true]]);
       const was = LITE3D; let fr; LITE3D = true; try { fr = bxfFrame(c); } finally { LITE3D = was; }   // il box come lo disegna il render
       const probes = [['o', 0, 0, 0], ['x', b.L, 0, 0], ['y', 0, -b.H, 0], ['z', 0, 0, b.P]].map(([k, x, y, z]) => ({ k, x: fr.X(x), y, z: fr.Z(z) }));
-      const out = await renderDisplayViews(c, vs, { bg: '#ffffff', marks: true, size: [1800, 1700], probes });
+      // ombra morbida negli angoli: lungo gli spigoli tra fondo, pareti laterali e pavimento, appena davanti alle piastrelle
+      const WH = b.H + BOX_BAND, f = boxHas(c, 1), y0 = f ? -1.3 : 0, yF = -1.75, E = 0.65, A0 = 40, M = (x, y, z) => [fr.X(x), y, fr.Z(z)];
+      const ao = [{ a: M(0, y0, E), b: M(b.L, y0, E), w: [0, -A0, 0] }];
+      if (f) ao.push({ a: M(0, yF, 0.1), b: M(b.L, yF, 0.1), w: [0, 0, A0] });
+      if (l) ao.push({ a: M(0.1, 0, E), b: M(0.1, -WH, E), w: [A0, 0, 0] }, { a: M(E, 0, 0.1), b: M(E, -WH, 0.1), w: [0, 0, A0] }, { a: M(E, y0, 0), b: M(E, y0, b.P2), w: [0, -A0, 0] });
+      if (l && f) ao.push({ a: M(0.1, yF, 0), b: M(0.1, yF, Math.min(b.P, b.P2)), w: [A0, 0, 0] });
+      if (r) ao.push({ a: M(b.L - 0.1, 0, E), b: M(b.L - 0.1, -WH, E), w: [-A0, 0, 0] }, { a: M(b.L - E, 0, 0.1), b: M(b.L - E, -WH, 0.1), w: [0, 0, A0] }, { a: M(b.L - E, y0, 0), b: M(b.L - E, y0, b.P3), w: [0, -A0, 0] });
+      if (r && f) ao.push({ a: M(b.L - 0.1, yF, 0), b: M(b.L - 0.1, yF, Math.min(b.P, b.P3)), w: [-A0, 0, 0] });
+      const out = await renderDisplayViews(c, vs, { bg: '#ffffff', marks: true, size: [2600, 2440], probes, hq: true, ao });
       shots.push(await Promise.all(out.map(async (img, v) => ({ img, marks: out.marks[v], probes: out.probes[v], im: await schLoadImg(img) }))));
     }
     wait.textContent = 'Creo il PDF…';
@@ -744,7 +775,7 @@ async function exportProposta(list) {
     };
     // un render più grande possibile nel suo riquadro; con num, i numeri delle superfici che si vedono (una volta sola se vicini)
     const view = (c, num, v, X0, Y0, BW, BH, R, F) => {
-      const iw = v.im ? v.im.naturalWidth : 1800, ih = v.im ? v.im.naturalHeight : 1700, k = Math.min(BW / iw, BH / ih);
+      const iw = v.im ? v.im.naturalWidth : 2600, ih = v.im ? v.im.naturalHeight : 2440, k = Math.min(BW / iw, BH / ih);
       const g = { dw: iw * k, dh: ih * k }; g.dx = X0 + (BW - g.dw) / 2; g.dy = Y0 + (BH - g.dh) / 2;
       pdf.addImage(v.img, 'JPEG', g.dx, g.dy, g.dw, g.dh, `v${pn}_${X0}`, 'NONE');
       const put = [];
