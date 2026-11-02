@@ -187,7 +187,7 @@ async function renderDisplayViews(c, views, opt = {}) {
     const R = Math.max(size.x, size.y, size.z);
     // pavimento chiaro con ombra morbida
     const floor = new T.Mesh(new T.PlaneGeometry(R * 12, R * 12), opt.bg ? new T.ShadowMaterial({ opacity: 0.16 }) : new T.MeshStandardMaterial({ color: new T.Color(0xeeece8).convertSRGBToLinear(), roughness: 0.9 }));
-    floor.rotation.x = -Math.PI / 2; floor.position.set(ctr.x, box.min.y - 0.2, ctr.z); floor.receiveShadow = true; scene.add(floor);
+    floor.rotation.x = -Math.PI / 2; floor.position.set(ctr.x, box.min.y - 0.2, ctr.z); floor.receiveShadow = true; if (!opt.bg) scene.add(floor);   // su fondo bianco niente ombra a terra (come nei progetti)
     scene.add(new T.HemisphereLight(0xffffff, 0xb9b4aa, 0.75));
     const key = new T.DirectionalLight(0xfff6ec, 0.85);
     key.position.set(ctr.x - R * 0.6, box.max.y + R * 1.6, ctr.z + R * 1.2); key.target.position.copy(ctr);
@@ -212,9 +212,10 @@ async function renderDisplayViews(c, views, opt = {}) {
       return { s, pts: at.map(([fx, fy]) => { const q = M.transformPoint(new DOMPoint(w * fx, h * fy, 0.1)); return new T.Vector3(q.x, q.y, q.z); }) };
     }) : [];
     const markOf = cam => spots.map(sp => {
-      const ok = sp.pts.find(v => { const d = v.distanceTo(cam.position); ray.set(cam.position, v.clone().sub(cam.position).normalize()); const hit = ray.intersectObjects(meshes, false)[0]; return !hit || hit.distance > d - 2; }) || sp.pts[0];
+      const ok = sp.pts.find(v => { const d = v.distanceTo(cam.position); ray.set(cam.position, v.clone().sub(cam.position).normalize()); const hit = ray.intersectObjects(meshes, false)[0]; return !hit || hit.distance > d - 2; });
+      if (!ok) return null;   // coperta o vista da dietro (da fuori del box): niente numero
       const q = ok.clone().project(cam); return { s: sp.s, x: (q.x + 1) / 2, y: (1 - q.y) / 2 };
-    });
+    }).filter(Boolean);
     const corners = [];
     for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) corners.push(new T.Vector3(x, y, z));
     for (const [yaw, pitch, flat] of views) {
@@ -691,11 +692,12 @@ async function exportProposta(list) {
   try {
     await loadPdfLibs();
     const [logo, mark] = await Promise.all(['img/prop_logo.png', 'img/prop_mark.png'].map(schLoadImg)), shots = [];
-    for (const [n, c] of list.entries()) {   // render dal lato aperto, su fondo bianco, con i punti dove vanno i numeri
-      wait.textContent = list.length > 1 ? `Preparo il render ${n + 1} di ${list.length}: ${c.name}…` : 'Preparo il render del box…';
+    for (const [n, c] of list.entries()) {   // tre angolazioni su fondo bianco, con i punti dove vanno i numeri: la prima dal lato aperto
+      wait.textContent = list.length > 1 ? `Preparo i render ${n + 1} di ${list.length}: ${c.name}…` : 'Preparo i render del box…';
       const l = boxHas(c, 2), r = boxHas(c, 3);
-      const out = await renderDisplayViews(c, [[l && !r ? 30 : l ? 0 : -30, l && r ? 12 : 16]], { bg: '#ffffff', marks: true, size: [1700, 1600] });
-      shots.push({ img: out[0], marks: out.marks[0], im: await schLoadImg(out[0]) });
+      const vs = l && r ? [[-28, 14], [28, 14], [0, 48]] : l ? [[30, 16], [0, 10], [14, 48]] : r ? [[-30, 16], [0, 10], [-14, 48]] : [[-26, 14], [26, 14], [0, 45]];
+      const out = await renderDisplayViews(c, vs, { bg: '#ffffff', marks: true, size: [1500, 1500] });
+      shots.push(await Promise.all(out.map(async (img, v) => ({ img, marks: out.marks[v], im: await schLoadImg(img) }))));
     }
     wait.textContent = 'Creo il PDF…';
     const cls = [...new Set(list.map(c => c.client).filter(id => id && clients[id]))], cl = cls.length === 1 ? clients[cls[0]] : null;
@@ -721,18 +723,25 @@ async function exportProposta(list) {
       const head = (cl ? cl.name : c.client && clients[c.client] ? clients[c.client].name : 'Proposta').toUpperCase();
       fit(head, 11.5, 35, true); pdf.text(head, 49.6, 15.3);
       fit(title, 15, 300); pdf.text(title, 95.4, 15.2);
-      // il render più grande possibile nel suo spazio, con i numeri delle superfici (una volta sola se due sono vicini)
-      const A = { x: 14.6, y: 34.4, w: 245, h: 229.6 }, iw = shot.im ? shot.im.naturalWidth : 1700, ih = shot.im ? shot.im.naturalHeight : 1600;
-      const k = Math.min(A.w / iw, A.h / ih), dw = iw * k, dh = ih * k, dx = A.x + (A.w - dw) / 2, dy = A.y + (A.h - dh) / 2;
-      pdf.addImage(shot.img, 'JPEG', dx, dy, dw, dh, 'box' + j, 'NONE');
-      const put = [];
-      (shot.marks || []).forEach(m => {
-        const n = num.get(c.slots[m.s]), x = dx + m.x * dw, y = dy + m.y * dh;
-        if (!n || x < dx || x > dx + dw || y < dy || y > dy + dh || put.some(p => p.n === n && Math.hypot(p.x - x, p.y - y) < 30)) return;
-        put.push({ n, x, y });
-        pdf.setFillColor(255, 255, 255); pdf.setDrawColor(110, 110, 110); pdf.setLineWidth(0.15); pdf.circle(x, y, 2.6, 'FD');
-        ink(); font(9, true); pdf.text(String(n), x, y + 1.1, { align: 'center' });
-      });
+      // le angolazioni nello spazio del render (245 × 230 mm): la prima grande a sinistra, le altre più piccole una sopra l'altra;
+      // su ognuna i numeri delle superfici che si vedono (una volta sola se due sono vicini)
+      const view = (v, X0, Y0, BW, BH, R, F) => {
+        if (!v) return;
+        const iw = v.im ? v.im.naturalWidth : 1500, ih = v.im ? v.im.naturalHeight : 1500, k = Math.min(BW / iw, BH / ih), dw = iw * k, dh = ih * k, dx = X0 + (BW - dw) / 2, dy = Y0 + (BH - dh) / 2;
+        pdf.addImage(v.img, 'JPEG', dx, dy, dw, dh, `box${j}_${X0}_${Y0}`, 'NONE');
+        const put = [];
+        (v.marks || []).forEach(m => {
+          const n = num.get(c.slots[m.s]), x = dx + m.x * dw, y = dy + m.y * dh;
+          if (!n || x < dx || x > dx + dw || y < dy || y > dy + dh || put.some(p => p.n === n && Math.hypot(p.x - x, p.y - y) < dw / 5)) return;
+          put.push({ n, x, y });
+          pdf.setFillColor(255, 255, 255); pdf.setDrawColor(110, 110, 110); pdf.setLineWidth(0.15); pdf.circle(x, y, R, 'FD');
+          ink(); font(F, true); pdf.text(String(n), x, y + F * 0.122, { align: 'center' });
+        });
+      };
+      const SM = 78, G = 6, MW = 245 - SM - G;
+      view(shot[0], 14.6, 34.4, MW, 229.6, 2.6, 9);
+      view(shot[1], 14.6 + MW + G, 34.4 + (229.6 - 2 * SM - G) / 2, SM, SM, 2, 7);
+      view(shot[2], 14.6 + MW + G, 34.4 + (229.6 - 2 * SM - G) / 2 + SM + G, SM, SM, 2, 7);
       // a destra: il box e i prodotti numerati (codice in grassetto); la serie si scrive se non è già nel titolo
       const X = 273.8; font(13.5, true); const tl = pdf.splitTextToSize(title, 128);
       ink(); pdf.text(tl, X, 96.7); const ty = 96.7 + (tl.length - 1) * 5.6;
