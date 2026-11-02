@@ -402,7 +402,7 @@ function openBoxDetail(i) {
 
 /* ── arredo bagno: mobili in 3D, in scala vera (cm), appoggiati a una parete del box (c.box.furn) ──
    Ogni pezzo: { id, t, wall (0 fondo, 2 sinistra, 3 destra), u (centro lungo la parete: da sinistra sul fondo, dal fondo sulle
-   laterali), w × d (larghezza lungo la parete × sporgenza), f (finitura), mir (specchio del lavabo), side (lato del vetro della doccia) }.
+   laterali), w × d (larghezza lungo la parete × sporgenza), f (finitura), mir (specchio del lavabo: false = senza, 'o' = tondo, altrimenti rettangolare), side (lato del vetro della doccia) }.
    Si aggiunge dal pulsante "Arredi", si sceglie toccandolo e si sposta trascinandolo lungo la parete. Anche in sala mostra. */
 let bxF = null, bxShowF = (() => { try { return localStorage.getItem('vm_bx_arredi') !== '0'; } catch (e) { return true; } })();
 const BXF = {
@@ -449,6 +449,14 @@ function bxfSides(c, it) {
   if (it.wall === 3) return [back, false];
   return [back && has(2) && P2 >= it.d - 1, u + it.w / 2 >= L - 1 && has(3) && P3 >= it.d - 1];   // parete laterale corta: lì il vetro c'è
 }
+/* specchio tondo con la cornice nera sottile: dischi uno dietro l'altro (di lato si vede lo spessore), sopra il miscelatore */
+function bxfRound(w, mt) {
+  const D = Math.min(80, Math.round(w * 0.8), mt - 110), x = w / 2 - D / 2, y = -110 - D;
+  if (D < 25) return '';
+  const disc = (z, css) => bxP(x, y, z, D, D, 'border-radius:50%;' + css);
+  return disc(0.7, 'background:#2b2b2d') + disc(1.4, 'background:#2b2b2d') + disc(2.1, 'background:#2b2b2d')
+    + disc(2.5, 'background:radial-gradient(circle at 38% 30%,#f4f7f8 0%,#dfe7ea 30%,#c9d4d8 62%,#bcc8cc 100%);box-shadow:inset 0 0 0 1.3px #2b2b2d');
+}
 function bxfParts(it, WH, sd) {
   const { w, d } = it, fin = (BXF_FIN[it.f] || BXF_FIN.bianco)[1], cer = it.f === 'nero' ? BXF_CER_N : BXF_CER;
   if (it.t === 'lavabo') {            // cassettone sospeso, top in ceramica con il lavabo, miscelatore, specchio sopra
@@ -458,7 +466,7 @@ function bxfParts(it, WH, sd) {
       + bxB(0, -85, d, w, 12, d, BXF_CER)
       + bxP((w - bw) / 2, -85.05, d - 6, bw, 31, 'background:radial-gradient(ellipse at 50% 45%,#c3c9cc,#dce0e2 55%,#eceeef);border-radius:8px', 'rotateX(-90deg)')
       + bxB(w / 2 - 1.3, -100, 7, 2.6, 15, 2.6, BXF_CHR) + bxB(w / 2 - 1, -100, 16, 2, 2, 9, BXF_CHR)
-      + (it.mir !== false && mt - 98 >= 25 ? bxB((w - mw) / 2, -mt, 2.5, mw, mt - 98, 2, BXF_MIR) : '');
+      + (it.mir === 'o' ? bxfRound(w, mt) : it.mir !== false && mt - 98 >= 25 ? bxB((w - mw) / 2, -mt, 2.5, mw, mt - 98, 2, BXF_MIR) : '');
   }
   if (it.t === 'vasca') return bxB(0, -56, d, w, 56, d, BXF_CER)
     + bxP(7, -56.05, d - 7, w - 14, d - 14, 'background:linear-gradient(180deg,#cdd2d5,#e4e7e9 55%,#dbdfe1);border-radius:18px', 'rotateX(-90deg)')
@@ -594,7 +602,8 @@ function bxFurnBar(c, host) {
     <span class="g"><span class="l t">Parete</span>${seg(walls.map(([w, n]) => [n, it.wall === w, `bxfSet('wall',${w})`, w === 0 ? 'Parete di fondo' : 'Parete ' + n.toLowerCase(), it.w > bxfLen(c, w)]))}</span>
     <span class="g"><span class="l t">Posizione</span><input type="range" class="rg" min="${it.w / 2}" max="${Math.max(it.w / 2, len - it.w / 2)}" step="1" value="${bxfU(c, it)}" oninput="bxfSlide(this.value)" onchange="bxfSet('u', this.value)" title="Sposta lungo la parete (o trascina il mobile)"></span>
     ${T.fins ? `<span class="sep"></span><span class="g"><span class="l t">Finitura</span>${seg(T.fins.map(f => [`<i class="fsw" style="background:${BXF_FIN[f][1].front}"></i><span class="t">${BXF_FIN[f][0]}</span>`, it.f === f, `bxfSet('f','${f}')`, BXF_FIN[f][0]]))}</span>` : ''}
-    ${it.t === 'lavabo' ? seg([['Con specchio', it.mir !== false, `bxfSet('mir',true)`, 'Specchio sopra il lavabo'], ['Senza', it.mir === false, `bxfSet('mir',false)`, 'Niente specchio: si vede tutta la posa']]) : ''}
+    ${it.t === 'lavabo' ? `<span class="g"><span class="l t">Specchio</span>${seg([['Rettangolare', it.mir !== false && it.mir !== 'o', `bxfSet('mir',true)`, 'Specchio rettangolare largo quasi come il mobile'],
+      ['Tondo', it.mir === 'o', `bxfSet('mir','o')`, 'Specchio rotondo con la cornice nera sottile'], ['Senza', it.mir === false, `bxfSet('mir',false)`, 'Niente specchio: si vede tutta la posa']])}</span>` : ''}
     ${it.t === 'doccia' ? seg([['Porta a sinistra', it.side === 'l', `bxfSet('side','l')`, 'Porta scorrevole a sinistra'], ['a destra', it.side !== 'l', `bxfSet('side','r')`, 'Porta scorrevole a destra']]) : ''}
     <span class="sp"></span>
     <button class="bt" onclick="bxfDup()" title="Un altro uguale"><svg class="ic"><use href="#i-copy"/></svg><span class="t"> Duplica</span></button>

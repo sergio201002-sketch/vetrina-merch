@@ -125,7 +125,8 @@ const RoomGL = {
         }
         if (ccol.a < 1) { mat.transparent = true; mat.opacity = ccol.a; }
       }
-      const g = new T.PlaneGeometry(1, 1); g.translate(0.5, -0.5, 0); g.scale(w, h, 1);   // piano w×h con origine in alto a sinistra (y verso il basso dopo il ribaltamento)
+      const round = cs.borderTopLeftRadius === '50%';      // dischi (specchio tondo del box): cerchio, non quadrato
+      const g = round ? new T.CircleGeometry(0.5, 48) : new T.PlaneGeometry(1, 1); g.translate(0.5, -0.5, 0); g.scale(w, h, 1);   // piano w×h con origine in alto a sinistra (y verso il basso dopo il ribaltamento)
       g.scale(1, -1, 1);
       // la foto sta sullo stesso piano del pannello sotto: la stacco appena verso chi guarda, così non si mescolano a puntini
       if (photo) g.translate(0, 0, 0.08);
