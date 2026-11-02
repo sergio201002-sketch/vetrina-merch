@@ -119,6 +119,8 @@ body[data-studio="box"] #scene, body[data-studio="box"] #scene .sw-root { pointe
 body[data-studio="box"] #scene .bx { pointer-events: auto; }
 /* arredo bagno */
 .bxf { cursor: grab; }
+/* arredi bloccati (finché non tocchi "Modifica arredi"): toccandoli non si scelgono né si spostano, il tocco va alla parete dietro */
+body[data-studio="box"]:not(.bxfedit) #scene .bxf, body[data-studio="box"]:not(.bxfedit) #scene .bxf .bx { pointer-events: none; }
 .bxf.on > .bx:not(.fp) { box-shadow: inset 0 0 0 .9px rgba(200,16,46,.9); }
 .bxtools .fsw { width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(0,0,0,.18); flex: none; }
 .bxtools input.rg { width: 130px; padding: 0; border: none; background: none; accent-color: var(--red); }
@@ -201,7 +203,7 @@ function bxThumb(c) {
   const yaw = l && r ? 0 : l ? 26 : -26, tilt = l && r ? 9 : 12;
   return `<div class="scene"><div class="bx-mid"><div class="sw-root room-scene" style="transform:translate3d(0,${rn(H * 0.86)}px,0) rotateX(${-tilt}deg) rotateY(${yaw}deg) scale3d(${k.toFixed(4)},${k.toFixed(4)},${k.toFixed(4)})">${m.html}</div></div></div>`;
 }
-function bxOpen(id) { document.body.classList.remove('bxpick'); openComp(id, '#/box'); }
+function bxOpen(id) { document.body.classList.remove('bxpick'); bxfEdit(false, true); openComp(id, '#/box'); }
 function bxNew() {
   document.getElementById('bxNewModal')?.remove();
   const cls = Object.values(clients).sort((a, b) => a.name.localeCompare(b.name));
@@ -247,13 +249,16 @@ function renderBoxHead() {
       <span class="who" id="bxWho"></span><span class="sp"></span>
       <button class="tb" onclick="bxDrawer(!document.body.classList.contains('bxpick'))" title="Materiali della superficie scelta"><svg class="ic"><use href="#i-tiles"/></svg><span class="lbl2"> Materiali</span></button>
       <button class="tb" onclick="bxFurnMenu(this)" title="Arredo bagno: mobile lavabo, vasca, doccia, sanitari"><svg class="ic"><use href="#i-bath"/></svg><span class="lbl2"> Arredi</span></button>
+      <button class="tb" id="bxLock" onclick="bxfEdit(!bxFEdit)"></button>
       <button class="tb" onclick="pasteCodes()" title="Incolla i codici: vanno nelle superfici vuote (fondo, pavimento, sinistra, destra)"><svg class="ic"><use href="#i-paste"/></svg><span class="lbl2"> Incolla codici</span></button>
       <button class="tb" onclick="exportSchedaPDF()" title="Scheda PDF del box con i materiali"><svg class="ic"><use href="#i-download"/></svg><span class="lbl2"> Scheda PDF</span></button>
       <button class="tb on" onclick="compPlaceDialog()" title="Metti il box nella sala mostra di un cliente"><svg class="ic"><use href="#i-store"/></svg><span class="lbl2"> Metti in sala mostra</span></button>
       <button class="tb" onclick="bxPresent()" title="Vista a schermo intero"><svg class="ic"><use href="#i-maximize"/></svg></button>
       <button class="tb" onclick="bxMenu(this)" title="Altre azioni"><svg class="ic"><use href="#i-more"/></svg></button>`;
     bxF = null; bxDrawer(!c.slots[selSlot]);        // box nuovo: si parte scegliendo il materiale della parete di fondo
+    bxFEdit = false; document.body.classList.remove('bxfedit');   // gli arredi si aprono bloccati
   }
+  bxLockUpd(c);
   const back = rt === '#/box' ? 'Box' : rt.startsWith('#/salamostra/') ? 'Sala mostra' : rt.startsWith('#/ambiente/') ? 'Ambientazione'
     : rt.startsWith('#/pacchetti/') ? 'Pacchetto' : cl ? cl.name : 'Box';
   document.getElementById('bxBack').innerHTML = `<svg class="ic"><use href="#i-left"/></svg>${esc(back)}`;
@@ -261,7 +266,7 @@ function renderBoxHead() {
   document.getElementById('bxWho').innerHTML = `${cl ? `Cliente <b>${esc(cl.name)}</b>` : 'Senza cliente'} · ${b.L}×${b.H} cm · ${c.slots.filter(k => SAMPLE[k]).length} di ${c.slots.length} superfici`;
 }
 function bxClose() {
-  document.body.classList.remove('bxpick');
+  document.body.classList.remove('bxpick'); bxfEdit(false, true);   // riaprendolo, gli arredi sono di nuovo bloccati
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
   if (!ui.returnTo && !ctxClient()) ui.returnTo = '#/box';
   leaveConfig();
@@ -405,7 +410,7 @@ function openBoxDetail(i) {
    laterali), w × d (larghezza lungo la parete × sporgenza), f (finitura), mir (specchio del lavabo: false = senza, 'o' = tondo, altrimenti rettangolare), rc (lavabo con gli angoli
    davanti stondati), side (lato del vetro della doccia) }.
    Si aggiunge dal pulsante "Arredi", si sceglie toccandolo e si sposta trascinandolo lungo la parete. Anche in sala mostra. */
-let bxF = null, bxShowF = (() => { try { return localStorage.getItem('vm_bx_arredi') !== '0'; } catch (e) { return true; } })();
+let bxF = null, bxFEdit = false, bxShowF = (() => { try { return localStorage.getItem('vm_bx_arredi') !== '0'; } catch (e) { return true; } })();
 const BXF = {
   // rw / rd: larghezza e profondità libere (da, a) in cm
   lavabo: { n: 'Mobile lavabo', sub: 'sospeso, con specchio', sz: [[60, 46], [80, 46], [100, 46], [120, 46]], rw: [50, 240], fins: ['bianco', 'rovere', 'noce', 'grigio', 'nero'], f: 'rovere', at: 'c' },
@@ -565,12 +570,26 @@ function bxfMine(c) { c.box = Object.assign({}, c.box); c.box.furn = ((c.box.fur
 const bxfCur = c => ((c.box && c.box.furn) || []).find(o => o.id === bxF);
 const bxfNewId = () => 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
 function bxfShow(on) { bxShowF = on; try { localStorage.setItem('vm_bx_arredi', on ? '1' : '0'); } catch (e) {} if (!on) bxF = null; renderStage(); }
+/* pulsante del lucchetto nella riga in alto: c'è solo se il box ha arredi in vista (si aggiorna anche da boxBar, a ogni disegno) */
+function bxLockUpd(c) {
+  const lk = document.getElementById('bxLock'); if (!lk) return;
+  const nf = bxShowF && ((c.box && c.box.furn) || []).length, html = `<svg class="ic"><use href="#i-${bxFEdit ? 'unlock' : 'lock'}"/></svg><span class="lbl2"> ${bxFEdit ? 'Blocca arredi' : 'Modifica arredi'}</span>`;
+  lk.style.display = nf ? '' : 'none'; lk.classList.toggle('on', bxFEdit);
+  lk.title = bxFEdit ? 'Blocca gli arredi: toccandoli non si spostano più' : 'Gli arredi sono bloccati: sbloccali per spostarli o cambiarli';
+  if (lk.innerHTML !== html) lk.innerHTML = html;
+}
+/* arredi bloccati / modificabili: si parte bloccati, "Modifica arredi" li sblocca (si scelgono, si spostano, si cambiano) */
+function bxfEdit(on, quiet) {
+  bxFEdit = on; document.body.classList.toggle('bxfedit', on); if (!on) bxF = null;
+  if (!quiet) { renderStage(); toast(on ? 'Arredi sbloccati: toccali per spostarli o cambiarli' : 'Arredi bloccati: toccandoli non si spostano'); }
+}
 function bxfPick(id) { bxF = id; if (id) document.body.classList.remove('bxpick'); renderStage(); }
 function bxfAdd(t) {
   const c = comp(), T = BXF[t], [w, d] = T.sz[Math.min(1, T.sz.length - 1)];
   const it = { id: bxfNewId(), t, w, d, wall: 0, u: 0 }; if (T.f) it.f = T.f; if (t === 'doccia') it.side = 'r';
   const ok = bxfPlace(c, it); bxfMine(c).push(it);
   bxF = it.id; bxShowF = true; try { localStorage.setItem('vm_bx_arredi', '1'); } catch (e) {}
+  bxfEdit(true, true);                                // un arredo nuovo si sistema subito
   document.body.classList.remove('bxpick'); touch(); renderStage();
   toast(ok ? `${T.n}: trascinalo per spostarlo lungo la parete` : `${T.n}: non c'era più spazio libero, l'ho messo al centro della parete di fondo`);
 }
@@ -644,7 +663,7 @@ function bxFurnBar(c, host) {
   const st = document.getElementById('stage'); if (!st) return;
   let dr = null;
   st.addEventListener('pointerdown', e => {
-    const el = e.target.closest('.bxf'); if (!el || e.button > 0 || document.body.dataset.studio !== 'box') return;
+    const el = e.target.closest('.bxf'); if (!el || !bxFEdit || e.button > 0 || document.body.dataset.studio !== 'box') return;
     const c = comp(), it = ((c.box && c.box.furn) || []).find(o => o.id === el.dataset.f); if (!it) return;
     const u0 = bxfU(c, it), s = u0 + 10 <= bxfLen(c, it.wall) - it.w / 2 ? 10 : -10, t0 = el.style.transform, p0 = el.getBoundingClientRect();
     el.style.transform = bxfTf(c, Object.assign({}, it, { u: u0 + s })); const p1 = el.getBoundingClientRect(); el.style.transform = t0;

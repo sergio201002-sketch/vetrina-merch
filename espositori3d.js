@@ -458,6 +458,7 @@ function shuffleBox() { boxEdit(b => { b.seed = (b.seed || 1) + 1; }); toast('Gr
 /* striscia sottile sopra la vista (box.js): misure, posa della superficie scelta, materiale, grafiche, dettaglio */
 function boxBar(d, c, st, op) {
   const host = document.getElementById('bxTools'); if (!host) return;
+  if (typeof bxLockUpd === 'function') bxLockUpd(c);                     // lucchetto degli arredi (box.js)
   if (typeof bxFurnBar === 'function' && bxFurnBar(c, host)) return;   // un arredo scelto: la striscia è sua
   const b = boxOf(c), s = SAMPLE[c.slots[op]], lay = boxLay(c, op), fk = document.activeElement && document.activeElement.dataset.bk;
   const seg = items => `<span class="seg">${items.map(([txt, on, fn, tip]) => `<button class="${on ? 'on' : ''}" title="${esc(tip)}" onclick="${fn}">${txt}</button>`).join('')}</span>`;
