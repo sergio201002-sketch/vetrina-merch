@@ -340,7 +340,8 @@ MODELS.slide45 = megaSlide;
    Posti: 0 parete di fondo, 1 pavimento, 2 parete sinistra, 3 parete destra (posto vuoto = quella superficie non c'è;
    nel configuratore resta tratteggiata per sceglierla). Pezzi in griglia con la fuga, tagliati ai bordi, posati da terra
    e dall'angolo. La grafica di ogni pezzo è girata o specchiata in modo diverso dai vicini: la posa non sembra fatta
-   di pezzi tutti uguali (c.box.seed cambia la disposizione). Misure in c.box: L, P, H (altezza della posa). */
+   di pezzi tutti uguali (c.box.seed cambia la disposizione). Misure in c.box: L, P, H (altezza della posa); P2 / P3 =
+   larghezza della sola parete sinistra / destra (dal fondo verso il davanti; se manca è P, come il pavimento). */
 const BOX_T = 10, BOX_BAND = 20, BOX_GAP = 0.3;    // spessore delle pareti, fascia bianca sopra la posa, fuga (cm)
 const BOX_WHITE = { front: '#f3f2ee', top: '#e8e6e1', side: '#e2e0da' };
 const BOX_VAR = ['', 'rotate(180deg)', 'scaleX(-1)', 'scaleY(-1)'];
@@ -360,14 +361,16 @@ function boxLay(c, i) {
 }
 /* misure del box: finché non le cambi seguono la mattonella della parete (pezzi interi: 120×278 → 240 × 278) */
 function boxOf(c) {
-  const b = (c && c.box) || {};
-  if (b.fit === false) return { L: b.L, P: b.P, H: b.H, seed: b.seed || 1, fit: false };
+  const b = (c && c.box) || {}, P = b.P || 150, side = { P2: b.P2 || P, P3: b.P3 || P };
+  if (b.fit === false) return Object.assign({ L: b.L, P, H: b.H, seed: b.seed || 1, fit: false }, side);
   let L = 240, H = 278;
   if (c && SAMPLE[c.slots[0]]) { const { tw, th } = boxLay(c, 0); L = tw * Math.max(1, Math.round(240 / tw)); H = th > 280 ? th : th * Math.max(1, Math.floor(280 / th)); }
-  return { L, P: b.P || 150, H, seed: b.seed || 1, fit: true };
+  return Object.assign({ L, P, H, seed: b.seed || 1, fit: true }, side);
 }
+/* profondità di tutto il box: il pavimento o la parete laterale più lunga (nel configuratore anche quella ancora vuota) */
+const boxDeep = (c, b) => Math.max(b.P, SAMPLE[c.slots[2]] || !LITE3D ? b.P2 : 0, SAMPLE[c.slots[3]] || !LITE3D ? b.P3 : 0);
 /* larghezza × altezza di ogni superficie */
-const boxSurf = (c, i) => { const { L, P, H } = boxOf(c); return [[L, H], [L, P], [P, H], [P, H]][i]; };
+const boxSurf = (c, i) => { const { L, P, H, P2, P3 } = boxOf(c); return [[L, H], [L, P], [P2, H], [P3, H]][i]; };
 /* pezzi della posa su una superficie W×H: file da sotto (bottom) o da sopra, colonne da destra (right) o da sinistra */
 function boxPieces(W, H, tw, th, off, bottom, right) {
   const out = [], rows = Math.ceil(H / th - 1e-6);
@@ -414,26 +417,26 @@ function boxSurfaceHTML(c, i, W, H, tf, bottom, right, sel) {
   return box('', out.join('') + ring, `background-color:${grout}`);
 }
 function boxModel(d, c, op) {
-  const { L, P, H } = boxOf(c), t = BOX_T, WH = H + BOX_BAND, has = i => !!SAMPLE[c.slots[i]];
-  const wl = has(2), wr = has(3), x0 = wl ? -t : 0, x1 = L + (wr ? t : 0), cx = (x0 + x1) / 2, cz = (P - t) / 2;
+  const b = boxOf(c), { L, P, H, P2, P3 } = b, t = BOX_T, WH = H + BOX_BAND, has = i => !!SAMPLE[c.slots[i]], Pm = boxDeep(c, b);
+  const wl = has(2), wr = has(3), x0 = wl ? -t : 0, x1 = L + (wr ? t : 0), cx = (x0 + x1) / 2, cz = (Pm - t) / 2;
   const X = x => x - cx, Z = z => z - cz, sel = i => !LITE3D && op === i;
-  // muri bianchi del box (con la fascia sopra la posa)
+  // muri bianchi del box (con la fascia sopra la posa); le pareti laterali partono dal fondo, ognuna lunga la sua misura
   let h = box3d(X(x0), -WH, Z(0), x1 - x0, WH, t, BOX_WHITE);
-  if (wl) h += box3d(X(-t), -WH, Z(P), t, WH, P, BOX_WHITE);
-  if (wr) h += box3d(X(L), -WH, Z(P), t, WH, P, BOX_WHITE);
+  if (wl) h += box3d(X(-t), -WH, Z(P2), t, WH, P2, BOX_WHITE);
+  if (wr) h += box3d(X(L), -WH, Z(P3), t, WH, P3, BOX_WHITE);
   if (has(1)) h += box3d(X(0), -1.2, Z(P), L, 1.2, P, { front: '#cdcac3', top: '#d9d6d0', side: '#c8c5be' });   // pedana del pavimento
   // superfici posate: parete di fondo e laterali da terra e dall'angolo in fondo, pavimento dal fondo a sinistra
   h += boxSurfaceHTML(c, 0, L, H, tr(X(0), -H, Z(0) + 0.1), true, false, sel(0));
   h += boxSurfaceHTML(c, 1, L, P, tr(X(0), has(1) ? -1.3 : -0.3, Z(0), 'rotateX(90deg)'), false, false, sel(1));
-  h += boxSurfaceHTML(c, 2, P, H, tr(X(0) + 0.1, -H, Z(P), 'rotateY(90deg)'), true, true, sel(2));
-  h += boxSurfaceHTML(c, 3, P, H, tr(X(L) - 0.1, -H, Z(0), 'rotateY(-90deg)'), true, false, sel(3));
+  h += boxSurfaceHTML(c, 2, P2, H, tr(X(0) + 0.1, -H, Z(P2), 'rotateY(90deg)'), true, true, sel(2));
+  h += boxSurfaceHTML(c, 3, P3, H, tr(X(L) - 0.1, -H, Z(0), 'rotateY(-90deg)'), true, false, sel(3));
   if (typeof boxFurnHTML === 'function') h += boxFurnHTML(c);   // arredo bagno (box.js)
-  const m = { html: h, L: x1 - x0, P: P + t, H: WH, fitW: x1 - x0 };
+  const m = { html: h, L: x1 - x0, P: Pm + t, H: WH, fitW: x1 - x0 };
   if (op >= 0) m.focus = [
     { x: X(L / 2), y: -H / 2, z: Z(0), w: L, h: H, yaw: 0, tilt: 6 },
     { x: X(L / 2), y: -1, z: Z(P / 2), w: L, h: P, yaw: 0, tilt: 50, flatTilt: 86 },
-    { x: X(0), y: -H / 2, z: Z(P / 2), w: P, h: H, yaw: -60, flatYaw: -90, tilt: 6 },
-    { x: X(L), y: -H / 2, z: Z(P / 2), w: P, h: H, yaw: 60, flatYaw: 90, tilt: 6 },
+    { x: X(0), y: -H / 2, z: Z(P2 / 2), w: P2, h: H, yaw: -60, flatYaw: -90, tilt: 6 },
+    { x: X(L), y: -H / 2, z: Z(P3 / 2), w: P3, h: H, yaw: 60, flatYaw: 90, tilt: 6 },
   ][op];
   return m;
 }
@@ -441,6 +444,8 @@ MODELS.box = boxModel;
 /* configuratore del box: misure, posa del posto scelto, grafiche rimescolate */
 function boxEdit(fn) { const c = comp(), cur = boxOf(c); c.box = Object.assign({}, c.box); fn(c.box, cur); touch(); renderStage(); }
 function setBoxDim(k, v) { boxEdit((b, cur) => { Object.assign(b, { fit: false, L: cur.L, P: cur.P, H: cur.H }); b[k] = Math.max(20, Math.min(1500, Math.round(+v) || cur[k])); }); }
+/* larghezza della sola parete laterale i (2 sinistra, 3 destra); uguale al pavimento = torna a seguirlo */
+function setBoxSide(i, v) { boxEdit((b, cur) => { const k = 'P' + i, n = Math.max(20, Math.min(1500, Math.round(+v) || cur[k])); if (n === cur.P) delete b[k]; else b[k] = n; }); }
 function fitBox() { boxEdit(b => { b.fit = true; delete b.L; delete b.H; }); toast('Misure adattate alla mattonella della parete: solo pezzi interi'); }
 function setBoxLay(i, k, v) { boxEdit(b => { b.lay = Object.assign({}, b.lay); b.lay[i] = Object.assign({}, b.lay[i], { [k]: v }); }); }
 function shuffleBox() { boxEdit(b => { b.seed = (b.seed || 1) + 1; }); toast('Grafiche dei pezzi girate in un altro modo'); }
@@ -451,10 +456,12 @@ function boxBar(d, c, st, op) {
   const b = boxOf(c), s = SAMPLE[c.slots[op]], lay = boxLay(c, op), fk = document.activeElement && document.activeElement.dataset.bk;
   const seg = items => `<span class="seg">${items.map(([txt, on, fn, tip]) => `<button class="${on ? 'on' : ''}" title="${esc(tip)}" onclick="${fn}">${txt}</button>`).join('')}</span>`;
   const num = (k, tip) => `<label title="${tip}">${k}<input type="number" min="20" max="1500" step="1" data-bk="${k}" value="${b[k]}" onchange="setBoxDim('${k}', this.value)"></label>`;
-  host.innerHTML = `<span class="g"><span class="l t">Misure</span>${num('L', 'Larghezza della parete posata')}<span class="x">×</span>${num('H', 'Altezza della posa (sopra resta una fascia bianca)')}<span class="x">×</span>${num('P', 'Profondità del pavimento e delle pareti laterali')} cm
+  host.innerHTML = `<span class="g"><span class="l t">Misure</span>${num('L', 'Larghezza della parete posata')}<span class="x">×</span>${num('H', 'Altezza della posa (sopra resta una fascia bianca)')}<span class="x">×</span>${num('P', 'Profondità del pavimento e delle pareti laterali (una parete laterale si può cambiare da sola: sceglila)')} cm
       ${b.fit ? '' : `<button class="bt" onclick="fitBox()" title="Misure con solo pezzi interi della mattonella della parete">Adatta</button>`}</span>
     <span class="sep"></span>
     <span class="g"><span class="l"><b>${esc(slotName(d, op, c.slots.length))}</b></span>
+      ${op === 2 || op === 3 ? `<label title="Larghezza solo di questa parete, dal fondo verso il davanti">Larg.<input type="number" min="20" max="1500" step="1" data-bk="P${op}" value="${b['P' + op]}" onchange="setBoxSide(${op}, this.value)"></label> cm
+        ${b['P' + op] !== b.P ? `<button class="bt" onclick="setBoxSide(${op}, ${b.P})" title="Di nuovo profonda come il pavimento (${b.P} cm)">= pavimento</button>` : ''}` : ''}
       ${s ? (lay.sq ? '' : seg([['Verticale', lay.o === 'v', `setBoxLay(${op},'o','v')`, op === 1 ? 'Lato lungo verso il fronte' : 'Lato lungo in verticale'],
                              ['Orizzontale', lay.o === 'h', `setBoxLay(${op},'o','h')`, op === 1 ? 'Lato lungo lungo la parete' : 'Lato lungo in orizzontale']])) +
         seg([['Dritta', !lay.off, `setBoxLay(${op},'off',0)`, 'Fughe allineate'], ['<span class="t">Sfalsata </span>½', lay.off === 0.5, `setBoxLay(${op},'off',0.5)`, 'Ogni fila spostata di mezzo pezzo'],

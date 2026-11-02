@@ -429,11 +429,11 @@ const bxB = (x, y, z, w, h, d, col) => box3d(rn(x), rn(y), rn(z), rn(w), rn(h), 
 const bxP = (x, y, z, w, h, css, tf) => `<div class="bx" style="width:${rn(w)}px;height:${rn(h)}px;${css};transform:translate3d(${rn(x)}px,${rn(y)}px,${rn(z)}px)${tf ? ' ' + tf : ''}"></div>`;
 /* il box come lo disegna boxModel: centro, filo del pavimento, altezza dei muri */
 function bxfFrame(c) {
-  const { L, P, H } = boxOf(c), t = BOX_T, has = i => !!SAMPLE[c.slots[i]];
-  const x0 = has(2) ? -t : 0, x1 = L + (has(3) ? t : 0), cx = (x0 + x1) / 2, cz = (P - t) / 2;
+  const b = boxOf(c), { L, P, H } = b, t = BOX_T, has = i => !!SAMPLE[c.slots[i]];
+  const x0 = has(2) ? -t : 0, x1 = L + (has(3) ? t : 0), cx = (x0 + x1) / 2, cz = (boxDeep(c, b) - t) / 2;
   return { L, P, WH: H + BOX_BAND, X: x => x - cx, Z: z => z - cz, yF: has(1) ? -1.35 : -0.35 };
 }
-const bxfLen = (c, wall) => { const { L, P } = boxOf(c); return wall === 0 ? L : P; };
+const bxfLen = (c, wall) => { const b = boxOf(c); return wall === 0 ? b.L : b['P' + wall]; };
 const bxfU = (c, it) => Math.max(it.w / 2, Math.min(bxfLen(c, it.wall) - it.w / 2, it.u));
 /* il pezzo si disegna con la schiena sul muro (z = 0 sul muro, z = d il davanti) e poi si porta sulla sua parete */
 function bxfTf(c, it, fr) {
@@ -444,10 +444,10 @@ function bxfTf(c, it, fr) {
 }
 /* lati del pezzo (sinistro e destro, guardandolo di fronte) contro un muro del box: lì la doccia non ha il vetro */
 function bxfSides(c, it) {
-  const { L } = boxOf(c), has = i => !!SAMPLE[c.slots[i]], u = bxfU(c, it), back = u - it.w / 2 <= 1;
+  const { L, P2, P3 } = boxOf(c), has = i => !!SAMPLE[c.slots[i]], u = bxfU(c, it), back = u - it.w / 2 <= 1;
   if (it.wall === 2) return [false, back];          // sulla parete sinistra il lato destro è quello verso il fondo
   if (it.wall === 3) return [back, false];
-  return [back && has(2), u + it.w / 2 >= L - 1 && has(3)];
+  return [back && has(2) && P2 >= it.d - 1, u + it.w / 2 >= L - 1 && has(3) && P3 >= it.d - 1];   // parete laterale corta: lì il vetro c'è
 }
 function bxfParts(it, WH, sd) {
   const { w, d } = it, fin = (BXF_FIN[it.f] || BXF_FIN.bianco)[1], cer = it.f === 'nero' ? BXF_CER_N : BXF_CER;
