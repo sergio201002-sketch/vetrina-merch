@@ -125,9 +125,9 @@ const RoomGL = {
         }
         if (ccol.a < 1) { mat.transparent = true; mat.opacity = ccol.a; }
       }
-      const round = cs.borderTopLeftRadius === '50%';      // dischi (specchio tondo del box): cerchio, non quadrato
-      const g = round ? new T.CircleGeometry(0.5, 48) : new T.PlaneGeometry(1, 1); g.translate(0.5, -0.5, 0); g.scale(w, h, 1);   // piano w×h con origine in alto a sinistra (y verso il basso dopo il ribaltamento)
-      g.scale(1, -1, 1);
+      // angoli tondi del CSS (specchio tondo, top del lavabo stondato, vasca): la forma vera, non il rettangolo
+      let g = roundShape(T, cs, w, h);
+      if (!g) { g = new T.PlaneGeometry(1, 1); g.translate(0.5, -0.5, 0); g.scale(w, h, 1); g.scale(1, -1, 1); }   // piano w×h con origine in alto a sinistra (y verso il basso dopo il ribaltamento)
       // la foto sta sullo stesso piano del pannello sotto: la stacco appena verso chi guarda, così non si mescolano a puntini
       if (photo) g.translate(0, 0, 0.08);
       if (metal) { const uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * w / 18, uv.getY(i) * h / 18); }   // grana sempre della stessa misura (18 cm per ripetizione)
@@ -218,6 +218,23 @@ const RoomGL = {
 };
 window.RoomGL = RoomGL;
 
+/* forma con gli angoli tondi (border-radius) nelle coordinate del piano: x 0..w, y 0..h verso il basso come nella pagina;
+   null se gli angoli sono dritti */
+function roundShape(T, cs, w, h) {
+  const px = (v, s) => /%$/.test(v) ? parseFloat(v) / 100 * s : parseFloat(v) || 0;
+  const r = ['borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomRightRadius', 'borderBottomLeftRadius'].map(k => {
+    const [a, b = a] = (cs[k] || '0px').split(' '); return [Math.min(px(a, w), w / 2), Math.min(px(b, h), h / 2)]; });
+  if (r.every(([a, b]) => a < 0.05 || b < 0.05)) return null;
+  const [tl, tr, br, bl] = r, s = new T.Shape(), P = Math.PI;
+  s.moveTo(tl[0], 0);
+  if (tr[0] < 0.05 || tr[1] < 0.05) s.lineTo(w, 0); else s.absellipse(w - tr[0], tr[1], tr[0], tr[1], -P / 2, 0, false);
+  if (br[0] < 0.05 || br[1] < 0.05) s.lineTo(w, h); else s.absellipse(w - br[0], h - br[1], br[0], br[1], 0, P / 2, false);
+  if (bl[0] < 0.05 || bl[1] < 0.05) s.lineTo(0, h); else s.absellipse(bl[0], h - bl[1], bl[0], bl[1], P / 2, P, false);
+  if (tl[0] < 0.05 || tl[1] < 0.05) s.lineTo(0, 0); else s.absellipse(tl[0], tl[1], tl[0], tl[1], P, 1.5 * P, false);
+  const g = new T.ShapeGeometry(s, 12), pos = g.attributes.position, uv = g.attributes.uv;
+  for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) / w, 1 - pos.getY(i) / h);   // foto e grana come sul piano
+  return g;
+}
 /* texture del metallo verniciato a polvere (nero opaco): rilievo fine e irregolare + ruvidità che varia appena. Ripetibile senza giunte. */
 let _powder = null;
 function powderMaps(T) {

@@ -402,7 +402,8 @@ function openBoxDetail(i) {
 
 /* ── arredo bagno: mobili in 3D, in scala vera (cm), appoggiati a una parete del box (c.box.furn) ──
    Ogni pezzo: { id, t, wall (0 fondo, 2 sinistra, 3 destra), u (centro lungo la parete: da sinistra sul fondo, dal fondo sulle
-   laterali), w × d (larghezza lungo la parete × sporgenza), f (finitura), mir (specchio del lavabo: false = senza, 'o' = tondo, altrimenti rettangolare), side (lato del vetro della doccia) }.
+   laterali), w × d (larghezza lungo la parete × sporgenza), f (finitura), mir (specchio del lavabo: false = senza, 'o' = tondo, altrimenti rettangolare), rc (lavabo con gli angoli
+   davanti stondati), side (lato del vetro della doccia) }.
    Si aggiunge dal pulsante "Arredi", si sceglie toccandolo e si sposta trascinandolo lungo la parete. Anche in sala mostra. */
 let bxF = null, bxShowF = (() => { try { return localStorage.getItem('vm_bx_arredi') !== '0'; } catch (e) { return true; } })();
 const BXF = {
@@ -449,24 +450,39 @@ function bxfSides(c, it) {
   if (it.wall === 3) return [back, false];
   return [back && has(2) && P2 >= it.d - 1, u + it.w / 2 >= L - 1 && has(3) && P3 >= it.d - 1];   // parete laterale corta: lì il vetro c'è
 }
-/* specchio tondo con la cornice nera sottile: dischi uno dietro l'altro (di lato si vede lo spessore), sopra il miscelatore */
-function bxfRound(w, mt) {
-  const D = Math.min(80, Math.round(w * 0.8), mt - 110), x = w / 2 - D / 2, y = -110 - D;
+/* specchio tondo grande senza cornice, appena sopra il miscelatore: dischi uno dietro l'altro (di lato si vede lo spessore del vetro) */
+function bxfRound(w, WH) {
+  const D = Math.min(100, Math.round(w * 0.85), WH - 130), x = w / 2 - D / 2, y = -104 - D;
   if (D < 25) return '';
   const disc = (z, css) => bxP(x, y, z, D, D, 'border-radius:50%;' + css);
-  return disc(0.7, 'background:#2b2b2d') + disc(1.4, 'background:#2b2b2d') + disc(2.1, 'background:#2b2b2d')
-    + disc(2.5, 'background:radial-gradient(circle at 38% 30%,#f4f7f8 0%,#dfe7ea 30%,#c9d4d8 62%,#bcc8cc 100%);box-shadow:inset 0 0 0 1.3px #2b2b2d');
+  return disc(0.7, 'background:#a9afb2') + disc(1.4, 'background:#a9afb2') + disc(2.1, 'background:#b4babd')
+    + disc(2.5, 'background:radial-gradient(circle at 38% 30%,#f4f7f8 0%,#dfe7ea 30%,#c9d4d8 62%,#bcc8cc 100%)');
+}
+/* parallelepipedo con i due spigoli davanti tondi (raggio R): fronte, retro, fianchi, angoli a spicchi verticali e sopra con
+   gli angoli tondi (come box3d: davanti a z, profondo d verso il muro) */
+function bxRB(x, y, z, w, h, d, R, col) {
+  let out = bxP(x + R, y, z, w - 2 * R, h, `background:${col.front}`) + bxP(x, y, z - d, w, h, `background:${col.side}`)
+    + bxP(x, y, z, w, d, `background:${col.top};border-radius:${rn(R)}px ${rn(R)}px 0 0`, 'rotateX(-90deg)')
+    + bxP(x, y, z - R, d - R, h, `background:${col.side}`, 'rotateY(90deg)') + bxP(x + w, y, z - R, d - R, h, `background:${col.side}`, 'rotateY(90deg)');
+  const N = 6;
+  for (const [cx, a0, a1] of [[x + R, Math.PI, Math.PI / 2], [x + w - R, Math.PI / 2, 0]]) for (let i = 0; i < N; i++) {
+    const t0 = a0 + (a1 - a0) * i / N, t1 = a0 + (a1 - a0) * (i + 1) / N, tm = (t0 + t1) / 2;
+    const x0 = cx + R * Math.cos(t0), z0 = z - R + R * Math.sin(t0), dx = cx + R * Math.cos(t1) - x0, dz = z - R + R * Math.sin(t1) - z0;
+    out += bxP(x0, y, z0, Math.hypot(dx, dz) + 0.2, h, `background:${Math.sin(tm) > 0.6 ? col.front : col.side}`, `rotateY(${(Math.atan2(-dz, dx) * 180 / Math.PI).toFixed(2)}deg)`);
+  }
+  return out;
 }
 function bxfParts(it, WH, sd) {
   const { w, d } = it, fin = (BXF_FIN[it.f] || BXF_FIN.bianco)[1], cer = it.f === 'nero' ? BXF_CER_N : BXF_CER;
   if (it.t === 'lavabo') {            // cassettone sospeso, top in ceramica con il lavabo, miscelatore, specchio sopra
     const bw = Math.min(w - 16, 56), mt = Math.min(190, WH - 6), mw = Math.round(w * 0.9);
-    return bxB(0.5, -73, d - 1.5, w - 1, 41, d - 2, fin)
-      + bxP(1.5, -53, d - 1.45, w - 3, 0.6, 'background:rgba(0,0,0,.32)') + bxP(1.5, -72.6, d - 1.45, w - 3, 1.6, 'background:rgba(0,0,0,.2)')
-      + bxB(0, -85, d, w, 12, d, BXF_CER)
+    const R = it.rc ? Math.min(16, w / 4, d / 2.5) : 0, li = Math.max(1.5, R);   // angoli stondati: mobile e top col raggio
+    return (R ? bxRB(0.5, -73, d - 1.5, w - 1, 41, d - 2, R - 1, fin) : bxB(0.5, -73, d - 1.5, w - 1, 41, d - 2, fin))
+      + bxP(li, -53, d - 1.45, w - 2 * li, 0.6, 'background:rgba(0,0,0,.32)') + bxP(li, -72.6, d - 1.45, w - 2 * li, 1.6, 'background:rgba(0,0,0,.2)')
+      + (R ? bxRB(0, -85, d, w, 12, d, R, BXF_CER) : bxB(0, -85, d, w, 12, d, BXF_CER))
       + bxP((w - bw) / 2, -85.05, d - 6, bw, 31, 'background:radial-gradient(ellipse at 50% 45%,#c3c9cc,#dce0e2 55%,#eceeef);border-radius:8px', 'rotateX(-90deg)')
       + bxB(w / 2 - 1.3, -100, 7, 2.6, 15, 2.6, BXF_CHR) + bxB(w / 2 - 1, -100, 16, 2, 2, 9, BXF_CHR)
-      + (it.mir === 'o' ? bxfRound(w, mt) : it.mir !== false && mt - 98 >= 25 ? bxB((w - mw) / 2, -mt, 2.5, mw, mt - 98, 2, BXF_MIR) : '');
+      + (it.mir === 'o' ? bxfRound(w, WH) : it.mir !== false && mt - 98 >= 25 ? bxB((w - mw) / 2, -mt, 2.5, mw, mt - 98, 2, BXF_MIR) : '');
   }
   if (it.t === 'vasca') return bxB(0, -56, d, w, 56, d, BXF_CER)
     + bxP(7, -56.05, d - 7, w - 14, d - 14, 'background:linear-gradient(180deg,#cdd2d5,#e4e7e9 55%,#dbdfe1);border-radius:18px', 'rotateX(-90deg)')
@@ -602,8 +618,10 @@ function bxFurnBar(c, host) {
     <span class="g"><span class="l t">Parete</span>${seg(walls.map(([w, n]) => [n, it.wall === w, `bxfSet('wall',${w})`, w === 0 ? 'Parete di fondo' : 'Parete ' + n.toLowerCase(), it.w > bxfLen(c, w)]))}</span>
     <span class="g"><span class="l t">Posizione</span><input type="range" class="rg" min="${it.w / 2}" max="${Math.max(it.w / 2, len - it.w / 2)}" step="1" value="${bxfU(c, it)}" oninput="bxfSlide(this.value)" onchange="bxfSet('u', this.value)" title="Sposta lungo la parete (o trascina il mobile)"></span>
     ${T.fins ? `<span class="sep"></span><span class="g"><span class="l t">Finitura</span>${seg(T.fins.map(f => [`<i class="fsw" style="background:${BXF_FIN[f][1].front}"></i><span class="t">${BXF_FIN[f][0]}</span>`, it.f === f, `bxfSet('f','${f}')`, BXF_FIN[f][0]]))}</span>` : ''}
+    ${it.t === 'lavabo' ? `<span class="g"><span class="l t">Angoli</span>${seg([['Dritti', !it.rc, `bxfSet('rc',false)`, 'Mobile e top con gli spigoli dritti'],
+      ['Stondati', !!it.rc, `bxfSet('rc',true)`, 'Mobile e top con gli angoli davanti arrotondati']])}</span>` : ''}
     ${it.t === 'lavabo' ? `<span class="g"><span class="l t">Specchio</span>${seg([['Rettangolare', it.mir !== false && it.mir !== 'o', `bxfSet('mir',true)`, 'Specchio rettangolare largo quasi come il mobile'],
-      ['Tondo', it.mir === 'o', `bxfSet('mir','o')`, 'Specchio rotondo con la cornice nera sottile'], ['Senza', it.mir === false, `bxfSet('mir',false)`, 'Niente specchio: si vede tutta la posa']])}</span>` : ''}
+      ['Tondo', it.mir === 'o', `bxfSet('mir','o')`, 'Specchio rotondo, senza cornice'], ['Senza', it.mir === false, `bxfSet('mir',false)`, 'Niente specchio: si vede tutta la posa']])}</span>` : ''}
     ${it.t === 'doccia' ? seg([['Porta a sinistra', it.side === 'l', `bxfSet('side','l')`, 'Porta scorrevole a sinistra'], ['a destra', it.side !== 'l', `bxfSet('side','r')`, 'Porta scorrevole a destra']]) : ''}
     <span class="sp"></span>
     <button class="bt" onclick="bxfDup()" title="Un altro uguale"><svg class="ic"><use href="#i-copy"/></svg><span class="t"> Duplica</span></button>
