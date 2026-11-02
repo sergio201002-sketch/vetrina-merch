@@ -362,7 +362,8 @@ function boxLay(c, i) {
   const [a, z] = s && parseSize(s.z) ? sorted2(parseSize(s.z)) : [60, 60];
   const o = l.o || (wh ? (wh[1] > wh[0] ? 'v' : 'h') : i >= 4 || (i !== 1 && z >= 200) ? 'v' : 'h');   // fasce: lato lungo in verticale
   const off = cont ? 0 : l.off != null ? l.off : i === 1 && z / a >= 4 ? 1 / 3 : 0;   // listoni a pavimento: sfalsati di un terzo
-  return { o, off, cont, tw: o === 'v' ? a : z, th: o === 'v' ? z : a, sq: Math.abs(a - z) < 0.5, st: i !== 1 && l.st || 0 };
+  return { o, off, cont, tw: o === 'v' ? a : z, th: o === 'v' ? z : a, sq: Math.abs(a - z) < 0.5, st: i !== 1 && l.st || 0,
+    ls: l.ls != null ? l.ls : 'lrt', lc: l.lc === 'c' ? 'c' : 'w' };   // LED: lati accesi (l sinistra, t sopra, r destra), luce calda / fredda
 }
 /* misure del box: finché non le cambi seguono la mattonella della parete (pezzi interi: 120×278 → 240 × 278) */
 function boxOf(c) {
@@ -482,16 +483,17 @@ const BOX_OFF = 5, BOX_SLAB = 1.2, BOX_LED = 20;
 function boxWallHTML(c, i, W, H, tf, bottom, right, op) {
   const pre = tf === 'none' ? '' : tf + ' ', at = (x, y, z, r) => x || y || z || r ? `${pre}translate3d(${rn(x)}px,${rn(y)}px,${z}px)${r ? ' ' + r : ''}` : tf;
   return boxBands(c, i, W).map(p => {
-    const s = SAMPLE[c.slots[p.s]], st = s && boxLay(c, p.s).st, D = st ? BOX_OFF : 0;
+    const s = SAMPLE[c.slots[p.s]], ly = boxLay(c, p.s), st = s && ly.st, D = st ? BOX_OFF : 0;
     let h = boxSurfaceHTML(c, p.s, p.w, H, at(p.x, 0, D), bottom, p.w > W - 0.5 ? right : !p.x ? false : p.x + p.w > W - 0.5 ? true : right, !LITE3D && op === p.s, p.n);
     if (!D) return h;
     const t = backTint(s), ed = `background:${t ? `rgb(${t.split(',').map(v => Math.round(v * 0.82)).join(',')})` : '#b9b4ab'}`, T = BOX_SLAB;
     h += `<div class="bx" style="width:${T}px;height:${rn(H)}px;${ed};transform:${at(p.x, 0, D - T, 'rotateY(-90deg)')}"></div>`
       + `<div class="bx" style="width:${T}px;height:${rn(H)}px;${ed};transform:${at(p.x + p.w, 0, D - T, 'rotateY(-90deg)')}"></div>`
       + `<div class="bx" style="width:${rn(p.w)}px;height:${T}px;${ed};transform:${at(p.x, 0, D - T, 'rotateX(90deg)')}"></div>`;
-    // la luce sul muro e sulle fasce accanto (davanti a loro, dietro la lastra); in sala mostra niente: è trasparente
-    if (st === 2) h += `<div class="bx" style="width:${rn(p.w)}px;height:${rn(H)}px;box-shadow:0 0 ${BOX_LED}px ${BOX_LED / 4}px rgba(255,212,135,.72),0 0 ${BOX_LED / 4}px ${BOX_LED / 10}px rgba(255,246,220,.95);`
-      + `clip-path:inset(-${BOX_LED * 2}px -${BOX_LED * 2}px 0 -${BOX_LED * 2}px);transform:${at(p.x, 0, 0.6)}"></div>`;
+    // la luce sul muro e sulle fasce accanto (davanti a loro, dietro la lastra), solo dai lati accesi; in sala mostra niente: è trasparente
+    const G = BOX_LED * 2, on = k => ly.ls.includes(k) ? -G : 0, [o, n] = ly.lc === 'c' ? ['185,218,255,.72', '238,246,255,.95'] : ['255,212,135,.72', '255,246,220,.95'];
+    if (st === 2 && /[ltr]/.test(ly.ls)) h += `<div class="bx" style="width:${rn(p.w)}px;height:${rn(H)}px;box-shadow:0 0 ${BOX_LED}px ${BOX_LED / 4}px rgba(${o}),0 0 ${BOX_LED / 4}px ${BOX_LED / 10}px rgba(${n});`
+      + `clip-path:inset(${on('t')}px ${on('r')}px 0 ${on('l')}px);transform:${at(p.x, 0, 0.6)}"></div>`;
     return h;
   }).join('');
 }
@@ -621,7 +623,10 @@ function boxBar(d, c, st, op) {
              ['⅓', Math.abs(lay.off - 1 / 3) < 0.01, `setBoxLay(${op},'off',${1 / 3})`, 'Ogni fila spostata di un terzo']])) +
         (op === 1 ? '' : seg([['Al muro', !lay.st, `setBoxLay(${op},'st',0)`, 'Posata attaccata al muro'],
           ['Staccata', lay.st === 1, `setBoxLay(${op},'st',1)`, `Staccata dal muro di ${BOX_OFF} cm (si vede lo spessore della lastra)`],
-          ['<svg class="ic"><use href="#i-sun"/></svg> LED', lay.st === 2, `setBoxLay(${op},'st',2)`, `Staccata dal muro di ${BOX_OFF} cm con i LED dietro: il muro si illumina attorno`]])) : '<span class="em">nessun materiale</span>'}
+          ['<svg class="ic"><use href="#i-sun"/></svg> LED', lay.st === 2, `setBoxLay(${op},'st',2)`, `Staccata dal muro di ${BOX_OFF} cm con i LED dietro: il muro si illumina attorno`]])) +
+        (lay.st === 2 ? `<span class="l">Luce</span>` + seg([['Sinistra', 'l'], ['Sopra', 't'], ['Destra', 'r']].map(([txt, k]) => { const on = lay.ls.includes(k);
+            return [txt, on, `setBoxLay(${op},'ls','${['l', 't', 'r'].filter(x => x === k ? !on : lay.ls.includes(x)).join('')}')`, `${on ? 'Spegni' : 'Accendi'} i LED ${k === 't' ? 'in alto' : k === 'l' ? 'a sinistra' : 'a destra'} (si può accendere un lato, due o tutti)`]; }))
+          + seg([['Calda', lay.lc === 'w', `setBoxLay(${op},'lc','w')`, 'Luce calda (circa 3000 K)'], ['Fredda', lay.lc === 'c', `setBoxLay(${op},'lc','c')`, 'Luce fredda (circa 6000 K)']]) : '') : '<span class="em">nessun materiale</span>'}
       <button class="bt${s ? '' : ' red'}" onclick="bxDrawer(true)">${s ? 'Cambia<span class="t"> materiale</span>' : 'Scegli il materiale'}</button></span>${compo}
     <span class="sep"></span>
     <button class="bt" onclick="shuffleBox()" title="Ogni pezzo con la grafica girata in un altro modo"><svg class="ic"><use href="#i-sync"/></svg><span class="t"> Gira le grafiche</span></button>
