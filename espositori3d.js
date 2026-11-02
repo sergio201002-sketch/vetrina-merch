@@ -363,7 +363,7 @@ function boxLay(c, i) {
   const o = l.o || (wh ? (wh[1] > wh[0] ? 'v' : 'h') : i >= 4 || (i !== 1 && z >= 200) ? 'v' : 'h');   // fasce: lato lungo in verticale
   const off = cont ? 0 : l.off != null ? l.off : i === 1 && z / a >= 4 ? 1 / 3 : 0;   // listoni a pavimento: sfalsati di un terzo
   return { o, off, cont, tw: o === 'v' ? a : z, th: o === 'v' ? z : a, sq: Math.abs(a - z) < 0.5, st: i !== 1 && l.st || 0,
-    ls: l.ls != null ? l.ls : 'lrt', lc: l.lc === 'c' ? 'c' : 'w' };   // LED: lati accesi (l sinistra, t sopra, r destra), luce calda / fredda
+    ls: l.ls != null ? l.ls : 'lrt', lc: l.lc === 'c' ? 'c' : 'w', mid: !!l.mid };   // mid: un pezzo intero al centro   // LED: lati accesi (l sinistra, t sopra, r destra), luce calda / fredda
 }
 /* misure del box: finché non le cambi seguono la mattonella della parete (pezzi interi: 120×278 → 240 × 278) */
 function boxOf(c) {
@@ -422,15 +422,16 @@ const boxSurf = (c, i) => { const { L, P, H, P2, P3 } = boxOf(c); return [[L, H]
 function boxQty(c, s) {
   const i = boxWallOf(c, s); if (i < 0) return null;
   const [W, H] = boxSurf(c, i), l = boxLay(c, s), ps = boxBands(c, i, W).filter(p => p.s === s);   // nessuna: coperta tutta dalle fasce
-  return ps.length ? ps.reduce((q, p) => ({ m2: q.m2 + p.w * H / 10000, n: q.n + boxPieces(p.w, H, l.tw, l.th, l.off).length }), { m2: 0, n: 0 }) : null;
+  return ps.length ? ps.reduce((q, p) => ({ m2: q.m2 + p.w * H / 10000, n: q.n + boxPieces(p.w, H, l.tw, l.th, l.off, false, false, l.mid).length }), { m2: 0, n: 0 }) : null;
 }
-/* pezzi della posa su una superficie W×H: file da sotto (bottom) o da sopra, colonne da destra (right) o da sinistra;
+/* pezzi della posa su una superficie W×H: file da sotto (bottom) o da sopra, colonne da destra (right) o da sinistra,
+   oppure (mid) con un pezzo intero al centro e i tagli uguali ai due lati;
    ox, oy = dove comincia la parte che si vede di un pezzo tagliato (per la posa continua) */
-function boxPieces(W, H, tw, th, off, bottom, right) {
-  const out = [], rows = Math.ceil(H / th - 1e-6);
+function boxPieces(W, H, tw, th, off, bottom, right, mid) {
+  const out = [], rows = Math.ceil(H / th - 1e-6), b0 = mid ? ((W - tw) / 2) % tw : 0, x0 = b0 > 0.01 ? b0 - tw : b0;
   for (let r = 0; r < rows; r++) {
     const y0 = bottom ? H - (r + 1) * th : r * th, y1 = y0 + th, sh = off ? ((r * off) % 1) * tw : 0;
-    for (let k = 0, x = -sh; x < W - 0.01; k++, x += tw) {
+    for (let k = 0, x = x0 - sh; x < W - 0.01; k++, x += tw) {
       let a = Math.max(0, x), b = Math.min(W, x + tw);
       const c0 = Math.max(0, y0), c1 = Math.min(H, y1);
       if (b - a < 0.3 || c1 - c0 < 0.3) continue;
@@ -454,7 +455,7 @@ function boxSurfaceHTML(c, i, W, H, tf, bottom, right, sel, salt) {
   const wh = cont && url && dimOf(k), turn = wh ? Math.abs(wh[0] - wh[1]) > 1 && (wh[1] > wh[0]) !== (th > tw) : !!url && photoTurn(k, th > tw);
   const r = LITE3D ? ROOM_RES : FACE_RES, g = cont ? 0 : BOX_GAP / 2;
   const seed = boxOf(c).seed, hash = (a, b) => { let x = Math.imul(a + 1, 73856093) ^ Math.imul(b + 1, 19349663) ^ Math.imul(seed * 7 + i + 1 + (salt || 0) * 131, 83492791); x = Math.imul(x ^ (x >>> 13), 1274126177); return (x ^ (x >>> 16)) >>> 0; };
-  let ps = boxPieces(W, H, tw, th, lay.off, bottom, right);
+  let ps = boxPieces(W, H, tw, th, lay.off, bottom, right, lay.mid);
   if (ps.length > 600) return box('', '', `background-color:${grout};${faceBg(s, W, H, true)}`);   // formati piccolissimi: posa ripetuta, senza variare i pezzi
   // ogni pezzo: mai uguale al pezzo accanto e a quello della fila prima, e mai il loro specchio sulla fuga in comune
   // (si vedrebbe la "V" delle venature che si specchiano); conta come appare davvero (anche la foto girata di 90°)
@@ -621,6 +622,8 @@ function boxBar(d, c, st, op) {
                              ['Orizzontale', lay.o === 'h', `setBoxLay(${op},'o','h')`, op === 1 ? 'Lato lungo lungo la parete' : 'Lato lungo in orizzontale']])) +
         (lay.cont ? '<span class="em">posa continua, senza fughe</span>' : seg([['Dritta', !lay.off, `setBoxLay(${op},'off',0)`, 'Fughe allineate'], ['<span class="t">Sfalsata </span>½', lay.off === 0.5, `setBoxLay(${op},'off',0.5)`, 'Ogni fila spostata di mezzo pezzo'],
              ['⅓', Math.abs(lay.off - 1 / 3) < 0.01, `setBoxLay(${op},'off',${1 / 3})`, 'Ogni fila spostata di un terzo']])) +
+        seg([["Dall'angolo", !lay.mid, `setBoxLay(${op},'mid',false)`, "La posa parte dall'angolo con un pezzo intero: l'eventuale taglio va dall'altra parte"],
+          ['Al centro', lay.mid, `setBoxLay(${op},'mid',true)`, 'Un pezzo intero al centro e i tagli uguali ai due lati']]) +
         (op === 1 ? '' : seg([['Al muro', !lay.st, `setBoxLay(${op},'st',0)`, 'Posata attaccata al muro'],
           ['Staccata', lay.st === 1, `setBoxLay(${op},'st',1)`, `Staccata dal muro di ${BOX_OFF} cm (si vede lo spessore della lastra)`],
           ['<svg class="ic"><use href="#i-sun"/></svg> LED', lay.st === 2, `setBoxLay(${op},'st',2)`, `Staccata dal muro di ${BOX_OFF} cm con i LED dietro: il muro si illumina attorno`]])) +
