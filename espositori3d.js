@@ -351,13 +351,14 @@ const BOX_M = { '': [1, 0, 0, 1], 'rotate(180deg)': [-1, 0, 0, -1], 'scaleX(-1)'
   'rotate(270deg)': [0, 1, -1, 0], 'rotate(90deg) scaleX(-1)': [0, -1, -1, 0], 'rotate(90deg) scaleY(-1)': [0, 1, 1, 0] };
 const mmul = (A, B) => [A[0] * B[0] + A[1] * B[2], A[0] * B[1] + A[1] * B[3], A[2] * B[0] + A[3] * B[2], A[2] * B[1] + A[3] * B[3]];
 /* posa di un posto: o = 'v' (lato lungo in verticale) / 'h'; off = sfalsamento tra le file (0, 1/2, 1/3);
-   tw × th = il pezzo come sta sulla superficie (larghezza × altezza; sul pavimento: lungo la larghezza × verso il fronte) */
+   tw × th = il pezzo come sta sulla superficie (larghezza × altezza; sul pavimento: lungo la larghezza × verso il fronte);
+   cont = posa continua (mosaici in foglio, s.cont): niente fughe né sfalsamento, il foglio dritto come nella foto */
 function boxLay(c, i) {
-  const s = SAMPLE[c.slots[i]], l = ((c.box || {}).lay || {})[i] || {};
+  const s = SAMPLE[c.slots[i]], l = ((c.box || {}).lay || {})[i] || {}, cont = !!(s && s.cont), wh = cont && dimOf(photoKey(s));
   const [a, z] = s && parseSize(s.z) ? sorted2(parseSize(s.z)) : [60, 60];
-  const o = l.o || (i !== 1 && z >= 200 ? 'v' : 'h');
-  const off = l.off != null ? l.off : i === 1 && z / a >= 4 ? 1 / 3 : 0;   // listoni a pavimento: sfalsati di un terzo
-  return { o, off, tw: o === 'v' ? a : z, th: o === 'v' ? z : a, sq: Math.abs(a - z) < 0.5 };
+  const o = l.o || (wh ? (wh[1] > wh[0] ? 'v' : 'h') : i !== 1 && z >= 200 ? 'v' : 'h');
+  const off = cont ? 0 : l.off != null ? l.off : i === 1 && z / a >= 4 ? 1 / 3 : 0;   // listoni a pavimento: sfalsati di un terzo
+  return { o, off, cont, tw: o === 'v' ? a : z, th: o === 'v' ? z : a, sq: Math.abs(a - z) < 0.5 };
 }
 /* misure del box: finché non le cambi seguono la mattonella della parete (pezzi interi: 120×278 → 240 × 278) */
 function boxOf(c) {
@@ -371,7 +372,8 @@ function boxOf(c) {
 const boxDeep = (c, b) => Math.max(b.P, SAMPLE[c.slots[2]] || !LITE3D ? b.P2 : 0, SAMPLE[c.slots[3]] || !LITE3D ? b.P3 : 0);
 /* larghezza × altezza di ogni superficie */
 const boxSurf = (c, i) => { const { L, P, H, P2, P3 } = boxOf(c); return [[L, H], [L, P], [P2, H], [P3, H]][i]; };
-/* pezzi della posa su una superficie W×H: file da sotto (bottom) o da sopra, colonne da destra (right) o da sinistra */
+/* pezzi della posa su una superficie W×H: file da sotto (bottom) o da sopra, colonne da destra (right) o da sinistra;
+   ox, oy = dove comincia la parte che si vede di un pezzo tagliato (per la posa continua) */
 function boxPieces(W, H, tw, th, off, bottom, right) {
   const out = [], rows = Math.ceil(H / th - 1e-6);
   for (let r = 0; r < rows; r++) {
@@ -380,8 +382,9 @@ function boxPieces(W, H, tw, th, off, bottom, right) {
       let a = Math.max(0, x), b = Math.min(W, x + tw);
       const c0 = Math.max(0, y0), c1 = Math.min(H, y1);
       if (b - a < 0.3 || c1 - c0 < 0.3) continue;
+      const ox = right ? x + tw - b : a - x;
       if (right) [a, b] = [W - b, W - a];
-      out.push({ r, k, x: a, y: c0, w: b - a, h: c1 - c0, full: b - a > tw - 0.05 && c1 - c0 > th - 0.05 });
+      out.push({ r, k, x: a, y: c0, w: b - a, h: c1 - c0, ox, oy: c0 - y0, full: b - a > tw - 0.05 && c1 - c0 > th - 0.05 });
     }
   }
   return out;
@@ -393,8 +396,10 @@ function boxSurfaceHTML(c, i, W, H, tf, bottom, right, sel) {
   const ring = sel ? `<div class="bx" style="width:${rn(W)}px;height:${rn(H)}px;box-shadow:inset 0 0 0 ${Math.max(1.2, L / 200)}px rgba(200,16,46,.9);transform:translateZ(0.5px)"></div>` : '';
   if (!s) return LITE3D ? '' : box(' empty boxghost', `<span>${esc(slotName(DISP.BOX || {}, i, 4))}<br><small>scegli la mattonella</small></span>${ring}`);
   const lay = boxLay(c, i), { tw, th } = lay, k = photoKey(s), url = hasPhoto(s) ? imgFor(k) : null;
-  const t = backTint(s), grout = t ? `rgb(${t.split(',').map(v => Math.round(v * 0.72)).join(',')})` : '#a9a49b';
-  const turn = !!url && photoTurn(k, th > tw), r = LITE3D ? ROOM_RES : FACE_RES, g = BOX_GAP / 2;
+  const t = backTint(s), cont = lay.cont, grout = t ? `rgb(${cont ? t : t.split(',').map(v => Math.round(v * 0.72)).join(',')})` : '#a9a49b';
+  // posa continua: la foto si gira solo se il foglio è posato di traverso rispetto alla foto, anche se è quasi quadrata
+  const wh = cont && url && dimOf(k), turn = wh ? Math.abs(wh[0] - wh[1]) > 1 && (wh[1] > wh[0]) !== (th > tw) : !!url && photoTurn(k, th > tw);
+  const r = LITE3D ? ROOM_RES : FACE_RES, g = cont ? 0 : BOX_GAP / 2;
   const seed = boxOf(c).seed, hash = (a, b) => { let x = Math.imul(a + 1, 73856093) ^ Math.imul(b + 1, 19349663) ^ Math.imul(seed * 7 + i + 1, 83492791); x = Math.imul(x ^ (x >>> 13), 1274126177); return (x ^ (x >>> 16)) >>> 0; };
   let ps = boxPieces(W, H, tw, th, lay.off, bottom, right);
   if (ps.length > 600) return box('', '', `background-color:${grout};${faceBg(s, W, H, true)}`);   // formati piccolissimi: posa ripetuta, senza variare i pezzi
@@ -405,12 +410,13 @@ function boxSurfaceHTML(c, i, W, H, tf, bottom, right, sel) {
     const vars = p.full && lay.sq ? BOX_VAR_SQ : BOX_VAR, lf = got.get(p.r + '|' + (p.k - 1)), dn = got.get((p.r - 1) + '|' + p.k), bad = new Set();
     if (lf) bad.add(lf.join()).add(mmul(BOX_M['scaleX(-1)'], lf).join());
     if (dn) bad.add(dn.join()).add(mmul(BOX_M['scaleY(-1)'], dn).join());
-    let v = hash(p.r, p.k) % vars.length;
-    for (let n = 0; n < vars.length && bad.has(mmul(TM, BOX_M[vars[v]]).join()); n++) v = (v + 1) % vars.length;
+    let v = cont ? 0 : hash(p.r, p.k) % vars.length;   // continua: tutti i fogli uguali, il disegno prosegue
+    for (let n = 0; !cont && n < vars.length && bad.has(mmul(TM, BOX_M[vars[v]]).join()); n++) v = (v + 1) % vars.length;
     got.set(p.r + '|' + p.k, mmul(TM, BOX_M[vars[v]]));
     const w = p.w - 2 * g, h = p.h - 2 * g, fx = p.w / tw, fy = p.h / th;
     const [ew, eh, sx, sy] = turn ? [h, w, fy, fx] : [w, h, fx, fy];     // foto girata di 90°: il pezzo si disegna coricato e si gira
-    const bg = url ? `background-image:url(${url});background-size:${rn(100 / sx)}% ${rn(100 / sy)}%;background-position:0 0;background-repeat:no-repeat;background-color:${grout}`
+    const pos = !cont ? '0 0' : turn ? `${rn(-p.oy * r)}px ${rn(-(tw - p.ox - w) * r)}px` : `${rn(-p.ox * r)}px ${rn(-p.oy * r)}px`;   // pezzo tagliato: la sua parte di foglio
+    const bg = url ? `background-image:url(${url});background-size:${rn(100 / sx)}% ${rn(100 / sy)}%;background-position:${pos};background-repeat:no-repeat;background-color:${grout}`
       : `background:${rgb(placeholderRGB(s), (hash(p.k, p.r) % 15) - 7)}`;
     out.push(`<div class="bx" style="width:${rn(ew * r)}px;height:${rn(eh * r)}px;${bg};transform:translate3d(${rn(p.x + g)}px,${rn(p.y + g)}px,0.1px) scale(${(1 / r).toFixed(5)}) translate(${rn(w * r / 2)}px,${rn(h * r / 2)}px)${turn ? ' rotate(90deg)' : ''} ${vars[v]} translate(${rn(-ew * r / 2)}px,${rn(-eh * r / 2)}px)"></div>`);
   });
@@ -464,8 +470,8 @@ function boxBar(d, c, st, op) {
         ${b['P' + op] !== b.P ? `<button class="bt" onclick="setBoxSide(${op}, ${b.P})" title="Di nuovo profonda come il pavimento (${b.P} cm)">= pavimento</button>` : ''}` : ''}
       ${s ? (lay.sq ? '' : seg([['Verticale', lay.o === 'v', `setBoxLay(${op},'o','v')`, op === 1 ? 'Lato lungo verso il fronte' : 'Lato lungo in verticale'],
                              ['Orizzontale', lay.o === 'h', `setBoxLay(${op},'o','h')`, op === 1 ? 'Lato lungo lungo la parete' : 'Lato lungo in orizzontale']])) +
-        seg([['Dritta', !lay.off, `setBoxLay(${op},'off',0)`, 'Fughe allineate'], ['<span class="t">Sfalsata </span>½', lay.off === 0.5, `setBoxLay(${op},'off',0.5)`, 'Ogni fila spostata di mezzo pezzo'],
-             ['⅓', Math.abs(lay.off - 1 / 3) < 0.01, `setBoxLay(${op},'off',${1 / 3})`, 'Ogni fila spostata di un terzo']]) : '<span class="em">nessun materiale</span>'}
+        (lay.cont ? '<span class="em">posa continua, senza fughe</span>' : seg([['Dritta', !lay.off, `setBoxLay(${op},'off',0)`, 'Fughe allineate'], ['<span class="t">Sfalsata </span>½', lay.off === 0.5, `setBoxLay(${op},'off',0.5)`, 'Ogni fila spostata di mezzo pezzo'],
+             ['⅓', Math.abs(lay.off - 1 / 3) < 0.01, `setBoxLay(${op},'off',${1 / 3})`, 'Ogni fila spostata di un terzo']])) : '<span class="em">nessun materiale</span>'}
       <button class="bt${s ? '' : ' red'}" onclick="bxDrawer(true)">${s ? 'Cambia<span class="t"> materiale</span>' : 'Scegli il materiale'}</button></span>
     <span class="sep"></span>
     <button class="bt" onclick="shuffleBox()" title="Ogni pezzo con la grafica girata in un altro modo"><svg class="ic"><use href="#i-sync"/></svg><span class="t"> Gira le grafiche</span></button>

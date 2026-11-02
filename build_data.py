@@ -223,6 +223,8 @@ def load_products():
 # pezzi speciali del listino (mosaici…) che entrano lo stesso nella vetrina, come i fondi: il colore prende il nome
 # del pezzo ("Perla Mosaico Provenzale Evo"), così la sua foto non si confonde con quella del fondo liscio
 EXTRA_CODES = {'ENVH'}
+# posa continua, senza fughe: mosaici in foglio la cui foto si ripete senza giunte (nel box i fogli non si vedono)
+CONTINUOUS = {'ENVH'}
 
 
 def build_samples(products):
@@ -278,6 +280,8 @@ def build_samples(products):
                 alias.setdefault(broken, set()).add('|'.join([brand, series, color, size]))
         key = '|'.join([brand, series, color, size])
         g = groups.setdefault(key, dict(b=brand, s=series, c=color, z=size, f=[], k=[], t=[]))
+        if p.get('code') in CONTINUOUS:
+            g['cont'] = 1
         if sub and '' in subs.get(p.get('series'), set()):       # decoro (Dune, Rilievi, Onde…): la serie ha anche i fondi lisci
             g['dec'] = 1
         if sub:                                                  # gruppo di grafica/decoro (per ordinare: prima i fondi, poi un gruppo alla volta)
