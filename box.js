@@ -459,16 +459,23 @@ function bxfRound(w, WH) {
     + disc(2.5, 'background:radial-gradient(circle at 38% 30%,#f4f7f8 0%,#dfe7ea 30%,#c9d4d8 62%,#bcc8cc 100%)');
 }
 /* parallelepipedo con i due spigoli davanti tondi (raggio R): fronte, retro, fianchi, angoli a spicchi verticali e sopra con
-   gli angoli tondi (come box3d: davanti a z, profondo d verso il muro) */
-function bxRB(x, y, z, w, h, d, R, col) {
-  let out = bxP(x + R, y, z, w - 2 * R, h, `background:${col.front}`) + bxP(x, y, z - d, w, h, `background:${col.side}`)
+   gli angoli tondi (come box3d: davanti a z, profondo d verso il muro). Gli spicchi sfumano senza salti dal colore del fronte
+   a quello del fianco e si sovrappongono (niente righe né fessure); over = strati sopra il fronte che girano anche
+   sull'angolo (le linee dei cassetti) */
+const bxHex = s => String(s).match(/#[0-9a-f]{6}/gi) || ['#888888'];
+const bxMix = (a, b, t) => '#' + [1, 3, 5].map(i => Math.round(parseInt(a.substr(i, 2), 16) * (1 - t) + parseInt(b.substr(i, 2), 16) * t).toString(16).padStart(2, '0')).join('');
+function bxRB(x, y, z, w, h, d, R, col, over) {
+  const lay = (bg, solid) => `background-color:${solid};background-image:${over ? over + ',' : ''}${bg}`;   // il colore pieno: per la sala mostra 3D
+  const fr = bxHex(col.front), sd = bxHex(col.side)[0];
+  let out = bxP(x + R - 0.4, y, z, w - 2 * R + 0.8, h, over ? lay(/gradient/.test(col.front) ? col.front : `linear-gradient(${col.front},${col.front})`, fr[0]) : `background:${col.front}`)
+    + bxP(x, y, z - d, w, h, `background:${col.side}`)
     + bxP(x, y, z, w, d, `background:${col.top};border-radius:${rn(R)}px ${rn(R)}px 0 0`, 'rotateX(-90deg)')
-    + bxP(x, y, z - R, d - R, h, `background:${col.side}`, 'rotateY(90deg)') + bxP(x + w, y, z - R, d - R, h, `background:${col.side}`, 'rotateY(90deg)');
-  const N = 6;
-  for (const [cx, a0, a1] of [[x + R, Math.PI, Math.PI / 2], [x + w - R, Math.PI / 2, 0]]) for (let i = 0; i < N; i++) {
-    const t0 = a0 + (a1 - a0) * i / N, t1 = a0 + (a1 - a0) * (i + 1) / N, tm = (t0 + t1) / 2;
+    + bxP(x, y, z - R + 0.4, d - R + 0.4, h, `background:${col.side}`, 'rotateY(90deg)') + bxP(x + w, y, z - R + 0.4, d - R + 0.4, h, `background:${col.side}`, 'rotateY(90deg)');   // fronte e fianchi passano appena sotto gli spicchi: nessuna giunta
+  const N = 9;
+  for (const [cx, a0, a1, f] of [[x + R, Math.PI, Math.PI / 2, fr[0]], [x + w - R, Math.PI / 2, 0, fr[fr.length - 1]]]) for (let i = 0; i < N; i++) {
+    const t0 = a0 + (a1 - a0) * i / N, t1 = a0 + (a1 - a0) * (i + 1) / N, c = t => bxMix(sd, f, Math.pow(Math.max(0, Math.sin(t)), 0.8));
     const x0 = cx + R * Math.cos(t0), z0 = z - R + R * Math.sin(t0), dx = cx + R * Math.cos(t1) - x0, dz = z - R + R * Math.sin(t1) - z0;
-    out += bxP(x0, y, z0, Math.hypot(dx, dz) + 0.2, h, `background:${Math.sin(tm) > 0.6 ? col.front : col.side}`, `rotateY(${(Math.atan2(-dz, dx) * 180 / Math.PI).toFixed(2)}deg)`);
+    out += bxP(x0, y, z0, Math.hypot(dx, dz) + 0.6, h, lay(`linear-gradient(90deg,${c(t0)},${c(t1)})`, c((t0 + t1) / 2)), `rotateY(${(Math.atan2(-dz, dx) * 180 / Math.PI).toFixed(2)}deg)`);
   }
   return out;
 }
@@ -476,9 +483,10 @@ function bxfParts(it, WH, sd) {
   const { w, d } = it, fin = (BXF_FIN[it.f] || BXF_FIN.bianco)[1], cer = it.f === 'nero' ? BXF_CER_N : BXF_CER;
   if (it.t === 'lavabo') {            // cassettone sospeso, top in ceramica con il lavabo, miscelatore, specchio sopra
     const bw = Math.min(w - 16, 56), mt = Math.min(190, WH - 6), mw = Math.round(w * 0.9);
-    const R = it.rc ? Math.min(16, w / 4, d / 2.5) : 0, li = Math.max(1.5, R);   // angoli stondati: mobile e top col raggio
-    return (R ? bxRB(0.5, -73, d - 1.5, w - 1, 41, d - 2, R - 1, fin) : bxB(0.5, -73, d - 1.5, w - 1, 41, d - 2, fin))
-      + bxP(li, -53, d - 1.45, w - 2 * li, 0.6, 'background:rgba(0,0,0,.32)') + bxP(li, -72.6, d - 1.45, w - 2 * li, 1.6, 'background:rgba(0,0,0,.2)')
+    const R = it.rc ? Math.min(16, w / 4, d / 2.5) : 0;   // angoli stondati: mobile e top col raggio
+    const grooves = 'linear-gradient(180deg,rgba(0,0,0,.2) 0,rgba(0,0,0,.2) 1.6px,transparent 1.6px,transparent 20px,rgba(0,0,0,.32) 20px,rgba(0,0,0,.32) 20.6px,transparent 20.6px)';
+    return (R ? bxRB(0.5, -73, d - 1.5, w - 1, 41, d - 2, R - 1, fin, grooves) : bxB(0.5, -73, d - 1.5, w - 1, 41, d - 2, fin)
+      + bxP(1.5, -53, d - 1.45, w - 3, 0.6, 'background:rgba(0,0,0,.32)') + bxP(1.5, -72.6, d - 1.45, w - 3, 1.6, 'background:rgba(0,0,0,.2)'))
       + (R ? bxRB(0, -85, d, w, 12, d, R, BXF_CER) : bxB(0, -85, d, w, 12, d, BXF_CER))
       + bxP((w - bw) / 2, -85.05, d - 6, bw, 31, 'background:radial-gradient(ellipse at 50% 45%,#c3c9cc,#dce0e2 55%,#eceeef);border-radius:8px', 'rotateX(-90deg)')
       + bxB(w / 2 - 1.3, -100, 7, 2.6, 15, 2.6, BXF_CHR) + bxB(w / 2 - 1, -100, 16, 2, 2, 9, BXF_CHR)
