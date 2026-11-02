@@ -288,7 +288,7 @@ function glShow() {
       ${(s.f || []).length ? `<dt>Finiture</dt><dd>${esc(s.f.join(', '))}</dd>` : ''}
       ${(s.t || []).length ? `<dt>Spessore</dt><dd>${esc(s.t.join(' / '))} mm</dd>` : ''}
       ${(s.k || []).length ? `<dt>Codici</dt><dd>${esc([...new Set((all.length ? all : [{ s }]).flatMap(x => x.s.k || []))].join(' · '))}</dd>` : ''}
-      ${all.length ? `<dt>Dove</dt><dd>${all.map(x => `${esc(x.c.name)} · posto ${esc(slotName(DISP[x.c.disp], x.slot, x.c.slots.length))}${(it.sizes || []).length > 1 ? ' (' + esc(fmt(x.s.z)) + ')' : ''}`).join('<br>')}</dd>` : ''}</dl>
+      ${all.length ? `<dt>Dove</dt><dd>${all.map(x => `${esc(x.c.name)} · posto ${esc(slotName(DISP[x.c.disp], x.slot, x.c.slots.length, x.c))}${(it.sizes || []).length > 1 ? ' (' + esc(fmt(x.s.z)) + ')' : ''}`).join('<br>')}</dd>` : ''}</dl>
     ${missing ? '<div class="warn">Non presente in sala mostra</div>' : elsewhere ? `<div class="elsew">In sala mostra in un altro espositore: ${esc(elsewhere.name)}</div>` : ''}`;
 }
 function closeGalleryFull() { const m = document.getElementById('glFull'); if (m) m.remove(); }

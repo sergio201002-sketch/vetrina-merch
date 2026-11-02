@@ -270,7 +270,7 @@ function inventory(cid) {
     c.slots.forEach((k, i) => {
       const s = SAMPLE[k]; if (!s) return;
       const r = rows[k] || (rows[k] = { s, n: 0, where: [] });
-      r.n++; r.where.push({ c, d, slot: slotName(d, i, c.slots.length) });
+      r.n++; r.where.push({ c, d, slot: slotName(d, i, c.slots.length, c) });
     });
   });
   return Object.values(rows).sort((a, b) => a.s.b.localeCompare(b.s.b) || a.s.s.localeCompare(b.s.s) || a.s.c.localeCompare(b.s.c) || a.s.z.localeCompare(b.s.z));
@@ -388,8 +388,8 @@ function invMailText(cid, list) {
   list.forEach(c => { if (DISP[c.disp].mode === 'box') return; const g = groups.get(c.disp) || groups.set(c.disp, []).get(c.disp); c.slots.forEach(k => { const s = k && SAMPLE[k]; if (s) g.push({ s, c }); }); });
   // box in posa: per ogni superficie il prodotto, i metri quadri e i pezzi (contati anche quelli tagliati)
   const boxParts = boxes.map(c => { const b = boxOf(c), d = DISP[c.disp]; return [`Materiale per ${/^box/i.test(c.name) ? x(c.name) : 'box in posa ' + x(c.name)} (${b.L}x${b.H} cm):`, ``,
-    ...c.slots.map((k, i) => { const s = k && SAMPLE[k]; if (!s) return null; const [W, H] = boxSurf(c, i), l = boxLay(c, i), n = boxPieces(W, H, l.tw, l.th, l.off).length;
-      return `${slotName(d, i, c.slots.length)}: ${s.nuovo ? '[NOVITÀ] ' : ''}${s.s} ${s.c}${fin(s) ? ' ' + fin(s) : ''} ${x(s.z)} - ${(s.k || []).join(' / ') || 'codice da definire'} · ${(W * H / 10000).toLocaleString('it-IT', { maximumFractionDigits: 2 })} m² (${n} ${n === 1 ? 'pezzo' : 'pezzi'})`; }).filter(Boolean)].join('\n'); });
+    ...c.slots.map((k, i) => { const s = k && SAMPLE[k], q = s && boxQty(c, i); if (!q) return null; const n = q.n;   // fasce: solo la loro parte di parete
+      return `${slotName(d, i, c.slots.length, c)}: ${s.nuovo ? '[NOVITÀ] ' : ''}${s.s} ${s.c}${fin(s) ? ' ' + fin(s) : ''} ${x(s.z)} - ${(s.k || []).join(' / ') || 'codice da definire'} · ${q.m2.toLocaleString('it-IT', { maximumFractionDigits: 2 })} m² (${n} ${n === 1 ? 'pezzo' : 'pezzi'})`; }).filter(Boolean)].join('\n'); });
   const parts = [...groups].map(([did, rows]) => {
     const d = DISP[did], nm = d.name.charAt(0).toLowerCase() + d.name.slice(1);
     const ord = new Map(); rows.forEach(r => { if (!ord.has(r.s.b + '|' + r.s.s)) ord.set(r.s.b + '|' + r.s.s, ord.size); });   // righe raggruppate per serie

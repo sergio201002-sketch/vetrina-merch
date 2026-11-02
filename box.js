@@ -184,7 +184,7 @@ function renderBoxGrid() {
 }
 function bxCardHTML(c) {
   const cl = clients[c.client], b = boxOf(c), names = DISP[c.disp].slotNames || [], n = c.slots.filter(k => SAMPLE[k]).length, nf = ((c.box && c.box.furn) || []).length;
-  const surf = c.slots.map((k, i) => { const s = SAMPLE[k]; return s ? `<div><i style="${swatchStyle(s)}"></i><span><small>${esc(names[i] || '')}</small> · ${esc(s.s)} ${esc(s.c)} <small>${esc(fmt(s.z))}</small></span></div>` : ''; }).join('');
+  const surf = c.slots.map((k, i) => { const s = SAMPLE[k]; return s ? `<div><i style="${swatchStyle(s)}"></i><span><small>${esc(names[i] || boxBandName(c, i))}</small> · ${esc(s.s)} ${esc(s.c)} <small>${esc(fmt(s.z))}</small></span></div>` : ''; }).join('');
   return `<div class="card ccard bx-card" onclick="bxOpen('${c.id}')">
     <div class="bx-th">${bxThumb(c)}</div>
     <div class="in"><h3>${esc(c.name)}</h3>
@@ -199,7 +199,7 @@ function bxThumb(c) {
   if (!c.slots.some(k => SAMPLE[k])) return `<div class="bx-none"><svg class="ic"><use href="#i-boxroom"/></svg> Box ancora vuoto</div>`;
   const was = LITE3D; let m;
   LITE3D = true; try { m = boxModel(DISP[c.disp], c, -1); } finally { LITE3D = was; }
-  const W = 290, H = 210, k = Math.min(H * 0.7 / m.H, W * 0.64 / m.fitW), l = !!SAMPLE[c.slots[2]], r = !!SAMPLE[c.slots[3]];
+  const W = 290, H = 210, k = Math.min(H * 0.7 / m.H, W * 0.64 / m.fitW), l = boxHas(c, 2), r = boxHas(c, 3);
   const yaw = l && r ? 0 : l ? 26 : -26, tilt = l && r ? 9 : 12;
   return `<div class="scene"><div class="bx-mid"><div class="sw-root room-scene" style="transform:translate3d(0,${rn(H * 0.86)}px,0) rotateX(${-tilt}deg) rotateY(${yaw}deg) scale3d(${k.toFixed(4)},${k.toFixed(4)},${k.toFixed(4)})">${m.html}</div></div></div>`;
 }
@@ -331,7 +331,7 @@ function openBoxDetail(i) {
   const d = disp(), c = comp(), s = SAMPLE[c.slots[i]]; if (!s) return;
   const url = hasPhoto(s) ? IMG[photoKey(s)] : null;
   const o = document.createElement('div'); o.className = 'bxdet';
-  const info = [slotName(d, i, c.slots.length), s.b, fmt(s.z), s.f.join(', '), s.t.length ? s.t.join('/') + ' mm' : '', s.k.length ? 'cod. ' + s.k.join(', ') : ''].filter(Boolean).join(' · ');
+  const info = [slotName(d, i, c.slots.length, c), s.b, fmt(s.z), s.f.join(', '), s.t.length ? s.t.join('/') + ' mm' : '', s.k.length ? 'cod. ' + s.k.join(', ') : ''].filter(Boolean).join(' · ');
   o.innerHTML = `<div class="top"><div class="ttl"><b>${s.nuovo ? '<span class="nwb">NOVITÀ</span> ' : ''}${esc(s.s)} ${esc(s.c)}</b><small>${esc(info)}</small></div>
       <span class="seg"><button data-m="pezzo"${url ? '' : ' disabled title="Questo campione non ha ancora la foto"'}>La mattonella</button><button data-m="posa">La posa</button></span>
       <button class="cl" title="Chiudi (Esc)"><svg class="ic"><use href="#i-x"/></svg></button></div>
@@ -369,8 +369,9 @@ function openBoxDetail(i) {
       img.onerror = () => { ld.textContent = 'Foto non disponibile'; };
       img.src = url;
     } else {
-      const [W, H] = boxSurf(c, i), [bottom, right] = [[true, false], [false, false], [true, true], [true, false]][i];
-      ct.innerHTML = boxSurfaceHTML(c, i, W, H, 'none', bottom, right, false);
+      const w = boxWallOf(c, i), [W, H] = boxSurf(c, w), [bottom, right] = [[true, false], [false, false], [true, true], [true, false]][w];
+      ct.innerHTML = boxWallHTML(c, w, W, H, 'none', bottom, right, -1);   // tutta la parete, con le sue fasce
+      ct.querySelectorAll('.boxghost').forEach(e => e.remove());
       ct.style.width = W + 'px'; ct.style.height = H + 'px';
       nw = W; nh = H; ld.style.display = 'none'; refit(); sMax = 14;
     }
@@ -435,7 +436,7 @@ const bxB = (x, y, z, w, h, d, col) => box3d(rn(x), rn(y), rn(z), rn(w), rn(h), 
 const bxP = (x, y, z, w, h, css, tf) => `<div class="bx" style="width:${rn(w)}px;height:${rn(h)}px;${css};transform:translate3d(${rn(x)}px,${rn(y)}px,${rn(z)}px)${tf ? ' ' + tf : ''}"></div>`;
 /* il box come lo disegna boxModel: centro, filo del pavimento, altezza dei muri */
 function bxfFrame(c) {
-  const b = boxOf(c), { L, P, H } = b, t = BOX_T, has = i => !!SAMPLE[c.slots[i]];
+  const b = boxOf(c), { L, P, H } = b, t = BOX_T, has = i => boxHas(c, i);
   const x0 = has(2) ? -t : 0, x1 = L + (has(3) ? t : 0), cx = (x0 + x1) / 2, cz = (boxDeep(c, b) - t) / 2;
   return { L, P, WH: H + BOX_BAND, X: x => x - cx, Z: z => z - cz, yF: has(1) ? -1.35 : -0.35 };
 }
@@ -450,7 +451,7 @@ function bxfTf(c, it, fr) {
 }
 /* lati del pezzo (sinistro e destro, guardandolo di fronte) contro un muro del box: lì la doccia non ha il vetro */
 function bxfSides(c, it) {
-  const { L, P2, P3 } = boxOf(c), has = i => !!SAMPLE[c.slots[i]], u = bxfU(c, it), back = u - it.w / 2 <= 1;
+  const { L, P2, P3 } = boxOf(c), has = i => boxHas(c, i), u = bxfU(c, it), back = u - it.w / 2 <= 1;
   if (it.wall === 2) return [false, back];          // sulla parete sinistra il lato destro è quello verso il fondo
   if (it.wall === 3) return [back, false];
   return [back && has(2) && P2 >= it.d - 1, u + it.w / 2 >= L - 1 && has(3) && P3 >= it.d - 1];   // parete laterale corta: lì il vetro c'è
@@ -550,7 +551,7 @@ function boxFurnHTML(c) {
 /* posto libero lungo le pareti (o solo su quella data): angolo per vasca e doccia, centro per gli altri; i mobili delle pareti
    accanto occupano l'angolo con la loro sporgenza */
 function bxfPlace(c, it, only) {
-  const { L } = boxOf(c), has = i => !!SAMPLE[c.slots[i]], all = ((c.box && c.box.furn) || []).filter(o => o.id !== it.id);
+  const { L } = boxOf(c), has = i => boxHas(c, i), all = ((c.box && c.box.furn) || []).filter(o => o.id !== it.id);
   const walls = only != null ? [only] : [0, 2, 3].filter(w => w === 0 || has(w)), at = BXF[it.t].at;
   for (const wl of walls) {
     const len = bxfLen(c, wl); if (it.w > len) continue;
@@ -632,7 +633,7 @@ function bxFurnMenu(btn) {
 /* striscia sottile del pezzo scelto (al posto di misure e posa): misura, parete, posizione, finitura */
 function bxFurnBar(c, host) {
   const it = bxShowF && bxfCur(c); if (!it || !BXF[it.t]) { bxF = null; return false; }
-  const T = BXF[it.t], has = i => !!SAMPLE[c.slots[i]], len = bxfLen(c, it.wall);
+  const T = BXF[it.t], has = i => boxHas(c, i), len = bxfLen(c, it.wall);
   const seg = items => `<span class="seg">${items.map(([txt, on, fn, tip, dis]) => `<button class="${on ? 'on' : ''}"${tip ? ` title="${esc(tip)}"` : ''}${dis ? ' disabled' : ''} onclick="${fn}">${txt}</button>`).join('')}</span>`;
   const walls = [[0, 'Fondo'], [2, 'Sinistra'], [3, 'Destra']].filter(([w]) => w === 0 || has(w) || it.wall === w);
   // misura: scritta a mano (larghezza, e profondità per la doccia) o una di quelle pronte

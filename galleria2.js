@@ -281,7 +281,7 @@ function g2Show() {
     <dl><dt>${(it.sizes || []).length > 1 ? 'Formati' : 'Formato'}</dt><dd>${esc(s.toz ? 'tozzetto' : glSizes(it) + ' cm')}</dd>
       ${(s.f || []).length ? `<dt>Finiture</dt><dd>${esc([...new Set((all.length ? all : [{ s }]).flatMap(x => x.s.f || []))].join(', '))}</dd>` : ''}
       ${!pres && (s.k || []).length ? `<dt>Codici</dt><dd>${esc([...new Set((all.length ? all : [{ s }]).flatMap(x => x.s.k || []))].join(' · '))}</dd>` : ''}
-      ${!pres && all.length ? `<dt>Dove</dt><dd>${all.map(x => `${esc(x.c.name)} · posto ${esc(slotName(DISP[x.c.disp], x.slot, x.c.slots.length))}`).join('<br>')}</dd>` : ''}</dl>
+      ${!pres && all.length ? `<dt>Dove</dt><dd>${all.map(x => `${esc(x.c.name)} · posto ${esc(slotName(DISP[x.c.disp], x.slot, x.c.slots.length, x.c))}`).join('<br>')}</dd>` : ''}</dl>
     ${!pres && missing ? '<div class="warn">Non presente in sala mostra</div>' : ''}
     <div class="g2-acts">
       <button onclick="g2Posa = !g2Posa; g2Show()">${g2Posa ? '<svg class="ic"><use href="#i-square"/></svg> Piastrella singola' : '<svg class="ic"><use href="#i-tiles"/></svg> Vedi posata'}</button>

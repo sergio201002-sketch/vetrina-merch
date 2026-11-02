@@ -341,7 +341,10 @@ MODELS.slide45 = megaSlide;
    nel configuratore resta tratteggiata per sceglierla). Pezzi in griglia con la fuga, tagliati ai bordi, posati da terra
    e dall'angolo. La grafica di ogni pezzo è girata o specchiata in modo diverso dai vicini: la posa non sembra fatta
    di pezzi tutti uguali (c.box.seed cambia la disposizione). Misure in c.box: L, P, H (altezza della posa); P2 / P3 =
-   larghezza della sola parete sinistra / destra (dal fondo verso il davanti; se manca è P, come il pavimento). */
+   larghezza della sola parete sinistra / destra (dal fondo verso il davanti; se manca è P, come il pavimento).
+   Composizione di una parete (c.box.zones[i]): fasce affiancate da sinistra a destra, come le vede chi è nel box, ognuna
+   col suo posto (c.slots[s], dal 4 in poi; la stessa fascia ai due lati = lo stesso posto). La fascia del posto della parete
+   prende la larghezza che resta, le altre la loro (w; se manca, un pezzo della loro mattonella). */
 const BOX_T = 10, BOX_BAND = 20, BOX_GAP = 0.3;    // spessore delle pareti, fascia bianca sopra la posa, fuga (cm)
 const BOX_WHITE = { front: '#f3f2ee', top: '#e8e6e1', side: '#e2e0da' };
 const BOX_VAR = ['', 'rotate(180deg)', 'scaleX(-1)', 'scaleY(-1)'];
@@ -356,7 +359,7 @@ const mmul = (A, B) => [A[0] * B[0] + A[1] * B[2], A[0] * B[1] + A[1] * B[3], A[
 function boxLay(c, i) {
   const s = SAMPLE[c.slots[i]], l = ((c.box || {}).lay || {})[i] || {}, cont = !!(s && s.cont), wh = cont && dimOf(photoKey(s));
   const [a, z] = s && parseSize(s.z) ? sorted2(parseSize(s.z)) : [60, 60];
-  const o = l.o || (wh ? (wh[1] > wh[0] ? 'v' : 'h') : i !== 1 && z >= 200 ? 'v' : 'h');
+  const o = l.o || (wh ? (wh[1] > wh[0] ? 'v' : 'h') : i >= 4 || (i !== 1 && z >= 200) ? 'v' : 'h');   // fasce: lato lungo in verticale
   const off = cont ? 0 : l.off != null ? l.off : i === 1 && z / a >= 4 ? 1 / 3 : 0;   // listoni a pavimento: sfalsati di un terzo
   return { o, off, cont, tw: o === 'v' ? a : z, th: o === 'v' ? z : a, sq: Math.abs(a - z) < 0.5 };
 }
@@ -365,13 +368,56 @@ function boxOf(c) {
   const b = (c && c.box) || {}, P = b.P || 150, side = { P2: b.P2 || P, P3: b.P3 || P };
   if (b.fit === false) return Object.assign({ L: b.L, P, H: b.H, seed: b.seed || 1, fit: false }, side);
   let L = 240, H = 278;
-  if (c && SAMPLE[c.slots[0]]) { const { tw, th } = boxLay(c, 0); L = tw * Math.max(1, Math.round(240 / tw)); H = th > 280 ? th : th * Math.max(1, Math.floor(280 / th)); }
+  const z = boxZones(c, 0), fix = z ? z.reduce((t, p) => t + (p.s ? boxBandW(c, p) : 0), 0) : 0;   // fasce della parete di fondo: si aggiungono pezzi interi in mezzo
+  if (c && SAMPLE[c.slots[0]]) { const { tw, th } = boxLay(c, 0); L = fix + tw * Math.max(1, Math.round((240 - fix) / tw)); H = th > 280 ? th : th * Math.max(1, Math.floor(280 / th)); }
+  else if (fix) L = fix + Math.max(60, 240 - fix);
   return Object.assign({ L: +L.toFixed(1), P, H: +H.toFixed(1), seed: b.seed || 1, fit: true }, side);   // 33,2 × 7 = 232,4 (non 232,40000000000003)
 }
+/* fasce della parete i (null = tutta un materiale); il pavimento non ne ha */
+function boxZones(c, i) {
+  const z = i !== 1 && c && c.box && c.box.zones && c.box.zones[i];
+  return Array.isArray(z) && z.length > 1 && z.some(p => p.s === i) ? z : null;
+}
+/* parete di un posto (le fasce stanno nella loro parete); -1 = posto di una fascia tolta */
+function boxWallOf(c, s) {
+  if (s < 4) return s;
+  const zs = (c && c.box && c.box.zones) || {};
+  for (const i of [0, 2, 3]) if (boxZones(c, i) && zs[i].some(p => p.s === s)) return i;
+  return -1;
+}
+/* larghezza di una fascia: la sua, o un pezzo della sua mattonella (60×120 in verticale = 60) */
+const boxBandW = (c, p) => p.w || (SAMPLE[c.slots[p.s]] ? boxLay(c, p.s).tw : 60);
+/* le fasce di una superficie larga W, in ordine: { s posto, x da dove parte, w larghezza, n quale fascia } */
+function boxBands(c, i, W) {
+  const z = boxZones(c, i); if (!z) return [{ s: i, x: 0, w: W, n: 0 }];
+  const ws = z.map(p => p.s === i ? 0 : boxBandW(c, p)), fix = ws.reduce((a, b) => a + b, 0), k = fix > W ? W / fix : 1;
+  let x = 0;
+  return z.map((p, n) => { const w = p.s === i ? W - fix * k : ws[n] * k, o = { s: p.s, x, w, n }; x += w; return o; }).filter(o => o.w > 0.5);
+}
+/* la superficie i ha del materiale (anche solo in una fascia) */
+const boxHas = (c, i) => !!SAMPLE[c.slots[i]] || (boxZones(c, i) || []).some(p => SAMPLE[c.slots[p.s]]);
+/* com'è composta la parete: '' tutta un materiale, 'lati' fasce ai due lati, 'sx' / 'dx' una fascia sola */
+function boxCompMode(c, i) {
+  const z = boxZones(c, i); if (!z) return '';
+  const m = z.findIndex(p => p.s === i);
+  return m > 0 && m < z.length - 1 ? 'lati' : m > 0 ? 'sx' : 'dx';
+}
+/* nome del posto di una fascia: "Parete di fondo · fasce ai lati" */
+function boxBandName(c, s) {
+  const i = c ? boxWallOf(c, s) : -1; if (i < 0) return 'Fascia';
+  const z = boxZones(c, i), m = z.findIndex(p => p.s === i), at = z.map((p, n) => p.s === s ? n : -1).filter(n => n >= 0);
+  return `${DISP.BOX.slotNames[i]} · ${at.some(n => n < m) && at.some(n => n > m) ? 'fasce ai lati' : at[0] < m ? 'fascia sinistra' : 'fascia destra'}`;
+}
 /* profondità di tutto il box: il pavimento o la parete laterale più lunga (nel configuratore anche quella ancora vuota) */
-const boxDeep = (c, b) => Math.max(b.P, SAMPLE[c.slots[2]] || !LITE3D ? b.P2 : 0, SAMPLE[c.slots[3]] || !LITE3D ? b.P3 : 0);
+const boxDeep = (c, b) => Math.max(b.P, boxHas(c, 2) || !LITE3D ? b.P2 : 0, boxHas(c, 3) || !LITE3D ? b.P3 : 0);
 /* larghezza × altezza di ogni superficie */
 const boxSurf = (c, i) => { const { L, P, H, P2, P3 } = boxOf(c); return [[L, H], [L, P], [P2, H], [P3, H]][i]; };
+/* quanto materiale va nel posto s: metri quadri e pezzi (contati anche quelli tagliati), sommando le sue fasce */
+function boxQty(c, s) {
+  const i = boxWallOf(c, s); if (i < 0) return null;
+  const [W, H] = boxSurf(c, i), l = boxLay(c, s), ps = boxBands(c, i, W).filter(p => p.s === s);   // nessuna: coperta tutta dalle fasce
+  return ps.length ? ps.reduce((q, p) => ({ m2: q.m2 + p.w * H / 10000, n: q.n + boxPieces(p.w, H, l.tw, l.th, l.off).length }), { m2: 0, n: 0 }) : null;
+}
 /* pezzi della posa su una superficie W×H: file da sotto (bottom) o da sopra, colonne da destra (right) o da sinistra;
    ox, oy = dove comincia la parte che si vede di un pezzo tagliato (per la posa continua) */
 function boxPieces(W, H, tw, th, off, bottom, right) {
@@ -389,18 +435,19 @@ function boxPieces(W, H, tw, th, off, bottom, right) {
   }
   return out;
 }
-/* una superficie posata: contenitore (colore della fuga) con i pezzi; tf = dove sta nel box */
-function boxSurfaceHTML(c, i, W, H, tf, bottom, right, sel) {
+/* una superficie posata: contenitore (colore della fuga) con i pezzi; tf = dove sta nel box; salt = quale fascia della parete
+   (le due fasce ai lati, dello stesso posto, con le grafiche girate in modo diverso) */
+function boxSurfaceHTML(c, i, W, H, tf, bottom, right, sel, salt) {
   const s = SAMPLE[c.slots[i]], { L } = boxOf(c);
   const box = (cls, inner, st) => `<div class="bx${cls}" data-slot="${i}" style="width:${rn(W)}px;height:${rn(H)}px;transform:${tf};transform-style:preserve-3d;${st || ''}">${inner}</div>`;
   const ring = sel ? `<div class="bx" style="width:${rn(W)}px;height:${rn(H)}px;box-shadow:inset 0 0 0 ${Math.max(1.2, L / 200)}px rgba(200,16,46,.9);transform:translateZ(0.5px)"></div>` : '';
-  if (!s) return LITE3D ? '' : box(' empty boxghost', `<span>${esc(slotName(DISP.BOX || {}, i, 4))}<br><small>scegli la mattonella</small></span>${ring}`);
+  if (!s) return LITE3D ? '' : box(' empty boxghost', `<span>${i >= 4 ? 'Fascia' : esc(slotName(DISP.BOX || {}, i, 4))}<br><small>scegli la mattonella</small></span>${ring}`);
   const lay = boxLay(c, i), { tw, th } = lay, k = photoKey(s), url = hasPhoto(s) ? imgFor(k) : null;
   const t = backTint(s), cont = lay.cont, grout = t ? `rgb(${cont ? t : t.split(',').map(v => Math.round(v * 0.72)).join(',')})` : '#a9a49b';
   // posa continua: la foto si gira solo se il foglio è posato di traverso rispetto alla foto, anche se è quasi quadrata
   const wh = cont && url && dimOf(k), turn = wh ? Math.abs(wh[0] - wh[1]) > 1 && (wh[1] > wh[0]) !== (th > tw) : !!url && photoTurn(k, th > tw);
   const r = LITE3D ? ROOM_RES : FACE_RES, g = cont ? 0 : BOX_GAP / 2;
-  const seed = boxOf(c).seed, hash = (a, b) => { let x = Math.imul(a + 1, 73856093) ^ Math.imul(b + 1, 19349663) ^ Math.imul(seed * 7 + i + 1, 83492791); x = Math.imul(x ^ (x >>> 13), 1274126177); return (x ^ (x >>> 16)) >>> 0; };
+  const seed = boxOf(c).seed, hash = (a, b) => { let x = Math.imul(a + 1, 73856093) ^ Math.imul(b + 1, 19349663) ^ Math.imul(seed * 7 + i + 1 + (salt || 0) * 131, 83492791); x = Math.imul(x ^ (x >>> 13), 1274126177); return (x ^ (x >>> 16)) >>> 0; };
   let ps = boxPieces(W, H, tw, th, lay.off, bottom, right);
   if (ps.length > 600) return box('', '', `background-color:${grout};${faceBg(s, W, H, true)}`);   // formati piccolissimi: posa ripetuta, senza variare i pezzi
   // ogni pezzo: mai uguale al pezzo accanto e a quello della fila prima, e mai il loro specchio sulla fuga in comune
@@ -422,8 +469,14 @@ function boxSurfaceHTML(c, i, W, H, tf, bottom, right, sel) {
   });
   return box('', out.join('') + ring, `background-color:${grout}`);
 }
+/* una parete con la sua composizione: ogni fascia è una superficie posata a sé, spostata lungo la parete;
+   le fasce del bordo si posano dal loro bordo (il pezzo tagliato, se c'è, va verso il centro) */
+function boxWallHTML(c, i, W, H, tf, bottom, right, op) {
+  return boxBands(c, i, W).map(p => boxSurfaceHTML(c, p.s, p.w, H, p.x ? `${tf === 'none' ? '' : tf + ' '}translate3d(${rn(p.x)}px,0,0)` : tf, bottom,
+    p.w > W - 0.5 ? right : !p.x ? false : p.x + p.w > W - 0.5 ? true : right, !LITE3D && op === p.s, p.n)).join('');
+}
 function boxModel(d, c, op) {
-  const b = boxOf(c), { L, P, H, P2, P3 } = b, t = BOX_T, WH = H + BOX_BAND, has = i => !!SAMPLE[c.slots[i]], Pm = boxDeep(c, b);
+  const b = boxOf(c), { L, P, H, P2, P3 } = b, t = BOX_T, WH = H + BOX_BAND, has = i => boxHas(c, i), Pm = boxDeep(c, b);
   const wl = has(2), wr = has(3), x0 = wl ? -t : 0, x1 = L + (wr ? t : 0), cx = (x0 + x1) / 2, cz = (Pm - t) / 2;
   const X = x => x - cx, Z = z => z - cz, sel = i => !LITE3D && op === i;
   // muri bianchi del box (con la fascia sopra la posa); le pareti laterali partono dal fondo, ognuna lunga la sua misura
@@ -432,10 +485,10 @@ function boxModel(d, c, op) {
   if (wr) h += box3d(X(L), -WH, Z(P3), t, WH, P3, BOX_WHITE);
   if (has(1)) h += box3d(X(0), -1.2, Z(P), L, 1.2, P, { front: '#cdcac3', top: '#d9d6d0', side: '#c8c5be' });   // pedana del pavimento
   // superfici posate: parete di fondo e laterali da terra e dall'angolo in fondo, pavimento dal fondo a sinistra
-  h += boxSurfaceHTML(c, 0, L, H, tr(X(0), -H, Z(0) + 0.1), true, false, sel(0));
+  h += boxWallHTML(c, 0, L, H, tr(X(0), -H, Z(0) + 0.1), true, false, op);
   h += boxSurfaceHTML(c, 1, L, P, tr(X(0), has(1) ? -1.3 : -0.3, Z(0), 'rotateX(90deg)'), false, false, sel(1));
-  h += boxSurfaceHTML(c, 2, P2, H, tr(X(0) + 0.1, -H, Z(P2), 'rotateY(90deg)'), true, true, sel(2));
-  h += boxSurfaceHTML(c, 3, P3, H, tr(X(L) - 0.1, -H, Z(0), 'rotateY(-90deg)'), true, false, sel(3));
+  h += boxWallHTML(c, 2, P2, H, tr(X(0) + 0.1, -H, Z(P2), 'rotateY(90deg)'), true, true, op);
+  h += boxWallHTML(c, 3, P3, H, tr(X(L) - 0.1, -H, Z(0), 'rotateY(-90deg)'), true, false, op);
   if (typeof boxFurnHTML === 'function') h += boxFurnHTML(c);   // arredo bagno (box.js)
   const m = { html: h, L: x1 - x0, P: Pm + t, H: WH, fitW: x1 - x0 };
   if (op >= 0) m.focus = [
@@ -443,7 +496,7 @@ function boxModel(d, c, op) {
     { x: X(L / 2), y: -1, z: Z(P / 2), w: L, h: P, yaw: 0, tilt: 50, flatTilt: 86 },
     { x: X(0), y: -H / 2, z: Z(P2 / 2), w: P2, h: H, yaw: -60, flatYaw: -90, tilt: 6 },
     { x: X(L), y: -H / 2, z: Z(P3 / 2), w: P3, h: H, yaw: 60, flatYaw: 90, tilt: 6 },
-  ][op];
+  ][boxWallOf(c, op)];   // fascia: la sua parete
   return m;
 }
 MODELS.box = boxModel;
@@ -455,6 +508,52 @@ function setBoxSide(i, v) { boxEdit((b, cur) => { const k = 'P' + i, n = Math.ma
 function fitBox() { boxEdit(b => { b.fit = true; delete b.L; delete b.H; }); toast('Misure adattate alla mattonella della parete: solo pezzi interi'); }
 function setBoxLay(i, k, v) { boxEdit(b => { b.lay = Object.assign({}, b.lay); b.lay[i] = Object.assign({}, b.lay[i], { [k]: v }); }); }
 function shuffleBox() { boxEdit(b => { b.seed = (b.seed || 1) + 1; }); toast('Grafiche dei pezzi girate in un altro modo'); }
+/* nuove fasce della parete i (nz = null: tutta un materiale); i posti delle fasce tolte si svuotano, sel = posto da scegliere */
+function boxZonesSet(i, nz, sel) {
+  const c = comp(); c.box = Object.assign({}, c.box);
+  const zs = c.box.zones = Object.assign({}, c.box.zones);
+  if (nz) zs[i] = nz.map(p => Object.assign({}, p)); else delete zs[i];
+  if (!Object.keys(zs).length) delete c.box.zones;
+  const used = new Set(Object.values(zs).flat().map(p => p.s));
+  for (let s = 4; s < c.slots.length; s++) if (!used.has(s) && (c.slots[s] || (c.box.lay || {})[s])) { c.slots[s] = null; c.box.lay = Object.assign({}, c.box.lay); delete c.box.lay[s]; }
+  while (c.slots.length > 4 && !c.slots[c.slots.length - 1] && !used.has(c.slots.length - 1)) c.slots.pop();
+  selSlot = sel != null ? sel : selSlot >= 4 && !used.has(selSlot) ? i : selSlot;
+  touch(); renderToolbar(); renderStage(); renderStrip(); renderList();
+  if (sel != null && !c.slots[sel]) { bxF = null; bxDrawer(true); }   // fascia nuova: si sceglie subito il materiale
+  if (ui.tab === 'pick') renderPicker(false);
+}
+/* un posto libero per una fascia nuova */
+function boxFreeSlot(c) {
+  const used = new Set(Object.values((c.box && c.box.zones) || {}).flat().map(p => p.s));
+  let s = 4; while (c.slots[s] || used.has(s)) s++;
+  while (c.slots.length <= s) c.slots.push(null);
+  return s;
+}
+/* composizione della parete i: '' tutta un materiale, 'lati' fasce ai due lati (lo stesso materiale), 'sx' / 'dx' una fascia;
+   le fasce che c'erano restano col loro materiale */
+function setBoxComp(i, mode) {
+  const c = comp(), z = boxZones(c, i) || [], m = z.findIndex(p => p.s === i);
+  const l = m > 0 ? z[0] : null, r = m >= 0 && m < z.length - 1 ? z[z.length - 1] : null;
+  let fresh = null; const band = () => fresh || (fresh = { s: boxFreeSlot(c) });
+  const nz = mode === 'lati' ? [l || r || band(), { s: i }, r || l || band()] : mode === 'sx' ? [l || r || band(), { s: i }] : mode === 'dx' ? [{ s: i }, r || l || band()] : null;
+  boxZonesSet(i, nz, fresh ? fresh.s : null);
+  if (fresh) toast(mode === 'lati' ? 'Scegli il materiale delle fasce ai lati' : 'Scegli il materiale della fascia');
+}
+/* larghezza delle fasce del posto s (0 = un pezzo della sua mattonella) */
+function setBandW(s, v) {
+  const c = comp(), i = boxWallOf(c, s), n = Math.round(+v * 10) / 10; if (i < 0) return;
+  boxEdit(b => { b.zones = Object.assign({}, b.zones); b.zones[i] = b.zones[i].map(p => p.s !== s ? p : n > 0 ? Object.assign({}, p, { w: Math.max(5, Math.min(1500, n)) }) : { s: p.s }); });
+}
+/* fasce ai lati: same = tutte e due col materiale del posto s; altrimenti la destra diventa un posto suo (per cambiarle il materiale) */
+function setBoxSides(i, s, same) {
+  const c = comp(), z = boxZones(c, i); if (!z) return;
+  const l = z[0], r = z[z.length - 1];
+  if (same) { boxZonesSet(i, [Object.assign({}, l, { s }), ...z.slice(1, -1), Object.assign({}, r, { s })], s); toast('Fasce ai lati uguali'); return; }
+  const n = boxFreeSlot(c), lay = c.box.lay && c.box.lay[r.s]; c.slots[n] = c.slots[r.s];   // la destra parte uguale alla sinistra
+  if (lay) c.box = Object.assign({}, c.box, { lay: Object.assign({}, c.box.lay, { [n]: lay }) });
+  boxZonesSet(i, [...z.slice(0, -1), Object.assign({}, r, { s: n })], n);
+  toast('Ora la fascia destra si sceglie da sola: cambiale il materiale');
+}
 /* striscia sottile sopra la vista (box.js): misure, posa della superficie scelta, materiale, grafiche, dettaglio */
 function boxBar(d, c, st, op) {
   const host = document.getElementById('bxTools'); if (!host) return;
@@ -463,17 +562,30 @@ function boxBar(d, c, st, op) {
   const b = boxOf(c), s = SAMPLE[c.slots[op]], lay = boxLay(c, op), fk = document.activeElement && document.activeElement.dataset.bk;
   const seg = items => `<span class="seg">${items.map(([txt, on, fn, tip]) => `<button class="${on ? 'on' : ''}" title="${esc(tip)}" onclick="${fn}">${txt}</button>`).join('')}</span>`;
   const num = (k, tip) => `<label title="${tip}">${k}<input type="number" min="20" max="1500" step="1" data-bk="${k}" value="${b[k]}" onchange="setBoxDim('${k}', this.value)"></label>`;
+  // composizione della parete del posto scelto (anche di una sua fascia): fasce ai lati / a sinistra / a destra
+  const wi = boxWallOf(c, op), cm = wi === 0 || wi === 2 || wi === 3 ? boxCompMode(c, wi) : null, z = cm && boxZones(c, wi);
+  const band = op >= 4 && z && z.find(p => p.s === op), mid = z && op < 4 && boxBands(c, wi, boxSurf(c, wi)[0]).find(p => p.s === op);
+  const ends = cm === 'lati' && band && (z[0].s === op || z[z.length - 1].s === op), same = ends && z[0].s === z[z.length - 1].s;
+  const compo = cm == null ? '' : `<span class="sep"></span>
+    <span class="g"><span class="l t">Composizione</span>${seg([['Intera', !cm, `setBoxComp(${wi},'')`, 'Tutta la parete con un materiale'],
+        ['Ai lati', cm === 'lati', `setBoxComp(${wi},'lati')`, 'Una fascia di un altro materiale a sinistra e a destra (es. 60×120 ai lati e una lastra al centro)'],
+        ['<span class="t">A </span>sinistra', cm === 'sx', `setBoxComp(${wi},'sx')`, 'Una fascia di un altro materiale solo a sinistra'],
+        ['<span class="t">A </span>destra', cm === 'dx', `setBoxComp(${wi},'dx')`, 'Una fascia di un altro materiale solo a destra']])}
+      ${band ? `<label title="Larghezza ${same ? 'di ognuna delle due fasce' : 'della fascia'}">Larg.<input type="number" min="5" max="1500" step="0.1" data-bk="bw" value="${+boxBandW(c, band).toFixed(1)}" onchange="setBandW(${op}, this.value)"></label> cm
+        ${band.w ? `<button class="bt" onclick="setBandW(${op}, 0)" title="Larga un pezzo della sua mattonella">Un pezzo</button>` : ''}` : ''}
+      ${mid ? `<span class="em" title="Quello che resta della parete, tolte le fasce">${cm === 'lati' ? 'al centro' : 'il resto'} ${+mid.w.toFixed(1)} cm</span>` : ''}
+      ${ends ? `<button class="bt" onclick="setBoxSides(${wi}, ${op}, ${!same})" title="${same ? 'La fascia destra con un materiale diverso dalla sinistra' : 'Tutte e due le fasce con questo materiale'}">${same ? 'Lati diversi' : 'Lati uguali'}</button>` : ''}</span>`;
   host.innerHTML = `<span class="g"><span class="l t">Misure</span>${num('L', 'Larghezza della parete posata')}<span class="x">×</span>${num('H', 'Altezza della posa (sopra resta una fascia bianca)')}<span class="x">×</span>${num('P', 'Profondità del pavimento e delle pareti laterali (una parete laterale si può cambiare da sola: sceglila)')} cm
       ${b.fit ? '' : `<button class="bt" onclick="fitBox()" title="Misure con solo pezzi interi della mattonella della parete">Adatta</button>`}</span>
     <span class="sep"></span>
-    <span class="g"><span class="l"><b>${esc(slotName(d, op, c.slots.length))}</b></span>
+    <span class="g"><span class="l"><b>${esc(slotName(d, op, c.slots.length, c))}</b></span>
       ${op === 2 || op === 3 ? `<label title="Larghezza solo di questa parete, dal fondo verso il davanti">Larg.<input type="number" min="20" max="1500" step="1" data-bk="P${op}" value="${b['P' + op]}" onchange="setBoxSide(${op}, this.value)"></label> cm
         ${b['P' + op] !== b.P ? `<button class="bt" onclick="setBoxSide(${op}, ${b.P})" title="Di nuovo profonda come il pavimento (${b.P} cm)">= pavimento</button>` : ''}` : ''}
       ${s ? (lay.sq ? '' : seg([['Verticale', lay.o === 'v', `setBoxLay(${op},'o','v')`, op === 1 ? 'Lato lungo verso il fronte' : 'Lato lungo in verticale'],
                              ['Orizzontale', lay.o === 'h', `setBoxLay(${op},'o','h')`, op === 1 ? 'Lato lungo lungo la parete' : 'Lato lungo in orizzontale']])) +
         (lay.cont ? '<span class="em">posa continua, senza fughe</span>' : seg([['Dritta', !lay.off, `setBoxLay(${op},'off',0)`, 'Fughe allineate'], ['<span class="t">Sfalsata </span>½', lay.off === 0.5, `setBoxLay(${op},'off',0.5)`, 'Ogni fila spostata di mezzo pezzo'],
              ['⅓', Math.abs(lay.off - 1 / 3) < 0.01, `setBoxLay(${op},'off',${1 / 3})`, 'Ogni fila spostata di un terzo']])) : '<span class="em">nessun materiale</span>'}
-      <button class="bt${s ? '' : ' red'}" onclick="bxDrawer(true)">${s ? 'Cambia<span class="t"> materiale</span>' : 'Scegli il materiale'}</button></span>
+      <button class="bt${s ? '' : ' red'}" onclick="bxDrawer(true)">${s ? 'Cambia<span class="t"> materiale</span>' : 'Scegli il materiale'}</button></span>${compo}
     <span class="sep"></span>
     <button class="bt" onclick="shuffleBox()" title="Ogni pezzo con la grafica girata in un altro modo"><svg class="ic"><use href="#i-sync"/></svg><span class="t"> Gira le grafiche</span></button>
     <span class="sp"></span>
@@ -581,7 +693,7 @@ function renderModel3D(d, c, sc, W, H, st) {
     st.addEventListener('wheel', e => { if (!['book', 'drawers', 'rack', 'wall', 'grid', 'slide45', 'box'].includes(disp().mode)) return; e.preventDefault(); gcam.zoom = Math.max(0.6, Math.min(disp().mode === 'box' ? 6 : 2.4, gcam.zoom * (e.deltaY < 0 ? 1.1 : 0.9))); renderStage(); }, { passive: false });
   }
   const sm = SAMPLE[c.slots[op]], info = document.createElement('div'); info.className = 'pageinfo';
-  info.textContent = `${slotName(d, op, n)} · ${sm ? sm.s + ' ' + sm.c : 'vuoto'} — trascina per girare`;
+  info.textContent = `${slotName(d, op, n, c)} · ${sm ? sm.s + ' ' + sm.c : 'vuoto'} — trascina per girare`;
   st.appendChild(info);
   if (!big) st.append(navBtn('l', '‹', op === 0, () => selectSlot(op - 1)), navBtn('r', '›', op >= n - 1, () => selectSlot(op + 1)));
   if (views) {

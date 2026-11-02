@@ -792,7 +792,7 @@ const showCopy = (msg, txt) => ask(msg, { text: txt, readOnly: true, alert: true
 
 function disp() { return DISP[ui.disp] || DISPLAYS[0]; }
 const defVariant = d => d.variantDefault || d.variants[d.variants.length - 1];
-function slotCount(d, c) { return d.variants ? (c && c.variant) || defVariant(d) : d.slots; }
+function slotCount(d, c) { return d.variants ? (c && c.variant) || defVariant(d) : d.mode === 'box' && c ? Math.max(d.slots, c.slots.length) : d.slots; }   // box: in più i posti delle fasce
 const ctxClient = () => (ui.client && clients[ui.client]) ? ui.client : '';
 const curKey = d => (ctxClient() ? ctxClient() + '|' : '') + d.id;
 const sameCtx = x => (x.client || '') === ctxClient();
@@ -1184,8 +1184,8 @@ function tileBody(d, c, i, fw, fh, tiled, k) {
   const back = s ? backStyle(fw, fh, s) : 'background:#e6e3dc;';
   return thickHTML(fw * k, fh * k, Math.max(0.5, tileThickCm(d, c, i)) * k, back);
 }
-function slotName(d, i, n) {
-  if (d.slotNames) return d.slotNames[i] || String(i + 1);   // box in posa: parete di fondo, pavimento, pareti laterali
+function slotName(d, i, n, c) {
+  if (d.slotNames) return d.slotNames[i] || (typeof boxBandName === 'function' ? boxBandName(c, i) : String(i + 1));   // box in posa: parete di fondo, pavimento, pareti laterali, fasce delle pareti
   if ((d.mode === 'book' || d.mode === 'swing') && d.sides === 2) { const L = n / 2, [a, b] = d.sideNames || ['A', 'B']; return (i < L ? a : b) + (d.sideNames ? ' ' : '') + ((i % L) + 1); }
   if (d.mode === 'wall' && d.sides === 2) return i === 0 ? 'Fronte' : 'Retro';
   return String(i + 1);
@@ -2000,7 +2000,7 @@ function renderStrip() {
   document.getElementById('strip').innerHTML = c.slots.map((k, i) => {
     const s = SAMPLE[k];
     return `<div class="chip${i === selSlot ? ' sel' : ''}" onclick="selectSlot(${i}, true)">
-      <div class="th${s ? '' : ' empty'}" style="${s ? swatchStyle(s) : ''}"><span class="no">${esc(slotName(d, i, n))}</span></div>
+      <div class="th${s ? '' : ' empty'}" style="${s ? swatchStyle(s) : ''}"><span class="no">${esc(slotName(d, i, n, c))}</span></div>
       <div class="tx">${s ? `<b>${esc(s.s)}</b>${esc(s.c)} · ${esc(fmt(s.toz ? tozFmt(d, c) : s.z) + tozFrom(s))}${s.toz && !s.a4 && usesA4(d, c) ? ' <span class="nofoto">· non è un tozzetto A4</span>' : ''}` : `<span style="color:var(--light)">vuoto — ${d.mode === 'box' ? 'tocca per scegliere il materiale' : 'scegli a destra'}</span>`}</div>
       ${s ? `<button class="x" title="Togli" onclick="event.stopPropagation(); setSlot(${i}, null)"><svg class="ic"><use href="#i-x"/></svg></button>` : ''}
     </div>`;
@@ -2071,7 +2071,7 @@ function renderPicker(full) {
     </div><div id="pickList"></div>`;
     document.getElementById('pickSearch').addEventListener('input', e => { searchQ = e.target.value; renderPicker(false); });
   }
-  document.getElementById('pickTarget').innerHTML = `Posto selezionato: <b>${esc(slotName(d, selSlot, n))}</b> — clicca un campione per inserirlo`;
+  document.getElementById('pickTarget').innerHTML = `Posto selezionato: <b>${esc(slotName(d, selSlot, n, comp()))}</b> — clicca un campione per inserirlo`;
   // filtri dentro la tendina "Filtri": chiusa di base, si apre solo per sceglierli (più spazio per la lista dei campioni)
   const fmtLbl = z => z === 'toz' ? 'Tozzetti' : fmt(z);
   const act = [brandFilter, fmtFilter && fmtLbl(fmtFilter), surfFilter, thickFilter && thickFilter + ' mm', onlyPhoto && 'con foto'].filter(Boolean);
@@ -2198,7 +2198,7 @@ function copyCodes() {
   }
   c.slots.forEach((k, i) => {
     const s = SAMPLE[k];
-    lines.push(`${slotName(d, i, n)}\t` + (s ? `${s.b} ${s.s} ${s.c} ${s.toz ? 'tozzetto' + tozFrom(s) : s.z}\t${s.k.join(' / ')}\t${s.f.join(' / ')}` : '(vuoto)'));
+    lines.push(`${slotName(d, i, n, c)}\t` + (s ? `${s.b} ${s.s} ${s.c} ${s.toz ? 'tozzetto' + tozFrom(s) : s.z}\t${s.k.join(' / ')}\t${s.f.join(' / ')}` : '(vuoto)'));
   });
   const txt = lines.join('\n');
   (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(

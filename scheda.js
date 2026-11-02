@@ -375,7 +375,7 @@ async function exportSchede(list, layout, opts = {}) {
     const items = groups[x], multi = items.length > 1, c = items[0], d = DISP[c.disp], cl = c.client && clients[c.client];
     const n = items.reduce((t, ci) => t + ci.slots.length, 0), names = items.map(ci => ci.name).join(' + ');
     // tiles: i campioni in ordine di posto e, per gli espositori scelti, anche i posti vuoti (s = null → "spazio vuoto")
-    const tiles = items.flatMap((ci, k) => ci.slots.map((kk, i) => [kk && SAMPLE[kk] || null, (multi ? (k + 1) + '·' : '') + slotName(d, i, ci.slots.length), ci])
+    const tiles = items.flatMap((ci, k) => ci.slots.map((kk, i) => [kk && SAMPLE[kk] || null, (multi ? (k + 1) + '·' : '') + slotName(d, i, ci.slots.length, ci), ci])
       .filter(([s]) => s || (opts.empty && opts.empty.has(ci.id))));
     const filled = tiles.filter(([s]) => s);
     // un render per espositore: girevoli dal lato A in diagonale (le piastrelle guardano di lato), gli altri di fronte ai campioni
