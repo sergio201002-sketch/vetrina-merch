@@ -24,7 +24,16 @@ body[data-view="serie"] .hbtn[data-nav="serie"] { background: rgba(255,255,255,.
 .sr-tools select { padding: 7px 6px; border: 1px solid var(--border); border-radius: 9px; font: inherit; font-size: 12.5px; background: #fff; max-width: 130px; }
 .sr-list { overflow-y: auto; flex: 1; padding: 0 0 20px; }
 .sr-bh { font: 700 10.5px var(--font-body); letter-spacing: .14em; text-transform: uppercase; color: #b0101a; padding: 14px 16px 4px; }
-.sr-row { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; padding: 6px 14px 6px 13px; border-left: 3px solid transparent; }
+.sr-row { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; padding: 6px 14px 6px 5px; border-left: 3px solid transparent; }
+.sr-row .ck { flex: none; width: 34px; height: 38px; display: flex; align-items: center; justify-content: center; margin-right: -6px; }
+.sr-row .ck .ic { width: 20px; height: 20px; padding: 3px; box-sizing: border-box; border: 1.5px solid #cfcac1; border-radius: 6px; background: #fff; color: transparent; transition: background .12s, border-color .12s; }
+.sr-row .ck:hover .ic { border-color: #9b958b; }
+.sr-row.mk .ck .ic { background: var(--red); border-color: var(--red); color: #fff; }
+.sr-sel { display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid #f0ede7; font-size: 12px; color: var(--mid); background: #fcfbf9; }
+.sr-sel b { color: #1d1d20; }
+.sr-sel .sp { flex: 1; }
+.sr-sel button { border: 0; background: none; color: #8e1016; font: 600 12px var(--font-body); cursor: pointer; padding: 2px 0; white-space: nowrap; }
+.sr-tacts { display: flex; gap: 8px; flex-wrap: wrap; }
 .sr-row:hover { background: #f8f7f4; }
 .sr-row.on { background: #f4f1ec; border-left-color: var(--red); }
 .sr-row .th { width: 38px; height: 38px; border-radius: 7px; background: #ebe8e2 center / cover no-repeat; flex: none; }
@@ -149,9 +158,10 @@ function renderSerie(k) {
   v.innerHTML = `<div class="sr">
     <div class="sr-top"><h2>Serie</h2>
       <div class="sr-kpi"><span><b>${all.length}</b> serie</span><span><b>${all.reduce((a, g) => a + g.nc, 0)}</b> colori e decori</span><span><b>${brands.length}</b> marche</span></div>
-      <button class="btn" id="srPdfAll" onclick="srPdfList()"></button></div>
+      <div class="sr-tacts"><button class="btn red" id="srCatBtn" onclick="srCatalog()"></button><button class="btn" id="srPdfAll" onclick="srPdfList()"></button></div></div>
     <aside class="sr-side"><div class="sr-tools"><input id="srSearch" placeholder="Cerca serie, colore o codice…" value="${esc(srQ)}">
       <select onchange="srBrand = this.value; srList()"><option value="">Tutte le marche</option>${brands.map(b => `<option${b === srBrand ? ' selected' : ''}>${esc(b)}</option>`).join('')}</select></div>
+      <div class="sr-sel" id="srSelBar"></div>
       <div class="sr-list" id="srList"></div></aside>
     <main class="sr-main" id="srMain"></main></div>`;
   document.getElementById('srSearch').addEventListener('input', e => { srQ = e.target.value; srList(); });
@@ -170,12 +180,43 @@ function srList() {
   el.innerHTML = list.map(g => {
     const th = srMini(g.list.find(x => x.z === '60x120' && hasPhoto(x)) || g.list.find(hasPhoto)), nz = new Set(g.list.map(x => x.z)).size;
     const h = g.b !== lastB ? `<div class="sr-bh">${esc(g.b)}</div>` : ''; lastB = g.b;
-    return h + `<button class="sr-row${g.k === srSel ? ' on' : ''}" data-k="${esc(g.k)}" onclick="srPick(this.dataset.k)">
+    return h + `<div class="sr-row${g.k === srSel ? ' on' : ''}${srMark.has(g.k) ? ' mk' : ''}" data-k="${esc(g.k)}" onclick="srPick(this.dataset.k)">
+      <span class="ck" onclick="event.stopPropagation(); srMarkToggle(this.parentNode.dataset.k)" title="Scegli per il catalogo e il PDF"><svg class="ic"><use href="#i-check"/></svg></span>
       <span class="th" style="${th ? `background-image:url('${esc(th)}')` : ''}"></span>
-      <span class="tx"><span class="n">${esc(glTitle(g.s))}${g.nuovo ? ' <span class="nwb">NOVITÀ</span>' : ''}</span><span class="m">${srColN(g.nc)} · ${nz} ${nz === 1 ? 'formato' : 'formati'}</span></span></button>`;
+      <span class="tx"><span class="n">${esc(glTitle(g.s))}${g.nuovo ? ' <span class="nwb">NOVITÀ</span>' : ''}</span><span class="m">${srColN(g.nc)} · ${nz} ${nz === 1 ? 'formato' : 'formati'}</span></span></div>`;
   }).join('') || '<div class="sr-empty">Nessuna serie trovata.</div>';
-  const b = document.getElementById('srPdfAll');
-  if (b) { b.disabled = !list.length; b.innerHTML = `<svg class="ic"><use href="#i-download"/></svg> PDF ${list.length === all.length ? 'di tutte le serie' : list.length === 1 ? 'di 1 serie' : `di ${list.length} serie`}`; }
+  srBtns(all, list);
+}
+/* ── serie scelte (spunta nell'elenco): il catalogo e il PDF mostrano solo quelle; senza spunte tutte quelle dell'elenco ── */
+const srMark = new Set(Array.isArray(ui.srMark) ? ui.srMark : []);
+function srMarkSave() { ui.srMark = [...srMark]; saveUI(); }
+function srMarkToggle(k) {
+  if (srMark.has(k)) srMark.delete(k); else srMark.add(k);
+  srMarkSave();
+  document.querySelectorAll('.sr-row').forEach(r => r.classList.toggle('mk', srMark.has(r.dataset.k)));
+  srBtns();
+  if (k === srSel) srShow();
+}
+/* tutte quelle dell'elenco (con ricerca e marca) oppure nessuna */
+function srMarkAll(on) {
+  if (on) srFiltered().forEach(g => srMark.add(g.k)); else srMark.clear();
+  srMarkSave(); srList(); srShow();
+}
+function srChoice() {
+  const all = srAll(), mk = all.filter(g => srMark.has(g.k));
+  if (mk.length) return { keys: mk.map(g => g.k), label: 'Serie scelte', n: mk.length };
+  return { keys: srFiltered(all).map(g => g.k), label: srBrand || (srQ.trim() ? 'Ricerca ' + srQ.trim() : 'Tutte le marche'), n: 0 };
+}
+function srBtns(all, list) {
+  all = all || srAll(); list = list || srFiltered(all);
+  const ch = srChoice(), n = ch.n, N = ch.keys.length;
+  const lab = n ? (n === 1 ? 'della serie scelta' : `delle ${n} scelte`) : N === all.length ? 'di tutte le serie' : N === 1 ? 'di 1 serie' : `di ${N} serie`;
+  const sb = document.getElementById('srSelBar');
+  if (sb) sb.innerHTML = n ? `<span><b>${n}</b> ${n === 1 ? 'serie scelta' : 'serie scelte'}</span><span class="sp"></span>${list.some(g => !srMark.has(g.k)) ? '<button onclick="srMarkAll(true)">Scegli tutte</button>' : ''}<button onclick="srMarkAll(false)">Togli le spunte</button>`
+    : `<span>Spunta le serie che vuoi nel catalogo e nel PDF</span><span class="sp"></span>${list.length ? '<button onclick="srMarkAll(true)">Tutte</button>' : ''}`;
+  const c = document.getElementById('srCatBtn'), b = document.getElementById('srPdfAll');
+  if (c) { c.disabled = !N; c.innerHTML = `<svg class="ic"><use href="#i-image"/></svg> Catalogo ${lab}`; }
+  if (b) { b.disabled = !N; b.innerHTML = `<svg class="ic"><use href="#i-download"/></svg> PDF ${lab}`; }
 }
 function srPick(k) {
   if (k !== srSel) srZ = '';
@@ -207,7 +248,8 @@ function srShow() {
   el.innerHTML = `<div class="sr-head"><div class="who"><div class="br">${esc(g.b)}${g.nuovo ? ' <span class="nwb">NOVITÀ</span>' : ''}</div><h3>${esc(glTitle(g.s))}</h3>
       <div class="meta"><b>${srColN(inf.nC)}</b>${grs.length > 1 ? ` in ${grs.length} gruppi: ${esc(grs.map(gr => gr.title).join(', '))}` : ''}<br>
         <b>Formati:</b> ${esc(inf.zs.map(fmt).join(' · '))}${inf.fins.length ? `<br><b>Finiture:</b> ${esc(inf.fins.join(' · '))}` : ''}${inf.ths.length ? `<br><b>Spessori:</b> ${esc(inf.ths.join(' · '))} mm` : ''}</div></div>
-    <div class="acts"><button class="btn red" onclick="srPdf([srSel])"><svg class="ic"><use href="#i-download"/></svg> PDF della serie</button>
+    <div class="acts"><button class="btn${srMark.has(g.k) ? ' dark' : ''}" onclick="srMarkToggle(srSel)" title="Le serie scelte vanno nel catalogo e nel PDF"><svg class="ic"><use href="#i-${srMark.has(g.k) ? 'check' : 'plus'}"/></svg> ${srMark.has(g.k) ? 'Scelta' : 'Scegli'}</button>
+      <button class="btn red" onclick="srPdf([srSel])"><svg class="ic"><use href="#i-download"/></svg> PDF della serie</button>
       <button class="btn" onclick="srCampiona()" title="Apre gli Espositori con i colori di questa serie"><svg class="ic"><use href="#i-grid"/></svg> Campiona</button></div></div>
     <div class="sr-bar">${inf.zs.length > 1 ? `<button class="sr-chip${srZ ? '' : ' on'}" onclick="srZ = ''; srShow()">Tutti i formati</button>${inf.zs.map(z => `<button class="sr-chip${srZ === z ? ' on' : ''}" data-z="${esc(z)}" onclick="srZ = this.dataset.z; srShow()" title="${srColN(zN(z))}">${esc(fmt(z))}</button>`).join('')}` : ''}
       <span class="sp"></span><span class="sr-seg"><button class="sr-chip${srMode === 'foto' ? ' on' : ''}" onclick="srMode = 'foto'; srShow()"><svg class="ic"><use href="#i-image"/></svg> Foto</button>
@@ -224,7 +266,8 @@ function srOpen(n) {
   srIdx = n;
   let m = document.getElementById('srFull');
   if (!m) {
-    document.body.insertAdjacentHTML('beforeend', '<div class="modal open" id="srFull"></div>');
+    // dentro il catalogo, se è aperto (a schermo intero si vede solo quello)
+    (document.getElementById('srCat') || document.body).insertAdjacentHTML('beforeend', '<div class="modal open" id="srFull"></div>');
     m = document.getElementById('srFull'); m.addEventListener('click', e => { if (e.target === m) srClose(); });
   }
   const e = srCur.cols[n], g = srCur.g, N = srCur.cols.length, u = e.ph ? glPhoto(e.ph, true) : '';
@@ -240,9 +283,11 @@ function srOpen(n) {
 function srClose() { const m = document.getElementById('srFull'); if (m) m.remove(); }
 document.addEventListener('keydown', e => {
   if (!document.getElementById('srFull')) return;
-  if (e.key === 'Escape') srClose(); else if (e.key === 'ArrowRight') srOpen(srIdx + 1); else if (e.key === 'ArrowLeft') srOpen(srIdx - 1);
+  if (!['Escape', 'ArrowRight', 'ArrowLeft'].includes(e.key)) return;
+  e.preventDefault();                                     // il catalogo sotto non cambia serie
+  if (e.key === 'Escape') srClose(); else if (e.key === 'ArrowRight') srOpen(srIdx + 1); else srOpen(srIdx - 1);
 });
-window.addEventListener('hashchange', () => { if (!location.hash.startsWith('#/serie')) srClose(); });
+window.addEventListener('hashchange', () => { if (!location.hash.startsWith('#/serie')) { srClose(); srCatClose(); } });
 
 /* Campiona: apre gli Espositori con un espositore adatto e la ricerca già sulla serie */
 function srCampiona() {
@@ -270,10 +315,7 @@ async function srJpeg(u, px) {
   const d = cv.toDataURL('image/jpeg', 0.82); cv.width = cv.height = 0;
   return d;
 }
-function srPdfList() {
-  const list = srFiltered();
-  return srPdf(list.map(g => g.k), srBrand || (srQ.trim() ? 'Ricerca ' + srQ.trim() : 'Tutte le marche'));
-}
+function srPdfList() { const ch = srChoice(); return srPdf(ch.keys, ch.label); }
 async function srPdf(keys, label) {
   const all = srAll(), list = keys.map(k => all.find(g => g.k === k)).filter(Boolean), multi = list.length > 1;
   if (!list.length) return toast('Nessuna serie da esportare');
@@ -396,7 +438,216 @@ async function srPdf(keys, label) {
     }
     const safe = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '');
     const ymd = `${now.getFullYear()}${p2(now.getMonth() + 1)}${p2(now.getDate())}`;
-    schDeliver(pdf, multi ? `${ymd}_Serie_${safe(label === 'Tutte le marche' ? 'Tutte' : label) || 'Tutte'}.pdf` : `${ymd}_${safe(glTitle(list[0].s))}_Serie.pdf`, multi ? 'Il PDF delle serie è pronto' : 'Il PDF della serie è pronto');
+    schDeliver(pdf, multi ? `${ymd}_Serie_${safe(label === 'Tutte le marche' ? 'Tutte' : label === 'Serie scelte' ? 'Scelte' : label) || 'Tutte'}.pdf` : `${ymd}_${safe(glTitle(list[0].s))}_Serie.pdf`, multi ? 'Il PDF delle serie è pronto' : 'Il PDF della serie è pronto');
   } catch (err) { console.error(err); toast('PDF non riuscito: riprova'); }
   finally { wait.remove(); }
 }
+
+/* ════ CATALOGO DIGITALE ════ le serie scelte (o tutte quelle dell'elenco) a tutto schermo, una alla volta:
+   copertina con l'indice, poi per ogni serie le foto grandi, i numeri, i formati disegnati in proporzione (si toccano per
+   vedere solo i colori di quel formato) e i colori per gruppo; tocca un colore per la foto grande con i codici.
+   Frecce ← → (o i pulsanti in fondo) per la serie prima / dopo; si può mettere a schermo intero per mostrarlo al cliente. */
+document.head.insertAdjacentHTML('beforeend', `<style>
+#srCat { position: fixed; inset: 0; z-index: 90; background: #f7f5f1; display: flex; flex-direction: column; color: #1a1a1c; }
+.ct-bar { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: #fbfaf7; border-bottom: 1px solid #e7e3db; flex: none; }
+.ct-x, .ct-ic { border: 1px solid #e0dbd2; background: #fff; border-radius: 999px; height: 36px; padding: 0 14px; display: inline-flex; align-items: center; gap: 6px; font: 600 13px var(--font-body); cursor: pointer; color: #1a1a1c; flex: none; }
+.ct-x:hover, .ct-ic:hover { border-color: #c9c3b8; }
+.ct-ic { padding: 0 11px; }
+.ct-x .ic, .ct-ic .ic { width: 16px; height: 16px; }
+.ct-tabs { flex: 1; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; min-width: 0; }
+.ct-tabs::-webkit-scrollbar { display: none; }
+.ct-tab { flex: none; border: 0; background: transparent; border-radius: 999px; height: 36px; padding: 0 14px 0 5px; display: inline-flex; align-items: center; gap: 8px; font: 600 13px var(--font-body); color: #55524c; cursor: pointer; white-space: nowrap; }
+.ct-tab i { width: 26px; height: 26px; border-radius: 50%; background: #e6e1d8 center / cover no-repeat; flex: none; }
+.ct-tab .ic { width: 16px; height: 16px; margin-left: 8px; }
+.ct-tab:hover { background: #efebe4; }
+.ct-tab.on { background: #1a1a1c; color: #fff; }
+.ct-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.ct-wrap { max-width: 1240px; margin: 0 auto; padding: 0 32px; }
+.ct-eyebrow { font: 700 11.5px var(--font-body); letter-spacing: .22em; text-transform: uppercase; color: #b0101a; }
+.ct-eyebrow .nwb { letter-spacing: .1em; margin-left: 6px; }
+/* copertina e indice */
+.ct-cv { text-align: center; padding: 54px 20px 38px; }
+.ct-cv img { height: 42px; display: inline-block; }
+.ct-cv .ct-eyebrow { margin-top: 30px; }
+.ct-cv h1 { font: 700 clamp(52px, 9vw, 118px)/.92 var(--font-display); letter-spacing: -.05em; margin: 10px 0 16px; }
+.ct-cv p { color: #6b6760; font-size: 15px; margin: 0; }
+.ct-strip { display: grid; grid-template-columns: repeat(8, 1fr); height: clamp(120px, 20vw, 250px); }
+.ct-strip span { background: #e6e1d8 center / cover no-repeat; }
+.ct-index { padding-top: 30px; padding-bottom: 80px; }
+.ct-index h3 { font: 700 11.5px var(--font-body); letter-spacing: .2em; text-transform: uppercase; color: #8d877d; margin: 34px 0 16px; padding-bottom: 10px; border-bottom: 1px solid #e2ddd4; }
+.ct-igrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 30px 22px; }
+.ct-icard { border: 0; padding: 0; background: none; text-align: left; cursor: pointer; font: inherit; color: inherit; }
+.ct-icard .im { display: block; aspect-ratio: 4 / 3; border-radius: 14px; background: #e6e1d8 center / cover no-repeat; transition: transform .35s ease, box-shadow .35s ease; }
+.ct-icard:hover .im { transform: translateY(-4px); box-shadow: 0 16px 34px rgba(30,25,15,.16); }
+.ct-icard .br { display: block; font: 700 10.5px var(--font-body); letter-spacing: .16em; text-transform: uppercase; color: #b0101a; margin-top: 13px; }
+.ct-icard b { display: block; font: 700 20px/1.15 var(--font-display); letter-spacing: -.02em; margin-top: 3px; }
+.ct-icard .m { display: block; font-size: 12.5px; color: #6b6760; margin-top: 4px; }
+/* pagina della serie */
+.ct-hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 44px; align-items: center; padding: 46px 0 34px; }
+.ct-hero h1 { font: 700 clamp(42px, 6vw, 86px)/.94 var(--font-display); letter-spacing: -.045em; margin: 12px 0 26px; overflow-wrap: anywhere; }
+.ct-facts { display: flex; gap: 30px; flex-wrap: wrap; padding: 18px 0; border-top: 1px solid #e2ddd4; border-bottom: 1px solid #e2ddd4; }
+.ct-facts b { display: block; font: 700 28px/1.1 var(--font-display); letter-spacing: -.02em; }
+.ct-facts span { font-size: 12px; color: #6b6760; }
+.ct-fin { font-size: 13.5px; line-height: 1.55; color: #3d3a35; margin: 16px 0 0; }
+.ct-fin span { display: block; font: 700 10.5px var(--font-body); letter-spacing: .16em; text-transform: uppercase; color: #8d877d; margin-bottom: 3px; }
+.ct-mosaic { display: grid; gap: 8px; height: clamp(300px, 40vw, 540px); grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.ct-mosaic span { background: #e6e1d8 center / cover no-repeat; border-radius: 14px; }
+.ct-mosaic.n1 span { grid-row: 1 / 3; grid-column: 1 / 3; }
+.ct-mosaic.n2 span { grid-row: 1 / 3; }
+.ct-mosaic.n3 span:first-child { grid-row: 1 / 3; }
+.ct-mosaic.n0 { display: none; }
+.ct-sh { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 0 0 18px; }
+.ct-sh h2 { font: 700 27px var(--font-display); letter-spacing: -.03em; margin: 0; }
+.ct-sh span { color: #8d877d; font-size: 13px; }
+.ct-fmts { padding: 30px 0 6px; }
+.ct-fz-row { display: flex; align-items: flex-end; gap: 14px 18px; flex-wrap: wrap; }
+.ct-fz { border: 0; background: none; padding: 10px 10px 8px; border-radius: 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 9px; font: inherit; color: inherit; }
+.ct-fz i { display: block; background: #ddd7cc center / cover no-repeat; box-shadow: 0 1px 0 rgba(0,0,0,.05), 0 6px 14px rgba(30,25,15,.13); border-radius: 2px; }
+.ct-fz i.all { width: 34px; height: 34px; background: repeating-linear-gradient(90deg, #cfc8bb 0 10px, transparent 10px 12px), #f7f5f1; box-shadow: none; border-radius: 3px; }
+.ct-fz span { font: 600 12.5px var(--font-body); color: #55524c; white-space: nowrap; }
+.ct-fz small { font-size: 11px; color: #9a948a; margin-top: -6px; }
+.ct-fz:hover { background: #efebe4; }
+.ct-fz.on { background: #1a1a1c; }
+.ct-fz.on span { color: #fff; }
+.ct-fz.on small { color: #bdb7ad; }
+.ct-grp { padding: 34px 0 4px; }
+.ct-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 28px 20px; }
+.ct-card { border: 0; padding: 0; background: none; text-align: left; cursor: zoom-in; font: inherit; color: inherit; min-width: 0; }
+.ct-card .im { display: block; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: #e6e1d8; }
+.ct-card .im img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .6s ease; }
+.ct-card:hover .im img { transform: scale(1.05); }
+.ct-card .im .no { display: flex; height: 100%; align-items: center; justify-content: center; color: #a39d92; font-size: 12px; }
+.ct-card b { display: block; font: 600 15.5px/1.25 var(--font-display); margin-top: 11px; letter-spacing: -.01em; }
+.ct-card small { display: block; font-size: 12px; color: #77726a; margin-top: 3px; line-height: 1.4; }
+.ct-pn { display: flex; justify-content: space-between; gap: 16px; padding: 40px 0 64px; margin-top: 46px; border-top: 1px solid #e2ddd4; }
+.ct-pn button { border: 0; background: none; cursor: pointer; text-align: left; font: inherit; color: inherit; padding: 6px 0; min-width: 0; }
+.ct-pn button.nx { text-align: right; margin-left: auto; }
+.ct-pn small { display: block; font: 700 10.5px var(--font-body); letter-spacing: .16em; text-transform: uppercase; color: #8d877d; margin-bottom: 4px; }
+.ct-pn b { font: 700 24px var(--font-display); letter-spacing: -.02em; transition: color .15s; }
+.ct-pn button:hover b { color: #b0101a; }
+@media (max-width: 760px) {
+  .ct-wrap { padding: 0 16px; }
+  .ct-bar { padding: 8px 10px; gap: 6px; }
+  .ct-x span, .ct-ic span { display: none; }
+  .ct-x, .ct-ic { padding: 0 10px; }
+  .ct-cv { padding: 36px 16px 28px; }
+  .ct-cv img { height: 32px; }
+  .ct-strip { grid-template-columns: repeat(4, 1fr); }
+  .ct-strip span:nth-child(n+5) { display: none; }
+  .ct-hero { grid-template-columns: 1fr; gap: 22px; padding: 18px 0 18px; }
+  .ct-mosaic { height: 70vw; order: -1; }
+  .ct-facts { gap: 22px; }
+  .ct-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 12px; }
+  .ct-igrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 12px; }
+  .ct-icard b { font-size: 16px; }
+  .ct-fz-row { gap: 6px; }
+  .ct-pn b { font-size: 18px; }
+}
+</style>`);
+
+let srCatList = [], srCatI = -1, srCatZ = '', srCatLabel = '';
+/* foto di una serie: un colore ciascuna (prima quelle del 60×120), al massimo n */
+function srReps(g, n) {
+  const seen = new Set(), out = [];
+  [...g.list].sort((a, b) => (b.z === '60x120') - (a.z === '60x120')).forEach(x => {
+    if (out.length >= n || seen.has(glCid(x)) || !hasPhoto(x)) return;
+    seen.add(glCid(x)); out.push(glPhoto(x));
+  });
+  return out;
+}
+function srCatalog() {
+  const ch = srChoice(), all = srAll();
+  srCatList = ch.keys.map(k => all.find(g => g.k === k)).filter(Boolean);
+  if (!srCatList.length) return toast('Nessuna serie da mostrare');
+  srCatLabel = ch.label; srCatZ = '';
+  srCatI = srCatList.length === 1 ? 0 : -1;
+  if (!document.getElementById('srCat')) document.body.insertAdjacentHTML('beforeend', '<div id="srCat"></div>');
+  srCatDraw();
+}
+function srCatClose() {
+  const c = document.getElementById('srCat'); if (!c) return;
+  if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+  c.remove(); srShow();
+}
+function srCatGo(i) {
+  srCatI = Math.max(srCatList.length > 1 ? -1 : 0, Math.min(srCatList.length - 1, i)); srCatZ = '';
+  srCatDraw();
+}
+function srCatFull() {
+  const c = document.getElementById('srCat'); if (!c) return;
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  else if (c.requestFullscreen) c.requestFullscreen().catch(() => toast('Schermo intero non disponibile'));
+}
+function srCatPdf() {
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  srPdf(srCatList.map(g => g.k), srCatLabel);
+}
+function srCatDraw() {
+  const c = document.getElementById('srCat'); if (!c) return;
+  const L = srCatList, i = srCatI, mini = g => srMini(g.list.find(x => x.z === '60x120' && hasPhoto(x)) || g.list.find(hasPhoto));
+  c.innerHTML = `<div class="ct-bar">
+      <button class="ct-x" onclick="srCatClose()"><svg class="ic"><use href="#i-left"/></svg><span>Esci</span></button>
+      <div class="ct-tabs" id="ctTabs">${L.length > 1 ? `<button class="ct-tab${i < 0 ? ' on' : ''}" onclick="srCatGo(-1)"><svg class="ic"><use href="#i-grid"/></svg>Indice</button>` : ''}${L.map((g, j) => {
+        const u = mini(g); return `<button class="ct-tab${j === i ? ' on' : ''}" onclick="srCatGo(${j})"><i style="${u ? `background-image:url('${esc(u)}')` : ''}"></i>${esc(glTitle(g.s))}</button>`; }).join('')}</div>
+      ${document.fullscreenEnabled ? '<button class="ct-ic" onclick="srCatFull()" title="Schermo intero"><svg class="ic"><use href="#i-maximize"/></svg></button>' : ''}
+      <button class="ct-ic" onclick="srCatPdf()" title="Scarica il catalogo in PDF"><svg class="ic"><use href="#i-download"/></svg><span>PDF</span></button></div>
+    <div class="ct-body" id="ctBody">${i < 0 ? srCatCover() : srCatSeries(L[i])}</div>`;
+  const tb = document.getElementById('ctTabs'), on = tb && tb.querySelector('.ct-tab.on');
+  if (on) tb.scrollLeft = on.offsetLeft - (tb.clientWidth - on.offsetWidth) / 2;
+}
+function srCatCover() {
+  const L = srCatList, nC = L.reduce((a, g) => a + g.nc, 0);
+  const today = new Date().toLocaleDateString('it-IT', { day: 'numeric', month: 'long', year: 'numeric' });
+  // striscia di foto: una per serie finché bastano, poi la seconda foto delle stesse
+  const reps = L.map(g => srReps(g, 3)), strip = [];
+  for (let r = 0; r < 3 && strip.length < 8; r++) reps.forEach(p => { if (p[r] && strip.length < 8) strip.push(p[r]); });
+  return `<section class="ct-cv"><img src="img/prop_logo.png" alt="Emilgroup"><div class="ct-eyebrow">${esc(srCatLabel)}</div><h1>Catalogo</h1>
+      <p>${L.length} serie · ${nC} colori e decori · ${esc(today)}</p></section>
+    ${strip.length ? `<div class="ct-strip">${strip.map(u => `<span style="background-image:url('${esc(u)}')"></span>`).join('')}</div>` : ''}
+    <section class="ct-wrap ct-index"><h3>Indice · ${L.length} serie</h3><div class="ct-igrid">${L.map((g, j) => {
+      const u = srReps(g, 1)[0], zs = [...new Set(g.list.map(x => x.z))].sort(srBySize);
+      return `<button class="ct-icard" onclick="srCatGo(${j})"><span class="im" style="${u ? `background-image:url('${esc(u)}')` : ''}"></span>
+        <span class="br">${esc(g.b)}</span><b>${esc(glTitle(g.s))}</b><span class="m">${srColN(g.nc)} · ${esc(zs.map(fmt).join(' · '))}</span></button>`;
+    }).join('')}</div></section>`;
+}
+function srCatSeries(g) {
+  const grs = srGroups(g), inf = srInfo(g, grs), reps = srReps(g, 4), z = inf.zs.includes(srCatZ) ? srCatZ : '';
+  const vis = grs.map(gr => Object.assign({}, gr, { cols: gr.cols.filter(e => !z || e.list.some(x => x.z === z))
+    .map(e => !z ? e : Object.assign({}, e, { rows: e.rows.filter(r => r.z === z), ph: e.list.find(x => x.z === z && hasPhoto(x)) || e.ph })) })).filter(gr => gr.cols.length);
+  srCur = { g, cols: vis.flatMap(gr => gr.cols.map(e => Object.assign({ grp: gr.title, many: grs.length > 1 }, e))) };
+  // formati disegnati in proporzione (il lato lungo più grande alto 120 px), riempiti con la foto di un colore di quel formato
+  const big = Math.max(...inf.zs.map(q => Math.max(...parseSize(q)))), k = 120 / big;
+  const nOf = q => grs.reduce((a, gr) => a + gr.cols.filter(e => e.list.some(x => x.z === q)).length, 0);
+  const fz = inf.zs.map(q => {
+    const [a, b] = sorted2(parseSize(q)), x = g.list.find(s => s.z === q && hasPhoto(s)), u = x ? glPhoto(x) : '';
+    return `<button class="ct-fz${z === q ? ' on' : ''}" data-z="${esc(q)}" onclick="srCatFilter(this.dataset.z)"><i style="width:${Math.max(5, a * k).toFixed(1)}px;height:${Math.max(5, b * k).toFixed(1)}px;${u ? `background-image:url('${esc(u)}')` : ''}"></i><span>${esc(fmt(q))}</span><small>${srColN(nOf(q))}</small></button>`;
+  }).join('');
+  let n = 0;
+  const card = e => { const i = n++, u = e.ph ? glPhoto(e.ph) : '', zz = [...new Set(e.rows.map(r => r.z))].map(fmt).join(' · ');
+    return `<button class="ct-card" onclick="srOpen(${i})"><span class="im">${u ? `<img loading="lazy" src="${esc(u)}" alt="">` : '<span class="no">foto non disponibile</span>'}</span><b>${esc(e.name)}</b><small>${esc(zz)}</small></button>`; };
+  const L = srCatList, j = srCatI, prev = j > 0 ? L[j - 1] : null, next = j < L.length - 1 ? L[j + 1] : null;
+  return `<div class="ct-wrap">
+    <section class="ct-hero"><div><div class="ct-eyebrow">${esc(g.b)}${g.nuovo ? '<span class="nwb">NOVITÀ</span>' : ''}</div><h1>${esc(glTitle(g.s))}</h1>
+        <div class="ct-facts"><div><b>${inf.nC}</b><span>${inf.nC === 1 ? 'colore' : 'colori'}</span></div><div><b>${inf.zs.length}</b><span>${inf.zs.length === 1 ? 'formato' : 'formati'}</span></div>${inf.ths.length ? `<div><b>${esc(inf.ths.join(' · '))}</b><span>mm di spessore</span></div>` : ''}</div>
+        ${grs.length > 1 ? `<p class="ct-fin"><span>Gruppi</span>${esc(grs.map(gr => gr.title).join(' · '))}</p>` : ''}
+        ${inf.fins.length ? `<p class="ct-fin"><span>Finiture</span>${esc(inf.fins.join(' · '))}</p>` : ''}</div>
+      <div class="ct-mosaic n${reps.length}">${reps.map(u => `<span style="background-image:url('${esc(u)}')"></span>`).join('')}</div></section>
+    <section class="ct-fmts"><div class="ct-sh"><h2>Formati</h2>${inf.zs.length > 1 ? '<span>tocca un formato per vedere solo i suoi colori</span>' : ''}</div>
+      <div class="ct-fz-row">${inf.zs.length > 1 ? `<button class="ct-fz${z ? '' : ' on'}" onclick="srCatFilter('')"><i class="all"></i><span>Tutti</span><small>${srColN(inf.nC)}</small></button>` : ''}${fz}</div></section>
+    ${vis.map(gr => `<section class="ct-grp"><div class="ct-sh"><h2>${esc(grs.length > 1 ? gr.title : z ? 'Colori in ' + fmt(z) : 'Colori')}</h2><span>${srColN(gr.cols.length)}${grs.length > 1 && z ? ' in ' + esc(fmt(z)) : ''}</span></div>
+      <div class="ct-cards">${gr.cols.map(card).join('')}</div></section>`).join('')}
+    <nav class="ct-pn">${prev ? `<button onclick="srCatGo(${j - 1})"><small>‹ Serie precedente</small><b>${esc(glTitle(prev.s))}</b></button>` : L.length > 1 ? '<button onclick="srCatGo(-1)"><small>‹ Torna</small><b>Indice</b></button>' : ''}
+      ${next ? `<button class="nx" onclick="srCatGo(${j + 1})"><small>Serie successiva ›</small><b>${esc(glTitle(next.s))}</b></button>` : ''}</nav></div>`;
+}
+/* filtro formato: ridisegna la pagina della serie restando allo stesso punto */
+function srCatFilter(q) {
+  const b = document.getElementById('ctBody'); if (!b) return;
+  srCatZ = q; const top = b.scrollTop; b.innerHTML = srCatSeries(srCatList[srCatI]); b.scrollTop = top;
+}
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('srCat') || document.getElementById('srFull') || e.defaultPrevented) return;
+  if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  if (e.key === 'Escape' && !document.fullscreenElement) srCatClose();
+  else if (e.key === 'ArrowRight' && srCatI < srCatList.length - 1) srCatGo(srCatI + 1);
+  else if (e.key === 'ArrowLeft' && srCatI > (srCatList.length > 1 ? -1 : 0)) srCatGo(srCatI - 1);
+});
