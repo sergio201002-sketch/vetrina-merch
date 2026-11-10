@@ -42,6 +42,7 @@ function route() {
   if (a === 'pacchetti') { document.body.dataset.view = 'packs'; renderPacks(id); return; }
   if (a === 'box') { document.body.dataset.view = 'boxes'; renderBoxes(); return; }
   if (a === 'novita') { document.body.dataset.view = 'novita'; renderNovita(); return; }
+  if (a === 'serie') { let k = ''; try { k = decodeURIComponent(id || ''); } catch (e) {} document.body.dataset.view = 'serie'; renderSerie(k); return; }
   if (a === 'ambiente' && scenes[id]) { document.body.dataset.view = 'room'; openRoom(id); return; }
   if (a === 'salamostra' && clients[id]) {
     const rooms = showRooms(id), last = (ui.showRoom || {})[id];
@@ -89,7 +90,7 @@ function leaveConfig() {
   if (back && back.startsWith('#/ambiente/') && scenes[back.split('/')[2]]) return go(back);
   if (back && back.startsWith('#/salamostra/') && clients[back.split('/')[2]]) return go(back);
   if (back && back.startsWith('#/pacchetti/') && scenes[back.split('/')[2]]) return go(back);
-  if (back === '#/novita' || back === '#/box') return go(back);
+  if (back === '#/novita' || back === '#/box' || (back && back.startsWith('#/serie'))) return go(back);
   go(ctxClient() ? '#/cliente/' + ctxClient() : '#/');
 }
 
@@ -136,6 +137,8 @@ function renderHome() {
         <div class="sub">Le tue proposte di esposizione pronte da mettere nella sala mostra di un cliente</div></div>
       <div class="card ccard" onclick="go('#/novita')"><h3><svg class="ic"><use href="#i-sparkles"/></svg> Novità</h3>
         <div class="sub">${Object.keys(novita).length ? `${Object.keys(novita).length} prodotti nuovi non ancora a listino` : 'Prodotti nuovi non ancora a listino: foto, formati e finiture, da campionare'}</div></div>
+      <div class="card ccard" onclick="go('#/serie')"><h3><svg class="ic"><use href="#i-tiles"/></svg> Serie</h3>
+        <div class="sub">Tutti i colori, le varianti e i decori di ogni serie, con formati, finiture e codici. Anche in PDF.</div></div>
       <div class="card ccard" onclick="openVersions()"><h3><svg class="ic"><use href="#i-history"/></svg> Versioni salvate</h3>
         <div class="sub">Tutto si salva da solo su disco. Qui puoi tornare a una versione precedente.</div></div>
       <div class="card ccard" onclick="openImages()"><h3><svg class="ic"><use href="#i-camera"/></svg> Foto campioni</h3>

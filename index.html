@@ -490,6 +490,7 @@ textarea { font-family: inherit; }
       <button class="hbtn" data-nav="home" onclick="go('#/')"><svg class="ic"><use href="#i-users"/></svg><span class="lbl"> Clienti</span></button>
       <button class="hbtn" data-nav="config" onclick="openFreeCatalog()"><svg class="ic"><use href="#i-panels"/></svg><span class="lbl"> Espositori</span></button>
       <button class="hbtn" data-nav="box" onclick="go('#/box')" title="Box in posa: la mattonella posata su pareti e pavimento"><svg class="ic"><use href="#i-boxroom"/></svg><span class="lbl"> Box</span></button>
+      <button class="hbtn" data-nav="serie" onclick="go('#/serie')" title="Serie: tutti i colori, le varianti e i decori di ogni serie con formati e codici, anche in PDF"><svg class="ic"><use href="#i-tiles"/></svg><span class="lbl"> Serie</span></button>
       <button class="hbtn" data-nav="gallery2" onclick="go('#/galleria2')" title="Galleria+: panoramica, occasioni, proposta di integrazione"><svg class="ic"><use href="#i-sparkles"/></svg><span class="lbl"> Galleria+</span></button>
       <button class="hbtn" data-nav="packs" onclick="go('#/pacchetti')" title="Pacchetti: le tue proposte di esposizione pronte"><svg class="ic"><use href="#i-box"/></svg><span class="lbl"> Pacchetti</span></button>
     </nav>
@@ -1984,6 +1985,7 @@ function renderToolbar() {
   const cl = clients[ctxClient()];
   document.getElementById('ctxBtn').innerHTML = ui.returnTo && ui.returnTo.startsWith('#/pacchetti/') ? '<svg class="ic"><use href="#i-left"/></svg>Pacchetto'
     : ui.returnTo === '#/novita' ? '<svg class="ic"><use href="#i-left"/></svg>Novità'
+    : ui.returnTo && ui.returnTo.startsWith('#/serie') ? '<svg class="ic"><use href="#i-left"/></svg>Serie'
     : ui.returnTo && ui.returnTo.startsWith('#/ambiente/') ? '<svg class="ic"><use href="#i-left"/></svg>Ambientazione'
     : ui.returnTo && ui.returnTo.startsWith('#/salamostra/') ? '<svg class="ic"><use href="#i-left"/></svg>Sala mostra' : cl ? '<svg class="ic"><use href="#i-left"/></svg>' + esc(cl.name) : '<svg class="ic"><use href="#i-left"/></svg>Clienti';
   document.getElementById('ctxBtn').title = cl ? 'Torna alla scheda cliente' : 'Catalogo libero (senza cliente) — torna ai clienti';
@@ -2342,6 +2344,6 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 </script>
 <script>/* sempre l'ultima versione del programma (niente copie vecchie rimaste nel browser) */
-['salva.js', 'clienti.js', 'ambiente.js', 'espositori3d.js', 'campioni.js', 'render.js', 'galleria.js', 'roomgl.js', 'galleria2.js', 'misure.js', 'pacchetti.js', 'box.js', 'metticampioni.js', 'scheda.js', 'novita.js'].forEach(f => document.write('<script src="' + f + '?v=' + APPV + '"><\/script>'));</script>
+['salva.js', 'clienti.js', 'ambiente.js', 'espositori3d.js', 'campioni.js', 'render.js', 'galleria.js', 'roomgl.js', 'galleria2.js', 'misure.js', 'pacchetti.js', 'box.js', 'metticampioni.js', 'scheda.js', 'novita.js', 'serie.js'].forEach(f => document.write('<script src="' + f + '?v=' + APPV + '"><\/script>'));</script>
 </body>
 </html>
