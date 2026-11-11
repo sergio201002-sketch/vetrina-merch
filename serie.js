@@ -139,7 +139,7 @@ function srGroups(g) {
     const ph = list.find(x => x.z === '60x120' && hasPhoto(x)) || list.find(hasPhoto) || null;
     return { id: e.id, name: glTitle(nm), full: glTitle(e.c), list, rows, all: rows, ph };
   }) }));
-  grs.forEach(gr => { gr.title = gr.name === 'Fondi' ? (grs.length > 1 ? 'Fondi' : 'Colori') : glTitle(gr.name); });
+  grs.forEach(gr => { gr.title = gr.name === 'Fondi' ? (grs.length > 1 ? 'Fondo' : 'Colori') : glTitle(gr.name); });
   return grs;
 }
 /* riassunto della serie: colori, formati, finiture, spessori */
@@ -148,6 +148,46 @@ function srInfo(g, grs) {
     fins: [...new Set(g.list.flatMap(x => x.f))], ths: [...new Set(g.list.flatMap(x => x.t))].sort(srByNum) };
 }
 const srColN = n => `${n} ${n === 1 ? 'colore' : 'colori'}`;
+/* cartella colori, come nei cataloghi: i colori in colonna (Chocolate, Cream…), le varianti in riga (Fondo, Tegolo, Vein Cut…)
+   con il nome scritto di lato. Le colonne sono i colori del gruppo più grande; entrano le varianti che hanno almeno 2 di
+   quei colori (e quasi solo quelli): i decori a sé (es. Pigmento Eden, Carioca A/B) restano solo nell'elenco sotto.
+   Serve almeno due righe, se no basta l'elenco */
+function srChart(grs) {
+  if (grs.length < 2) return null;
+  const key = e => normTxt(e.name), base = grs.reduce((a, gr) => gr.cols.length > a.cols.length ? gr : a, grs[0]);
+  const bk = new Set(base.cols.map(key));
+  const ok = gr => { const n = gr.cols.filter(e => bk.has(key(e))).length; return n >= Math.min(2, bk.size) && n >= gr.cols.length * 0.6; };
+  const inRows = grs.filter(ok);
+  if (inRows.length < 2) return null;
+  const cols = [], seen = new Set();
+  [base, ...inRows].forEach(gr => gr.cols.forEach(e => { const k = key(e); if (!seen.has(k)) { seen.add(k); cols.push({ k, name: e.name }); } }));
+  return cols.length < 2 ? null : { cols, rows: inRows.map(gr => ({ title: gr.title, cells: cols.map(c => gr.cols.find(e => key(e) === c.k) || null) })) };
+}
+/* a blocchi di 6 colori; tocca un riquadro per la foto grande con i codici */
+function srChartHTML(ch) {
+  const out = [];
+  for (let a = 0; a < ch.cols.length; a += 6) {
+    const b = Math.min(ch.cols.length, a + 6);
+    out.push(`<div class="sr-chart" style="--n:${b - a}">${ch.cols.slice(a, b).map(c => `<div class="h">${esc(c.name)}</div>`).join('')}<div></div>
+      ${ch.rows.map(r => r.cells.slice(a, b).map(e => e ? `<button class="c" data-id="${esc(e.id)}" onclick="srOpenId(this.dataset.id)" title="${esc(e.full)}" style="${e.ph ? `background-image:url('${esc(glPhoto(e.ph))}')` : ''}"></button>`
+        : '<span class="c e"></span>').join('') + `<div class="l"><span>${esc(r.title)}</span></div>`).join('')}</div>`);
+  }
+  return out.join('');
+}
+const SR_ARROW = '<svg class="ar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M8 7h9v9"/></svg>';   // ↗ come sul sito Emilgroup
+function srOpenId(id) { const n = srCur ? srCur.cols.findIndex(e => e.id === id) : -1; if (n >= 0) srOpen(n); }
+document.head.insertAdjacentHTML('beforeend', `<style>
+.sr-chart { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)) 24px; gap: 4px; max-width: calc(var(--n) * 170px + 28px); }
+.sr-chart + .sr-chart { margin-top: 24px; }
+.sr-chart .h { text-align: center; font: 600 13px var(--font-body); color: #1a1a1c; padding: 0 2px 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; align-self: end; }
+.sr-chart .c { display: block; width: 100%; aspect-ratio: 3 / 5; background: #e6e1d8 center / cover no-repeat; border: 0; padding: 0; cursor: zoom-in; transition: filter .2s; }
+.sr-chart .c:hover { filter: brightness(1.06); }
+.sr-chart .c.e { background: repeating-linear-gradient(45deg, #f2efe9 0 6px, #ebe7df 6px 12px); cursor: default; }
+.sr-chart .l { display: flex; align-items: center; justify-content: center; min-width: 0; }
+.sr-chart .l span { writing-mode: vertical-rl; font: 600 12px var(--font-body); color: #1a1a1c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-height: 100%; }
+.sr-grp .sr-chart { max-width: min(100%, calc(var(--n) * 130px + 28px)); }
+@media (max-width: 760px) { .sr-chart { gap: 3px; grid-template-columns: repeat(var(--n), minmax(0, 1fr)) 18px; } .sr-chart .h { font-size: 11px; } .sr-chart .l span { font-size: 11px; } }
+</style>`);
 
 function renderSerie(k) {
   srClose();
@@ -237,7 +277,7 @@ function srShow() {
   const vis = grs.map(gr => Object.assign({}, gr, { cols: gr.cols.filter(e => !srZ || e.list.some(x => x.z === srZ))
     .map(e => !srZ ? e : Object.assign({}, e, { rows: e.rows.filter(r => r.z === srZ), ph: e.list.find(x => x.z === srZ && hasPhoto(x)) || e.ph })) })).filter(gr => gr.cols.length);
   srCur = { g, cols: vis.flatMap(gr => gr.cols.map(e => Object.assign({ grp: gr.title, many: grs.length > 1 }, e))) };
-  const zN = z => grs.reduce((a, gr) => a + gr.cols.filter(e => e.list.some(x => x.z === z)).length, 0);
+  const zN = z => grs.reduce((a, gr) => a + gr.cols.filter(e => e.list.some(x => x.z === z)).length, 0), ch = srChart(vis);
   let i = 0;
   const card = e => { const n = i++, u = e.ph ? glPhoto(e.ph) : '', zz = [...new Set(e.rows.map(r => r.z))].map(fmt).join(' · ');
     return `<div class="sr-card" onclick="srOpen(${n})"><div class="im">${u ? `<img loading="lazy" src="${esc(u)}" alt="">` : '<span class="no"><svg class="ic"><use href="#i-camera"/></svg></span>'}</div>
@@ -257,7 +297,8 @@ function srShow() {
     ${srMode === 'tab'
       ? `<div class="sr-tw"><table class="sr-tab"><thead><tr><th>Colore</th><th>Formato</th><th>Finitura</th><th>Spessore</th><th>Codice</th></tr></thead><tbody>${vis.map(gr =>
           (grs.length > 1 ? `<tr class="gh"><td colspan="5">${esc(gr.title)}<span>${srColN(gr.cols.length)}</span></td></tr>` : '') + gr.cols.map(tr).join('')).join('')}</tbody></table></div>`
-      : vis.map(gr => `<div class="sr-grp">${grs.length > 1 ? `<h5>${esc(gr.title)} <span>${srColN(gr.cols.length)}</span></h5>` : ''}<div class="sr-cards">${gr.cols.map(card).join('')}</div></div>`).join('')}`;
+      : (ch ? `<div class="sr-grp"><h5>Cartella colori <span>${srColN(ch.cols.length)} · ${ch.rows.length} varianti</span></h5>${srChartHTML(ch)}</div>` : '')
+        + vis.map(gr => `<div class="sr-grp">${grs.length > 1 ? `<h5>${esc(gr.title)} <span>${srColN(gr.cols.length)}</span></h5>` : ''}<div class="sr-cards">${gr.cols.map(card).join('')}</div></div>`).join('')}`;
 }
 
 /* ── foto grande di un colore, con tutti i suoi formati, finiture e codici (frecce: colore prima / dopo) ── */
@@ -306,12 +347,15 @@ function srCampiona() {
    (si tocca il nome per andare alla pagina). Foto quadrate da 300 px, prese dalle foto della galleria. */
 const srFin = f => String(f || '').replace(/\s·\s[\d,]+ mm$/, '').replace(/\s*Rett\./, '').replace(/Naturale/i, 'Nat').replace(/Lappat[oa]/i, 'Lapp')
   .replace(/Levigat[oa]/i, 'Lev').replace(/Strutturat[oa]/i, 'Strutt');
-async function srJpeg(u, px) {
+/* foto tagliata al centro con il rapporto ar (larghezza / altezza), lato lungo al massimo px */
+async function srJpeg(u, px, ar = 1) {
   const im = u && await schLoadImg(u); if (!im) return '';
-  const iw = im.naturalWidth, ih = im.naturalHeight, s = Math.min(iw, ih), W = Math.max(1, Math.min(px, s));
-  const cv = document.createElement('canvas'); cv.width = cv.height = W;
+  const iw = im.naturalWidth, ih = im.naturalHeight;
+  let sw = iw, sh = iw / ar; if (sh > ih) { sh = ih; sw = ih * ar; }
+  const k = Math.min(1, px / Math.max(sw, sh)), W = Math.max(1, Math.round(sw * k)), H = Math.max(1, Math.round(sh * k));
+  const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
   const c = cv.getContext('2d'); c.imageSmoothingQuality = 'high';
-  c.drawImage(im, (iw - s) / 2, (ih - s) / 2, s, s, 0, 0, W, W);
+  c.drawImage(im, (iw - sw) / 2, (ih - sh) / 2, sw, sh, 0, 0, W, H);
   const d = cv.toDataURL('image/jpeg', 0.82); cv.width = cv.height = 0;
   return d;
 }
@@ -319,7 +363,7 @@ function srPdfList() { const ch = srChoice(); return srPdf(ch.keys, ch.label); }
 async function srPdf(keys, label) {
   const all = srAll(), list = keys.map(k => all.find(g => g.k === k)).filter(Boolean), multi = list.length > 1;
   if (!list.length) return toast('Nessuna serie da esportare');
-  const data = list.map(g => { const grs = srGroups(g); return { g, grs, inf: srInfo(g, grs) }; }), cols = data.flatMap(d => d.grs.flatMap(gr => gr.cols));
+  const data = list.map(g => { const grs = srGroups(g); return { g, grs, inf: srInfo(g, grs), ch: srChart(grs) }; }), cols = data.flatMap(d => d.grs.flatMap(gr => gr.cols));
   if (list.length > 5) {
     const nf = cols.filter(e => e.ph).length, sec = nf / 12, mb = Math.max(1, Math.round(nf * 0.016));
     if (!await ask(`Il PDF di ${list.length} serie ha ${cols.length} colori e decori (${nf} con la foto).\n\nCi vuole ${sec < 50 ? 'meno di un minuto' : 'circa ' + Math.ceil(sec / 60) + ' minuti'} e il file sarà di circa ${mb} MB.`, { ok: 'Crea il PDF' })) return;
@@ -328,9 +372,11 @@ async function srPdf(keys, label) {
   try {
     await loadPdfLibs();
     const [logo, mark] = await Promise.all(['img/prop_logo.png', 'img/prop_mark.png'].map(schLoadImg));
-    // foto: 6 alla volta
-    const jobs = cols.filter(e => e.ph); let next = 0, done = 0;
-    const work = async () => { while (next < jobs.length) { const e = jobs[next++]; e.jpg = await srJpeg(glPhoto(e.ph), 300);
+    // foto: 6 alla volta; quadrate per l'elenco, verticali (3:5) per la cartella colori
+    const jobs = cols.filter(e => e.ph).map(e => [e, 'jpg', 1]);
+    data.forEach(d => d.ch && d.ch.rows.forEach(r => r.cells.forEach(e => { if (e && e.ph) jobs.push([e, 'jpgT', 0.6]); })));
+    let next = 0, done = 0;
+    const work = async () => { while (next < jobs.length) { const [e, f, ar] = jobs[next++]; e[f] = await srJpeg(glPhoto(e.ph), 300, ar);
       if (++done % 6 === 0 || done === jobs.length) wait.textContent = `Preparo le foto: ${done} di ${jobs.length}…`; } };
     await Promise.all(Array.from({ length: 6 }, work));
     wait.textContent = 'Creo il PDF…'; await new Promise(r => setTimeout(r, 30));
@@ -392,6 +438,39 @@ async function srPdf(keys, label) {
         yy += 2.75;
       }));
     };
+    // cartella colori: colori in colonna (nome sopra), varianti in riga (nome di lato, dall'alto in basso), a blocchi di 6;
+    // riquadri 3:5 che si stringono se il blocco non sta in una pagina
+    const chart = d => {
+      const ch = d.ch; if (!ch) return;
+      const NR = ch.rows.length, G = 1.2, LW = 6, HD = 5;
+      for (let a = 0; a < ch.cols.length; a += 6) {
+        const cs = ch.cols.slice(a, a + 6), n = cs.length;
+        // larghezza dei riquadri che fa stare il blocco fino in fondo alla pagina; se diventano troppo stretti, pagina nuova
+        const fit = () => ((BOT - y - (a ? 0 : 9) - HD - G * (NR - 1)) / NR) * 0.6;
+        let cw = Math.min(30, (CW - LW - G * n) / n);
+        if (fit() < cw * 0.7) cont(d);
+        cw = Math.min(cw, fit());
+        const rh = cw / 0.6, x0 = M + Math.max(0, (CW - n * (cw + G) - LW) / 2);   // al centro della pagina
+        if (!a) { font(10, true); col(INK); pdf.text('Cartella colori', M, y + 3.5); const w = pdf.getTextWidth('Cartella colori');
+          font(7.5); col(MID); pdf.text(`${srColN(ch.cols.length)} · ${NR} varianti`, M + w + 2.5, y + 3.5); rule(y + 5.5, LINE, 0.2); y += 9; }
+        font(7.5, true); col(INK);
+        cs.forEach((c, i) => pdf.text(pdf.splitTextToSize(c.name, cw)[0], x0 + i * (cw + G) + cw / 2, y + 3, { align: 'center' }));
+        y += HD;
+        ch.rows.forEach(r => {
+          r.cells.slice(a, a + 6).forEach((e, i) => {
+            const x = x0 + i * (cw + G);
+            if (e && e.jpgT) pdf.addImage(e.jpgT, 'JPEG', x, y, cw, rh, 't' + (++imgN));
+            else { pdf.setFillColor(242, 239, 234); pdf.rect(x, y, cw, rh, 'F'); }
+          });
+          // nome della variante di lato, girato (si legge dall'alto in basso)
+          font(7.5, true); col(INK); const t = pdf.splitTextToSize(r.title, rh - 2)[0], tw = pdf.getTextWidth(t);
+          pdf.text(t, x0 + n * (cw + G) + 1.4, y + rh / 2 - tw / 2, { angle: -90 });
+          y += rh + G;
+        });
+        y += 5;
+      }
+      y += 2;
+    };
     // con più serie: copertina e indice prima (le pagine si scrivono alla fine)
     const ent = [];
     if (multi) { let lb = ''; data.forEach(d => { if (d.g.b !== lb) { if (lb) ent.push({ sp: 1 }); ent.push({ b: d.g.b }); lb = d.g.b; } ent.push({ d }); }); }
@@ -399,7 +478,7 @@ async function srPdf(keys, label) {
     const nIdx = multi ? 1 + Math.max(0, Math.ceil((ent.length - 2 * per1) / (2 * perN))) : 0;
     for (let i = 0; i < nIdx; i++) addPage('Indice');
     for (const d of data) {
-      head(d);
+      head(d); chart(d);
       const many = d.grs.length > 1;
       d.grs.forEach(gr => {
         const Ls = gr.cols.map(lay);
@@ -497,7 +576,7 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .ct-mosaic.n3 span:first-child { grid-row: 1 / 3; }
 .ct-mosaic.n0 { display: none; }
 .ct-sh { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 0 0 18px; }
-.ct-sh h2 { font: 700 27px var(--font-display); letter-spacing: -.03em; margin: 0; }
+.ct-sh h2 { font: 400 36px/1.1 var(--font-body); letter-spacing: -.025em; margin: 0; }
 .ct-sh span { color: #8d877d; font-size: 13px; }
 .ct-fmts { padding: 30px 0 6px; }
 .ct-fz-row { display: flex; align-items: flex-end; gap: 14px 18px; flex-wrap: wrap; }
@@ -513,12 +592,16 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 .ct-grp { padding: 34px 0 4px; }
 .ct-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 28px 20px; }
 .ct-card { border: 0; padding: 0; background: none; text-align: left; cursor: zoom-in; font: inherit; color: inherit; min-width: 0; }
-.ct-card .im { display: block; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: #e6e1d8; }
+.ct-card .im { display: block; aspect-ratio: 1; overflow: hidden; background: #e6e1d8; box-shadow: 0 2px 10px rgba(30,25,15,.10); }
 .ct-card .im img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .6s ease; }
-.ct-card:hover .im img { transform: scale(1.05); }
+.ct-card:hover .im img { transform: scale(1.04); }
 .ct-card .im .no { display: flex; height: 100%; align-items: center; justify-content: center; color: #a39d92; font-size: 12px; }
-.ct-card b { display: block; font: 600 15.5px/1.25 var(--font-display); margin-top: 11px; letter-spacing: -.01em; }
-.ct-card small { display: block; font-size: 12px; color: #77726a; margin-top: 3px; line-height: 1.4; }
+.ct-card .nm { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 13px; }
+.ct-card b { font: 400 17px/1.25 var(--font-body); letter-spacing: -.005em; min-width: 0; }
+.ct-card:hover b { text-decoration: underline; text-underline-offset: 3px; }
+.ct-card .ar { width: 20px; height: 20px; flex: none; }
+.ct-card small { display: block; font-size: 12px; color: #8a857c; margin-top: 3px; line-height: 1.4; }
+.ct-chart .sr-chart { max-width: min(100%, calc(var(--n) * 175px + 28px)); }
 .ct-pn { display: flex; justify-content: space-between; gap: 16px; padding: 40px 0 64px; margin-top: 46px; border-top: 1px solid #e2ddd4; }
 .ct-pn button { border: 0; background: none; cursor: pointer; text-align: left; font: inherit; color: inherit; padding: 6px 0; min-width: 0; }
 .ct-pn button.nx { text-align: right; margin-left: auto; }
@@ -542,6 +625,9 @@ document.head.insertAdjacentHTML('beforeend', `<style>
   .ct-icard b { font-size: 16px; }
   .ct-fz-row { gap: 6px; }
   .ct-pn b { font-size: 18px; }
+  .ct-sh h2 { font-size: 28px; }
+  .ct-card b { font-size: 15px; }
+  .ct-card .ar { width: 17px; height: 17px; }
 }
 </style>`);
 
@@ -624,8 +710,9 @@ function srCatSeries(g) {
   }).join('');
   let n = 0;
   const card = e => { const i = n++, u = e.ph ? glPhoto(e.ph) : '', zz = [...new Set(e.rows.map(r => r.z))].map(fmt).join(' · ');
-    return `<button class="ct-card" onclick="srOpen(${i})"><span class="im">${u ? `<img loading="lazy" src="${esc(u)}" alt="">` : '<span class="no">foto non disponibile</span>'}</span><b>${esc(e.name)}</b><small>${esc(zz)}</small></button>`; };
-  const L = srCatList, j = srCatI, prev = j > 0 ? L[j - 1] : null, next = j < L.length - 1 ? L[j + 1] : null;
+    return `<button class="ct-card" onclick="srOpen(${i})"><span class="im">${u ? `<img loading="lazy" src="${esc(u)}" alt="">` : '<span class="no">foto non disponibile</span>'}</span>
+      <span class="nm"><b>${esc(e.name)}</b>${SR_ARROW}</span><small>${esc(zz)}</small></button>`; };
+  const L = srCatList, j = srCatI, prev = j > 0 ? L[j - 1] : null, next = j < L.length - 1 ? L[j + 1] : null, ch = srChart(vis);
   return `<div class="ct-wrap">
     <section class="ct-hero"><div><div class="ct-eyebrow">${esc(g.b)}${g.nuovo ? '<span class="nwb">NOVITÀ</span>' : ''}</div><h1>${esc(glTitle(g.s))}</h1>
         <div class="ct-facts"><div><b>${inf.nC}</b><span>${inf.nC === 1 ? 'colore' : 'colori'}</span></div><div><b>${inf.zs.length}</b><span>${inf.zs.length === 1 ? 'formato' : 'formati'}</span></div>${inf.ths.length ? `<div><b>${esc(inf.ths.join(' · '))}</b><span>mm di spessore</span></div>` : ''}</div>
@@ -634,6 +721,7 @@ function srCatSeries(g) {
       <div class="ct-mosaic n${reps.length}">${reps.map(u => `<span style="background-image:url('${esc(u)}')"></span>`).join('')}</div></section>
     <section class="ct-fmts"><div class="ct-sh"><h2>Formati</h2>${inf.zs.length > 1 ? '<span>tocca un formato per vedere solo i suoi colori</span>' : ''}</div>
       <div class="ct-fz-row">${inf.zs.length > 1 ? `<button class="ct-fz${z ? '' : ' on'}" onclick="srCatFilter('')"><i class="all"></i><span>Tutti</span><small>${srColN(inf.nC)}</small></button>` : ''}${fz}</div></section>
+    ${ch ? `<section class="ct-grp ct-chart"><div class="ct-sh"><h2>Cartella colori</h2><span>${srColN(ch.cols.length)} · ${ch.rows.length} varianti${z ? ' in ' + esc(fmt(z)) : ''}</span></div>${srChartHTML(ch)}</section>` : ''}
     ${vis.map(gr => `<section class="ct-grp"><div class="ct-sh"><h2>${esc(grs.length > 1 ? gr.title : z ? 'Colori in ' + fmt(z) : 'Colori')}</h2><span>${srColN(gr.cols.length)}${grs.length > 1 && z ? ' in ' + esc(fmt(z)) : ''}</span></div>
       <div class="ct-cards">${gr.cols.map(card).join('')}</div></section>`).join('')}
     <nav class="ct-pn">${prev ? `<button onclick="srCatGo(${j - 1})"><small>‹ Serie precedente</small><b>${esc(glTitle(prev.s))}</b></button>` : L.length > 1 ? '<button onclick="srCatGo(-1)"><small>‹ Torna</small><b>Indice</b></button>' : ''}
