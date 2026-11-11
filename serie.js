@@ -149,29 +149,57 @@ function srInfo(g, grs) {
 }
 const srColN = n => `${n} ${n === 1 ? 'colore' : 'colori'}`;
 /* cartella colori, come nei cataloghi: i colori in colonna (Chocolate, Cream…), le varianti in riga (Fondo, Tegolo, Vein Cut…)
-   con il nome scritto di lato. Le colonne sono i colori del gruppo più grande; entrano le varianti che hanno almeno 2 di
-   quei colori (e quasi solo quelli): i decori a sé (es. Pigmento Eden, Carioca A/B) restano solo nell'elenco sotto.
-   Serve almeno due righe, se no basta l'elenco */
+   con il nome scritto di lato. Ci va tutta la serie, a cartelle: le varianti con gli stessi colori stanno nella stessa
+   (il colore si riconosce dal nome senza il nome del gruppo e degli altri gruppi: "Sand Falda" nel Mosaico è Sand),
+   quelle con colori loro (Metalbrick, Majolica) in una cartella a parte, i decori senza colore (Eden, Carioca A/B) tutti
+   in una riga "Decori". Una variante sola = una riga; un colore solo in più varianti = le varianti in colonna */
+const SR_GEN = /^(decoro|decor|deco|[a-z]|\d+)$/;
 function srChart(grs) {
-  if (grs.length < 2) return null;
-  const key = e => normTxt(e.name), base = grs.reduce((a, gr) => gr.cols.length > a.cols.length ? gr : a, grs[0]);
-  const bk = new Set(base.cols.map(key));
-  const ok = gr => { const n = gr.cols.filter(e => bk.has(key(e))).length; return n >= Math.min(2, bk.size) && n >= gr.cols.length * 0.6; };
-  const inRows = grs.filter(ok);
-  if (inRows.length < 2) return null;
-  const cols = [], seen = new Set();
-  [base, ...inRows].forEach(gr => gr.cols.forEach(e => { const k = key(e); if (!seen.has(k)) { seen.add(k); cols.push({ k, name: e.name }); } }));
-  return cols.length < 2 ? null : { cols, rows: inRows.map(gr => ({ title: gr.title, cells: cols.map(c => gr.cols.find(e => key(e) === c.k) || null) })) };
+  const W = s => normTxt(s).split(' ').filter(Boolean), tk = gr => W(gr.title).join(' ');
+  const disp = (e, k) => { const ks = new Set(k.split(' ')); return e.name.split(/\s+/).filter(w => ks.has(normTxt(w))).join(' ') || e.name; };
+  const keyed = grs.map((gr, at) => {
+    const own = new Set(W(gr.title)), others = grs.filter(o => o !== gr).map(tk).filter(Boolean).sort((a, b) => b.length - a.length), extra = [];
+    // stesso colore scritto in due modi nel listino (Be-Square "Ivory" e "Ivory Slim", Sleek Wood "Beige *"): un riquadro solo, il primo
+    const cells = gr.cols.map(e => {
+      const w = W(e.name), s = w.filter(x => !own.has(x));
+      let k = (s.length ? s : w).join(' ');
+      others.forEach(t => { const r = (' ' + k + ' ').replace(' ' + t + ' ', ' ').trim(); if (r && r !== k) { k = r; if (!extra.includes(t)) extra.push(t); } });
+      return { e, k };
+    }).filter((c, i, a) => a.findIndex(o => o.k === c.k) === i);
+    const title = gr.title + extra.map(t => ' · ' + glTitle((grs.find(o => tk(o) === t) || {}).title || t)).join('');
+    return { gr, at, title, cells, gen: cells.every(c => SR_GEN.test(c.k)) };
+  });
+  const sets = [];
+  keyed.filter(q => !q.gen).forEach(q => {
+    const ks = new Set(q.cells.map(c => c.k));
+    const b = sets.find(b => { const n = [...ks].filter(k => b.keys.has(k)).length; return n && (n >= ks.size * 0.6 || n >= b.keys.size * 0.6); });
+    if (b) { b.items.push(q); ks.forEach(k => b.keys.add(k)); } else sets.push({ keys: ks, items: [q], at: q.at });
+  });
+  const blocks = sets.map(b => {
+    const cols = [], seen = new Set();
+    b.items.forEach(q => q.cells.forEach(c => { if (!seen.has(c.k)) { seen.add(c.k); cols.push({ k: c.k, name: disp(c.e, c.k) }); } }));
+    const rows = b.items.map(q => ({ title: q.title, cells: cols.map(c => (q.cells.find(x => x.k === c.k) || {}).e || null) }));
+    return cols.length === 1 && rows.length > 1 ? { at: b.at, cols: rows.map(r => ({ k: r.title, name: r.title })), rows: [{ title: cols[0].name, cells: rows.map(r => r.cells[0]) }] }
+      : { at: b.at, cols, rows };
+  });
+  const gen = keyed.filter(q => q.gen), dec = gen.flatMap(q => q.cells.map(c => ({ name: /^dec/.test(c.k) ? q.gr.title : q.gr.title + ' ' + c.e.name, e: c.e })));
+  if (dec.length) blocks.push({ at: gen[0].at, dec: true, cols: dec.map((d, i) => ({ k: '#' + i, name: d.name })), rows: [{ title: 'Decori', cells: dec.map(d => d.e) }] });
+  if (!blocks.length) return null;
+  blocks.sort((a, b) => a.at - b.at);
+  const nC = new Set(keyed.filter(q => !q.gen).flatMap(q => q.cells.map(c => c.k))).size, nV = keyed.length - gen.length;
+  return { blocks, sum: [nC ? srColN(nC) : '', nV > 1 ? nV + ' varianti' : '', dec.length ? dec.length + (dec.length === 1 ? ' decoro' : ' decori') : ''].filter(Boolean).join(' · ') };
 }
 /* a blocchi di 6 colori; tocca un riquadro per la foto grande con i codici */
 function srChartHTML(ch) {
   const out = [];
-  for (let a = 0; a < ch.cols.length; a += 6) {
-    const b = Math.min(ch.cols.length, a + 6);
-    out.push(`<div class="sr-chart" style="--n:${b - a}">${ch.cols.slice(a, b).map(c => `<div class="h">${esc(c.name)}</div>`).join('')}<div></div>
-      ${ch.rows.map(r => r.cells.slice(a, b).map(e => e ? `<button class="c" data-id="${esc(e.id)}" onclick="srOpenId(this.dataset.id)" title="${esc(e.full)}" style="${e.ph ? `background-image:url('${esc(glPhoto(e.ph))}')` : ''}"></button>`
-        : '<span class="c e"></span>').join('') + `<div class="l"><span>${esc(r.title)}</span></div>`).join('')}</div>`);
-  }
+  ch.blocks.forEach(bk => {
+    for (let a = 0; a < bk.cols.length; a += 6) {
+      const b = Math.min(bk.cols.length, a + 6);
+      out.push(`<div class="sr-chart" style="--n:${b - a}">${bk.cols.slice(a, b).map(c => `<div class="h" title="${esc(c.name)}">${esc(c.name)}</div>`).join('')}<div></div>
+        ${bk.rows.map(r => r.cells.slice(a, b).map(e => e ? `<button class="c" data-id="${esc(e.id)}" onclick="srOpenId(this.dataset.id)" title="${esc(e.full)}" style="${e.ph ? `background-image:url('${esc(glPhoto(e.ph))}')` : ''}"></button>`
+          : '<span class="c e"></span>').join('') + `<div class="l"><span title="${esc(r.title)}">${esc(r.title)}</span></div>`).join('')}</div>`);
+    }
+  });
   return out.join('');
 }
 const SR_ARROW = '<svg class="ar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M8 7h9v9"/></svg>';   // ↗ come sul sito Emilgroup
@@ -297,7 +325,7 @@ function srShow() {
     ${srMode === 'tab'
       ? `<div class="sr-tw"><table class="sr-tab"><thead><tr><th>Colore</th><th>Formato</th><th>Finitura</th><th>Spessore</th><th>Codice</th></tr></thead><tbody>${vis.map(gr =>
           (grs.length > 1 ? `<tr class="gh"><td colspan="5">${esc(gr.title)}<span>${srColN(gr.cols.length)}</span></td></tr>` : '') + gr.cols.map(tr).join('')).join('')}</tbody></table></div>`
-      : (ch ? `<div class="sr-grp"><h5>Cartella colori <span>${srColN(ch.cols.length)} · ${ch.rows.length} varianti</span></h5>${srChartHTML(ch)}</div>` : '')
+      : (ch ? `<div class="sr-grp"><h5>Cartella colori <span>${esc(ch.sum)}</span></h5>${srChartHTML(ch)}</div>` : '')
         + vis.map(gr => `<div class="sr-grp">${grs.length > 1 ? `<h5>${esc(gr.title)} <span>${srColN(gr.cols.length)}</span></h5>` : ''}<div class="sr-cards">${gr.cols.map(card).join('')}</div></div>`).join('')}`;
 }
 
@@ -365,7 +393,7 @@ async function srPdf(keys, label) {
   if (!list.length) return toast('Nessuna serie da esportare');
   const data = list.map(g => { const grs = srGroups(g); return { g, grs, inf: srInfo(g, grs), ch: srChart(grs) }; }), cols = data.flatMap(d => d.grs.flatMap(gr => gr.cols));
   if (list.length > 5) {
-    const nf = cols.filter(e => e.ph).length, sec = nf / 12, mb = Math.max(1, Math.round(nf * 0.016));
+    const nf = cols.filter(e => e.ph).length, sec = nf / 6, mb = Math.max(1, Math.round(nf * 0.03));   // ogni foto due volte: elenco e cartella colori
     if (!await ask(`Il PDF di ${list.length} serie ha ${cols.length} colori e decori (${nf} con la foto).\n\nCi vuole ${sec < 50 ? 'meno di un minuto' : 'circa ' + Math.ceil(sec / 60) + ' minuti'} e il file sarà di circa ${mb} MB.`, { ok: 'Crea il PDF' })) return;
   }
   const wait = document.createElement('div'); wait.className = 'sch-wait'; wait.textContent = 'Preparo il PDF…'; document.body.appendChild(wait);
@@ -374,7 +402,7 @@ async function srPdf(keys, label) {
     const [logo, mark] = await Promise.all(['img/prop_logo.png', 'img/prop_mark.png'].map(schLoadImg));
     // foto: 6 alla volta; quadrate per l'elenco, verticali (3:5) per la cartella colori
     const jobs = cols.filter(e => e.ph).map(e => [e, 'jpg', 1]);
-    data.forEach(d => d.ch && d.ch.rows.forEach(r => r.cells.forEach(e => { if (e && e.ph) jobs.push([e, 'jpgT', 0.6]); })));
+    data.forEach(d => d.ch && d.ch.blocks.forEach(bk => bk.rows.forEach(r => r.cells.forEach(e => { if (e && e.ph) jobs.push([e, 'jpgT', 0.6]); }))));
     let next = 0, done = 0;
     const work = async () => { while (next < jobs.length) { const [e, f, ar] = jobs[next++]; e[f] = await srJpeg(glPhoto(e.ph), 300, ar);
       if (++done % 6 === 0 || done === jobs.length) wait.textContent = `Preparo le foto: ${done} di ${jobs.length}…`; } };
@@ -442,33 +470,37 @@ async function srPdf(keys, label) {
     // riquadri 3:5 che si stringono se il blocco non sta in una pagina
     const chart = d => {
       const ch = d.ch; if (!ch) return;
-      const NR = ch.rows.length, G = 1.2, LW = 6, HD = 5;
-      for (let a = 0; a < ch.cols.length; a += 6) {
-        const cs = ch.cols.slice(a, a + 6), n = cs.length;
-        // larghezza dei riquadri che fa stare il blocco fino in fondo alla pagina; se diventano troppo stretti, pagina nuova
-        const fit = () => ((BOT - y - (a ? 0 : 9) - HD - G * (NR - 1)) / NR) * 0.6;
-        let cw = Math.min(30, (CW - LW - G * n) / n);
-        if (fit() < cw * 0.7) cont(d);
-        cw = Math.min(cw, fit());
-        const rh = cw / 0.6, x0 = M + Math.max(0, (CW - n * (cw + G) - LW) / 2);   // al centro della pagina
-        if (!a) { font(10, true); col(INK); pdf.text('Cartella colori', M, y + 3.5); const w = pdf.getTextWidth('Cartella colori');
-          font(7.5); col(MID); pdf.text(`${srColN(ch.cols.length)} · ${NR} varianti`, M + w + 2.5, y + 3.5); rule(y + 5.5, LINE, 0.2); y += 9; }
-        font(7.5, true); col(INK);
-        cs.forEach((c, i) => pdf.text(pdf.splitTextToSize(c.name, cw)[0], x0 + i * (cw + G) + cw / 2, y + 3, { align: 'center' }));
-        y += HD;
-        ch.rows.forEach(r => {
-          r.cells.slice(a, a + 6).forEach((e, i) => {
-            const x = x0 + i * (cw + G);
-            if (e && e.jpgT) pdf.addImage(e.jpgT, 'JPEG', x, y, cw, rh, 't' + (++imgN));
-            else { pdf.setFillColor(242, 239, 234); pdf.rect(x, y, cw, rh, 'F'); }
+      const G = 1.2, LW = 6, HD = 5;
+      let top = true;
+      ch.blocks.forEach(bk => {
+        const NR = bk.rows.length;
+        for (let a = 0; a < bk.cols.length; a += 6) {
+          const cs = bk.cols.slice(a, a + 6), n = cs.length;
+          // larghezza dei riquadri che fa stare il blocco fino in fondo alla pagina; se diventano troppo stretti, pagina nuova
+          const fit = () => ((BOT - y - (top ? 9 : 0) - HD - G * (NR - 1)) / NR) * 0.6;
+          let cw = Math.min(30, (CW - LW - G * n) / n);
+          if (fit() < cw * 0.7) cont(d);
+          cw = Math.min(cw, fit());
+          const rh = cw / 0.6, x0 = M + Math.max(0, (CW - n * (cw + G) - LW) / 2);   // al centro della pagina
+          if (top) { font(10, true); col(INK); pdf.text('Cartella colori', M, y + 3.5); const w = pdf.getTextWidth('Cartella colori');
+            font(7.5); col(MID); pdf.text(ch.sum, M + w + 2.5, y + 3.5); rule(y + 5.5, LINE, 0.2); y += 9; top = false; }
+          font(7.5, true); col(INK);
+          cs.forEach((c, i) => pdf.text(pdf.splitTextToSize(c.name, cw)[0], x0 + i * (cw + G) + cw / 2, y + 3, { align: 'center' }));
+          y += HD;
+          bk.rows.forEach(r => {
+            r.cells.slice(a, a + 6).forEach((e, i) => {
+              const x = x0 + i * (cw + G);
+              if (e && e.jpgT) pdf.addImage(e.jpgT, 'JPEG', x, y, cw, rh, 't' + (++imgN));
+              else { pdf.setFillColor(242, 239, 234); pdf.rect(x, y, cw, rh, 'F'); }
+            });
+            // nome della variante di lato, girato (si legge dall'alto in basso)
+            font(7.5, true); col(INK); const t = pdf.splitTextToSize(r.title, rh - 2)[0], tw = pdf.getTextWidth(t);
+            pdf.text(t, x0 + n * (cw + G) + 1.4, y + rh / 2 - tw / 2, { angle: -90 });
+            y += rh + G;
           });
-          // nome della variante di lato, girato (si legge dall'alto in basso)
-          font(7.5, true); col(INK); const t = pdf.splitTextToSize(r.title, rh - 2)[0], tw = pdf.getTextWidth(t);
-          pdf.text(t, x0 + n * (cw + G) + 1.4, y + rh / 2 - tw / 2, { angle: -90 });
-          y += rh + G;
-        });
-        y += 5;
-      }
+          y += 5;
+        }
+      });
       y += 2;
     };
     // con più serie: copertina e indice prima (le pagine si scrivono alla fine)
@@ -721,7 +753,7 @@ function srCatSeries(g) {
       <div class="ct-mosaic n${reps.length}">${reps.map(u => `<span style="background-image:url('${esc(u)}')"></span>`).join('')}</div></section>
     <section class="ct-fmts"><div class="ct-sh"><h2>Formati</h2>${inf.zs.length > 1 ? '<span>tocca un formato per vedere solo i suoi colori</span>' : ''}</div>
       <div class="ct-fz-row">${inf.zs.length > 1 ? `<button class="ct-fz${z ? '' : ' on'}" onclick="srCatFilter('')"><i class="all"></i><span>Tutti</span><small>${srColN(inf.nC)}</small></button>` : ''}${fz}</div></section>
-    ${ch ? `<section class="ct-grp ct-chart"><div class="ct-sh"><h2>Cartella colori</h2><span>${srColN(ch.cols.length)} · ${ch.rows.length} varianti${z ? ' in ' + esc(fmt(z)) : ''}</span></div>${srChartHTML(ch)}</section>` : ''}
+    ${ch ? `<section class="ct-grp ct-chart"><div class="ct-sh"><h2>Cartella colori</h2><span>${esc(ch.sum)}${z ? ' in ' + esc(fmt(z)) : ''}</span></div>${srChartHTML(ch)}</section>` : ''}
     ${vis.map(gr => `<section class="ct-grp"><div class="ct-sh"><h2>${esc(grs.length > 1 ? gr.title : z ? 'Colori in ' + fmt(z) : 'Colori')}</h2><span>${srColN(gr.cols.length)}${grs.length > 1 && z ? ' in ' + esc(fmt(z)) : ''}</span></div>
       <div class="ct-cards">${gr.cols.map(card).join('')}</div></section>`).join('')}
     <nav class="ct-pn">${prev ? `<button onclick="srCatGo(${j - 1})"><small>‹ Serie precedente</small><b>${esc(glTitle(prev.s))}</b></button>` : L.length > 1 ? '<button onclick="srCatGo(-1)"><small>‹ Torna</small><b>Indice</b></button>' : ''}
