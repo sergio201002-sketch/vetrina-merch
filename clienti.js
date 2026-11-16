@@ -12,10 +12,15 @@
 /* ── Router: #/  ·  #/cliente/ID  ·  #/ambiente/ID  ·  #/espositori ── */
 function go(h) { if (location.hash === h) route(); else location.hash = h; }
 window.addEventListener('hashchange', route);
-/* campioni rinominati (es. UNIQUE BOURGOGNE diviso per grafica Variée/Minimal/Pointes): le composizioni salvate passano al nome nuovo */
+/* campioni rinominati (es. UNIQUE BOURGOGNE diviso per grafica Variée/Minimal/Pointes, Viva W-CIRCLES → HERITAGE): le composizioni
+   salvate passano al nome nuovo, anche con la finitura scelta ("…|60x120#EGM9") */
 function fixSampleAlias() {
   const A = window.SAMPLE_ALIAS || {};
-  Object.values(comps).forEach(c => (c.slots || []).forEach((k, i) => { if (k && !SAMPLE[k] && A[k]) c.slots[i] = A[k]; }));
+  Object.values(comps).forEach(c => (c.slots || []).forEach((k, i) => {
+    if (!k || SAMPLE[k]) return;
+    const [b, f] = k.split('#');
+    if (A[b]) c.slots[i] = A[b] + (f ? '#' + f : '');
+  }));
   migrateA4();
   // culla modulare: prima 14 posti per modulo, ora 13/26/40/54/68 (3 moduli = 40): si toglie un posto vuoto in fondo
   Object.values(comps).forEach(c => {

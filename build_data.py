@@ -202,6 +202,9 @@ DISPLAYS = [
 ]
 
 BRAND_NAMES = {'EMILCERAMICA': 'Emilceramica', 'ERGON': 'Ergon', 'PROVENZA': 'Provenza', 'VIVA': 'Viva'}
+# serie scritte sbagliate nel listino: i fondi VIVA "W-CIRCLES" sono HERITAGE (sul sito Emilgroup EGM9/EGMA/EGMC sono Heritage,
+# W-Circles è di Provenza). Le composizioni salvate passano al nome giusto (SAMPLE_ALIAS)
+SERIES_FIX = {('VIVA', 'W-CIRCLES'): 'HERITAGE'}
 
 
 def load_products():
@@ -230,6 +233,10 @@ CONTINUOUS = {'ENVH'}
 def build_samples(products):
     """Un campione = marca + serie + colore + formato (finiture e codici raggruppati)."""
     groups = {}
+    for p in products:
+        fix = SERIES_FIX.get((p.get('brand'), (p.get('series') or '').strip()))
+        if fix:
+            p['was'], p['series'] = p['series'], fix
     # decori con lo stesso colore/formato del fondo liscio (es. PIETRA ESSENZA Cotone 60x120 "DUNE"):
     # diventano un campione a parte ("Cotone Dune"), così non si confondono con il liscio
     plain = {(p.get('series'), (p.get('color') or '').strip(), p.get('size')) for p in products
@@ -279,6 +286,8 @@ def build_samples(products):
             if broken and broken != '|'.join([brand, series, color, size]):
                 alias.setdefault(broken, set()).add('|'.join([brand, series, color, size]))
         key = '|'.join([brand, series, color, size])
+        if p.get('was'):
+            alias.setdefault('|'.join([brand, p['was'].strip(), (p.get('color') or '').strip(), size]), set()).add(key)
         g = groups.setdefault(key, dict(b=brand, s=series, c=color, z=size, f=[], k=[], t=[]))
         if extra:                                                # pezzo speciale: non è un colore della serie (niente mancanti né tozzetto)
             g['sp'] = 1
