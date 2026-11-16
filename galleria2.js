@@ -429,7 +429,7 @@ function g2SeriesBody(b, s) {
         const inP = !own && e.list.some(x => prop.includes(x.key)), key = (e.list.find(x => x.z === '60x120') || e.list[0]).key;
         const act = own ? `title="${esc(glTitle(nm))}: ce l'ha"` : `title="Manca: tocca per ${inP ? 'toglierlo dalla' : 'metterlo nella'} proposta" data-keys="${esc(e.list.map(x => x.key).join('§'))}" data-key="${esc(key)}" onclick="g2DetProp(this)"`;
         return `<div class="g2-sw ${own ? 'has' : 'miss'}${inP ? ' inprop' : ''}" ${act}>
-          <span class="im" style="${m ? `background-image:url('${esc(m)}')` : ''}"></span>
+          <span class="im" style="${m ? `background-image:url('${esc(m)}')` : NOPHOTO}"></span>
           <span class="st"><svg class="ic"><use href="#i-${own || inP ? 'check' : 'plus'}"/></svg></span>
           <b>${esc(glTitle(nm))}</b><small>${zs}</small></div>`;
       }).join('')}</div></div>`;

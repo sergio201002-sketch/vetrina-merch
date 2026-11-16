@@ -1126,10 +1126,12 @@ function tileDims(s, faceW, faceH, tiled) {
 }
 /* miniature (foto/mini, 240 px) per quadratini ed elenchi: molto più leggere delle foto grandi */
 const FOTO_MINI = {}; Object.entries(window.FOTO_MINI || {}).forEach(([p, m]) => { FOTO_MINI[encodeURI(p)] = encodeURI(m); });
+/* colore senza foto (non c'è neanche sul sito Emilgroup): riquadro chiaro con una X nera da un angolo all'altro */
+const NOPHOTO = 'background:linear-gradient(to top right,transparent calc(50% - 1px),#1a1a1c calc(50% - 1px) calc(50% + 1px),transparent calc(50% + 1px)),' +
+  'linear-gradient(to bottom right,transparent calc(50% - 1px),#1a1a1c calc(50% - 1px) calc(50% + 1px),transparent calc(50% + 1px)),#f2efe9';
 function swatchStyle(s, big) {
   if (hasPhoto(s)) { const o = IMG[photoKey(s)], u = imgFor(photoKey(s)); return `background-image:url(${(!big && FOTO_MINI[o]) || u})`; }
-  const c = placeholderRGB(s);
-  return `background:radial-gradient(ellipse at 30% 25%, ${rgb(c, 14)}, ${rgb(c, -12)})`;
+  return NOPHOTO;
 }
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 

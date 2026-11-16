@@ -196,7 +196,7 @@ function srChartHTML(ch) {
     for (let a = 0; a < bk.cols.length; a += 6) {
       const b = Math.min(bk.cols.length, a + 6);
       out.push(`<div class="sr-chart" style="--n:${b - a}">${bk.cols.slice(a, b).map(c => `<div class="h" title="${esc(c.name)}">${esc(c.name)}</div>`).join('')}<div></div>
-        ${bk.rows.map(r => r.cells.slice(a, b).map(e => e ? `<button class="c" data-id="${esc(e.id)}" onclick="srOpenId(this.dataset.id)" title="${esc(e.full)}" style="${e.ph ? `background-image:url('${esc(glPhoto(e.ph))}')` : ''}"></button>`
+        ${bk.rows.map(r => r.cells.slice(a, b).map(e => e ? `<button class="c" data-id="${esc(e.id)}" onclick="srOpenId(this.dataset.id)" title="${esc(e.full)}" style="${e.ph ? `background-image:url('${esc(glPhoto(e.ph))}')` : NOPHOTO}"></button>`
           : '<span class="c e"></span>').join('') + `<div class="l"><span title="${esc(r.title)}">${esc(r.title)}</span></div>`).join('')}</div>`);
     }
   });
@@ -308,10 +308,10 @@ function srShow() {
   const zN = z => grs.reduce((a, gr) => a + gr.cols.filter(e => e.list.some(x => x.z === z)).length, 0), ch = srChart(vis);
   let i = 0;
   const card = e => { const n = i++, u = e.ph ? glPhoto(e.ph) : '', zz = [...new Set(e.rows.map(r => r.z))].map(fmt).join(' · ');
-    return `<div class="sr-card" onclick="srOpen(${n})"><div class="im">${u ? `<img loading="lazy" src="${esc(u)}" alt="">` : '<span class="no"><svg class="ic"><use href="#i-camera"/></svg></span>'}</div>
+    return `<div class="sr-card" onclick="srOpen(${n})"><div class="im">${u ? `<img loading="lazy" src="${esc(u)}" alt="">` : `<span class="no" style="${NOPHOTO}"></span>`}</div>
       <div class="tx"><b>${esc(e.name)}</b><div class="z">${esc(zz)}</div></div></div>`; };
   const tr = e => { const n = i++;
-    return e.rows.map((r, ri) => `<tr class="${ri ? '' : 'c1'}" onclick="srOpen(${n})"><td>${ri ? '' : `<span class="cn"><i style="${e.ph ? `background-image:url('${esc(srMini(e.ph))}')` : ''}"></i>${esc(e.name)}</span>`}</td>
+    return e.rows.map((r, ri) => `<tr class="${ri ? '' : 'c1'}" onclick="srOpen(${n})"><td>${ri ? '' : `<span class="cn"><i style="${e.ph ? `background-image:url('${esc(srMini(e.ph))}')` : NOPHOTO}"></i>${esc(e.name)}</span>`}</td>
       <td class="z">${esc(fmt(r.z))}</td><td>${esc(r.f || '—')}</td><td class="z">${r.t ? esc(r.t) + ' mm' : '—'}</td><td class="k">${esc(r.k || '—')}</td></tr>`).join(''); };
   el.innerHTML = `<div class="sr-head"><div class="who"><div class="br">${esc(g.b)}${g.nuovo ? ' <span class="nwb">NOVITÀ</span>' : ''}</div><h3>${esc(glTitle(g.s))}</h3>
       <div class="meta"><b>${srColN(inf.nC)}</b>${grs.length > 1 ? ` in ${grs.length} gruppi: ${esc(grs.map(gr => gr.title).join(', '))}` : ''}<br>
@@ -344,7 +344,7 @@ function srOpen(n) {
       <button class="btn" onclick="srOpen(srIdx - 1)"${n ? '' : ' disabled'} title="Colore prima"><svg class="ic"><use href="#i-cleft"/></svg></button>
       <button class="btn" onclick="srOpen(srIdx + 1)"${n < N - 1 ? '' : ' disabled'} title="Colore dopo"><svg class="ic"><use href="#i-cright"/></svg></button>
       <button class="btn" onclick="srClose()"><svg class="ic"><use href="#i-x"/></svg> Chiudi</button></div>
-    <div class="sr-fb"><div class="sr-ph">${u ? `<img src="${esc(u)}" alt="">` : 'Foto non disponibile'}</div>
+    <div class="sr-fb"><div class="sr-ph">${u ? `<img src="${esc(u)}" alt="">` : `<span title="Foto non disponibile" style="${NOPHOTO};display:block;width:min(100%,320px);aspect-ratio:1"></span>`}</div>
       <div><div class="br">${esc(g.b)}</div><h4>${esc(e.full)}</h4><div class="gr">${e.many ? esc(e.grp) + ' · ' : ''}${e.all.length} ${e.all.length === 1 ? 'articolo' : 'articoli'}</div>
         <table class="sr-tab"><thead><tr><th>Formato</th><th>Finitura</th><th>Spessore</th><th>Codice</th></tr></thead><tbody>${e.all.map(r =>
           `<tr><td class="z">${esc(fmt(r.z))}</td><td>${esc(r.f || '—')}</td><td class="z">${r.t ? esc(r.t) + ' mm' : '—'}</td><td class="k">${esc(r.k || '—')}</td></tr>`).join('')}</tbody></table></div></div></div>`;
@@ -444,6 +444,11 @@ async function srPdf(keys, label) {
       font(7.5); col(MID); pdf.text(more ? 'segue' : srColN(gr.cols.length), M + w + 2.5, y + 3.5);
       rule(y + 5.5, LINE, 0.2); y += 8.5;
     };
+    // colore senza foto: riquadro chiaro con una X nera, come nella vetrina
+    const noPhoto = (x, y0, w, h) => {
+      pdf.setFillColor(242, 239, 234); pdf.rect(x, y0, w, h, 'F');
+      pdf.setDrawColor(...INK); pdf.setLineWidth(0.35); pdf.line(x, y0, x + w, y0 + h); pdf.line(x + w, y0, x, y0 + h);
+    };
     // un colore: misura (righe di testo) e disegno
     const lay = e => {
       font(8, true); const nl = pdf.splitTextToSize(e.name, colW).slice(0, 2);
@@ -456,7 +461,7 @@ async function srPdf(keys, label) {
     };
     const draw = (e, L, x, y0) => {
       if (e.jpg) pdf.addImage(e.jpg, 'JPEG', x, y0, colW, colW, 'f' + (++imgN));
-      else { pdf.setFillColor(242, 239, 234); pdf.rect(x, y0, colW, colW, 'F'); font(6.5); col(MID); pdf.text('foto non disponibile', x + colW / 2, y0 + colW / 2, { align: 'center' }); }
+      else noPhoto(x, y0, colW, colW);
       pdf.setDrawColor(...LINE); pdf.setLineWidth(0.15); pdf.rect(x, y0, colW, colW, 'S');
       let yy = y0 + colW + 3.6; font(8, true); col(INK); L.nl.forEach((l, i) => { if (i) yy += 3.3; pdf.text(l, x, yy); });
       yy += 3.1;
@@ -491,6 +496,7 @@ async function srPdf(keys, label) {
             r.cells.slice(a, a + 6).forEach((e, i) => {
               const x = x0 + i * (cw + G);
               if (e && e.jpgT) pdf.addImage(e.jpgT, 'JPEG', x, y, cw, rh, 't' + (++imgN));
+              else if (e) noPhoto(x, y, cw, rh);
               else { pdf.setFillColor(242, 239, 234); pdf.rect(x, y, cw, rh, 'F'); }
             });
             // nome della variante di lato, girato (si legge dall'alto in basso)
@@ -742,7 +748,7 @@ function srCatSeries(g) {
   }).join('');
   let n = 0;
   const card = e => { const i = n++, u = e.ph ? glPhoto(e.ph) : '', zz = [...new Set(e.rows.map(r => r.z))].map(fmt).join(' · ');
-    return `<button class="ct-card" onclick="srOpen(${i})"><span class="im">${u ? `<img loading="lazy" src="${esc(u)}" alt="">` : '<span class="no">foto non disponibile</span>'}</span>
+    return `<button class="ct-card" onclick="srOpen(${i})"><span class="im">${u ? `<img loading="lazy" src="${esc(u)}" alt="">` : `<span class="no" style="${NOPHOTO}"></span>`}</span>
       <span class="nm"><b>${esc(e.name)}</b>${SR_ARROW}</span><small>${esc(zz)}</small></button>`; };
   const L = srCatList, j = srCatI, prev = j > 0 ? L[j - 1] : null, next = j < L.length - 1 ? L[j + 1] : null, ch = srChart(vis);
   return `<div class="ct-wrap">
