@@ -148,6 +148,9 @@ function srInfo(g, grs) {
     fins: [...new Set(g.list.flatMap(x => x.f))], ths: [...new Set(g.list.flatMap(x => x.t))].sort(srByNum) };
 }
 const srColN = n => `${n} ${n === 1 ? 'colore' : 'colori'}`;
+/* le varianti senza nessuna foto (es. Unique Travertine Ancient Brecciato, tutta a X) non si mostrano nelle foto, nel catalogo
+   e nel PDF; restano nella vista Codici. Se la serie non ha nessuna foto si mostra tutto */
+const srWithPh = grs => { const v = grs.filter(gr => gr.cols.some(e => e.ph)); return v.length ? v : grs; };
 /* cartella colori, come nei cataloghi: i colori in colonna (Chocolate, Cream…), le varianti in riga (Fondo, Tegolo, Vein Cut…)
    con il nome scritto di lato. Ci va tutta la serie, a cartelle: le varianti con gli stessi colori stanno nella stessa
    (il colore si riconosce dal nome senza il nome del gruppo e degli altri gruppi: "Sand Falda" nel Mosaico è Sand),
@@ -302,8 +305,9 @@ function srShow() {
   const grs = srGroups(g), inf = srInfo(g, grs);
   if (srZ && !inf.zs.includes(srZ)) srZ = '';
   // filtro formato: solo i colori che ce l'hanno e solo le righe di quel formato
-  const vis = grs.map(gr => Object.assign({}, gr, { cols: gr.cols.filter(e => !srZ || e.list.some(x => x.z === srZ))
+  let vis = grs.map(gr => Object.assign({}, gr, { cols: gr.cols.filter(e => !srZ || e.list.some(x => x.z === srZ))
     .map(e => !srZ ? e : Object.assign({}, e, { rows: e.rows.filter(r => r.z === srZ), ph: e.list.find(x => x.z === srZ && hasPhoto(x)) || e.ph })) })).filter(gr => gr.cols.length);
+  if (srMode !== 'tab') vis = srWithPh(vis);
   srCur = { g, cols: vis.flatMap(gr => gr.cols.map(e => Object.assign({ grp: gr.title, many: grs.length > 1 }, e))) };
   const zN = z => grs.reduce((a, gr) => a + gr.cols.filter(e => e.list.some(x => x.z === z)).length, 0), ch = srChart(vis);
   let i = 0;
@@ -391,7 +395,7 @@ function srPdfList() { const ch = srChoice(); return srPdf(ch.keys, ch.label); }
 async function srPdf(keys, label) {
   const all = srAll(), list = keys.map(k => all.find(g => g.k === k)).filter(Boolean), multi = list.length > 1;
   if (!list.length) return toast('Nessuna serie da esportare');
-  const data = list.map(g => { const grs = srGroups(g); return { g, grs, inf: srInfo(g, grs), ch: srChart(grs) }; }), cols = data.flatMap(d => d.grs.flatMap(gr => gr.cols));
+  const data = list.map(g => { const grs = srGroups(g); return { g, grs, inf: srInfo(g, grs), ch: srChart(srWithPh(grs)) }; }), cols = data.flatMap(d => d.grs.flatMap(gr => gr.cols));
   if (list.length > 5) {
     const nf = cols.filter(e => e.ph).length, sec = nf / 6, mb = Math.max(1, Math.round(nf * 0.03));   // ogni foto due volte: elenco e cartella colori
     if (!await ask(`Il PDF di ${list.length} serie ha ${cols.length} colori e decori (${nf} con la foto).\n\nCi vuole ${sec < 50 ? 'meno di un minuto' : 'circa ' + Math.ceil(sec / 60) + ' minuti'} e il file sarà di circa ${mb} MB.`, { ok: 'Crea il PDF' })) return;
@@ -518,7 +522,7 @@ async function srPdf(keys, label) {
     for (const d of data) {
       head(d); chart(d);
       const many = d.grs.length > 1;
-      d.grs.forEach(gr => {
+      srWithPh(d.grs).forEach(gr => {
         const Ls = gr.cols.map(lay);
         for (let i = 0; i < gr.cols.length; i += NC) {
           const rowH = Math.max(...Ls.slice(i, i + NC).map(L => L.h)), first = i === 0;
@@ -736,8 +740,8 @@ function srCatCover() {
 }
 function srCatSeries(g) {
   const grs = srGroups(g), inf = srInfo(g, grs), reps = srReps(g, 4), z = inf.zs.includes(srCatZ) ? srCatZ : '';
-  const vis = grs.map(gr => Object.assign({}, gr, { cols: gr.cols.filter(e => !z || e.list.some(x => x.z === z))
-    .map(e => !z ? e : Object.assign({}, e, { rows: e.rows.filter(r => r.z === z), ph: e.list.find(x => x.z === z && hasPhoto(x)) || e.ph })) })).filter(gr => gr.cols.length);
+  const vis = srWithPh(grs.map(gr => Object.assign({}, gr, { cols: gr.cols.filter(e => !z || e.list.some(x => x.z === z))
+    .map(e => !z ? e : Object.assign({}, e, { rows: e.rows.filter(r => r.z === z), ph: e.list.find(x => x.z === z && hasPhoto(x)) || e.ph })) })).filter(gr => gr.cols.length));
   srCur = { g, cols: vis.flatMap(gr => gr.cols.map(e => Object.assign({ grp: gr.title, many: grs.length > 1 }, e))) };
   // formati disegnati in proporzione (il lato lungo più grande alto 120 px), riempiti con la foto di un colore di quel formato
   const big = Math.max(...inf.zs.map(q => Math.max(...parseSize(q)))), k = 120 / big;
