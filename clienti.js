@@ -47,6 +47,7 @@ function route() {
   if (a === 'pacchetti') { document.body.dataset.view = 'packs'; renderPacks(id); return; }
   if (a === 'box') { document.body.dataset.view = 'boxes'; renderBoxes(); return; }
   if (a === 'novita') { document.body.dataset.view = 'novita'; renderNovita(); return; }
+  if (a === 'culle') { let k = ''; try { k = decodeURIComponent(id || ''); } catch (e) {} document.body.dataset.view = 'culle'; renderCulle(k); return; }
   if (a === 'serie') { let k = ''; try { k = decodeURIComponent(id || ''); } catch (e) {} document.body.dataset.view = 'serie'; renderSerie(k); return; }
   if (a === 'ambiente' && scenes[id]) { document.body.dataset.view = 'room'; openRoom(id); return; }
   if (a === 'salamostra' && clients[id]) {
