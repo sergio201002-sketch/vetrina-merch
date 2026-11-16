@@ -74,6 +74,7 @@ function renderPacks(id) {
       <button class="btn" onclick="go('#/pacchetti')"><svg class="ic"><use href="#i-left"/></svg> Pacchetti</button>
       <input class="pk-name" value="${esc(p.name)}" onchange="scenes['${p.id}'].name = this.value.trim() || 'Pacchetto'; packTouch(scenes['${p.id}'])">
       <button class="btn red" ${cc.length ? '' : 'disabled'} onclick="packPlaceDialog('${p.id}')"><svg class="ic"><use href="#i-store"/></svg> Metti in sala mostra</button>
+      <button class="btn" ${cc.some(c => c.slots.some(k => k && SAMPLE[k])) ? '' : 'disabled'} onclick="packPdf('${p.id}')" title="Presentazione PDF da mandare al cliente: copertina, riepilogo e la scheda di ogni espositore con i prodotti"><svg class="ic"><use href="#i-download"/></svg> Presentazione PDF</button>
       <button class="btn" onclick="packDup('${p.id}')" title="Duplica il pacchetto"><svg class="ic"><use href="#i-copy"/></svg></button>
       <button class="btn" onclick="packDel('${p.id}')" title="Elimina il pacchetto"><svg class="ic"><use href="#i-trash"/></svg></button>
     </div>
@@ -126,6 +127,25 @@ async function packDel(pid) {
   const p = scenes[pid]; if (!p) return;
   if (!await ask(`Eliminare il pacchetto "${p.name}" con i suoi espositori?\n\nLe sale mostra dove l'hai già messo non cambiano.`, { ok: 'Elimina' })) return;
   packComps(p).forEach(c => delete comps[c.id]); delete scenes[pid]; saveComps(); saveScenes(); go('#/pacchetti'); toast('Pacchetto eliminato');
+}
+/* presentazione PDF per il cliente: copertina (nome del pacchetto, "per <cliente>" se lo scrivi, i render), riepilogo e poi
+   la scheda di ogni espositore; nella stessa finestra si sceglie quali espositori e il layout, come per le schede.
+   Le note del pacchetto vanno nel PDF solo se le spunti (possono avere prezzi o appunti tuoi) */
+function packPdf(pid) {
+  const p = scenes[pid]; if (!p) return;
+  const list = packComps(p).filter(c => c.slots.some(k => k && SAMPLE[k]));
+  if (!list.length) return toast('Metti prima i campioni negli espositori del pacchetto');
+  const o = { forName: '', note: false }, names = [...new Set(Object.values(clients).map(c => c.name).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  schLayoutAsk((lay, x) => exportSchede(list.filter(c => x.ids.has(c.id)), lay, Object.assign(x, { pack: { name: p.name, note: o.note ? p.note : '' }, forName: o.forName.trim() })), list, 'pack:' + pid, {
+    title: 'Presentazione PDF', pages: 2,   // + copertina e riepilogo
+    html: `<div class="sch-t">Per il cliente (facoltativo)</div>
+      <input class="sch-in" id="pkpFor" list="pkpForL" placeholder="Nome del cliente, va in copertina" autocomplete="off">
+      <datalist id="pkpForL">${names.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+      ${p.note ? `<label class="sch-one"><input type="checkbox" id="pkpNote"><span><b>Metti le note del pacchetto</b><br><small>${esc(p.note.length > 90 ? p.note.slice(0, 90) + '…' : p.note)}</small></span></label>` : ''}`
+  });
+  const m = document.getElementById('schAsk');
+  m.querySelector('#pkpFor').oninput = e => { o.forName = e.target.value; };
+  const nt = m.querySelector('#pkpNote'); if (nt) nt.onchange = () => { o.note = nt.checked; };
 }
 /* apre l'espositore nel configuratore per scegliere i campioni; "← Pacchetto" riporta qui */
 function packOpenComp(pid, cid) {
