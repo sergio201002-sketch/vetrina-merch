@@ -13,12 +13,15 @@ from PIL import Image, ImageChops, ImageDraw
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, 'fonti', 'merchandising')
 OUT = os.path.join(HERE, 'merch')
-BRANDS = {'Ergon': 'E', 'Provenza': 'P', 'Emilceramica': 'C'}
+# (inizio del nome del PDF, marca, lettera delle pagine); i cataloghi di una sola serie non hanno l'indice
+BRANDS = [('Ergon', 'Ergon', 'E'), ('Provenza', 'Provenza', 'P'), ('Emilceramica', 'Emilceramica', 'C'),
+          ('FornaceProvenza', 'Provenza', 'F')]
+SINGLE = {'FornaceProvenza': 'Fornace Provenza'}
 DPI = 200
 SC = DPI / 72
 CODE = r'\b(?=[0-9A-Z]{8}\b)0{3,}[0-9A-Z]+\b'
 # serie del catalogo -> serie del listino (quando il nome non coincide)
-SERIES_ALIAS = {'SLEEKWOOD': 'SLEEK WOOD', 'UNIQUE INTENSITY': 'UNIQUE INTENSITY STONE'}
+SERIES_ALIAS = {'SLEEKWOOD': 'SLEEK WOOD', 'UNIQUE INTENSITY': 'UNIQUE INTENSITY STONE', 'FORNACE PROVENZA': 'FORNACE'}
 CATS = [  # (id, prefisso del titolo della sezione)
     ('culle', ('CULLA',)), ('espositori', ('ESPOSITORE',)),
     ('sinottici', ('PANNELLI SINOTTICI', 'PANNELLO SINOTTICO')), ('posati', ('PANNELLI POSATI',)),
@@ -122,6 +125,8 @@ def crop(img, rect, blank=(), trim=True):
 
 
 DRY = '-n' in sys.argv
+# --solo=FornaceProvenza: rifà le immagini solo di quel catalogo (i dati di tutti)
+SOLO = [a[7:] for a in sys.argv if a.startswith('--solo=')]
 
 
 def save(im, name, big=1100, small=420):
@@ -325,7 +330,7 @@ def parse_grid(h, ls, img, imgs, cat):
 def parse_posati(h, ls, img, imgs):
     r = h['rect']; out = []
     ls = [l for l in ls if l.size >= 6.5 or re.fullmatch(r'SC\d+', l.text)]
-    fm = [l for l in ls if re.match(r'Formato\b', l.text, re.I)]
+    fm = [l for l in ls if re.match(r'Formato\b', l.text, re.I) or re.match(r'Schema [A-Z]', l.text) and l.bold]
     starts = columns(fm, 25)
     for ci, x in enumerate(starts):
         cx0, cx1 = col_bounds(starts, r[0], r[2], ci)
@@ -334,8 +339,9 @@ def parse_posati(h, ls, img, imgs):
         for fi, f in enumerate(col):
             nxt = col[fi + 1].y0 - 40 if fi + 1 < len(col) else r[3]
             mine = sorted([l for l in ls if cx0 <= l.x0 < cx1 and f.y0 <= l.y0 < nxt and not re.fullmatch(r'SC\d+', l.text)
-                           and not re.match(r'PROCEDURA|\d+ - |Per (ordinare|pannelli)', l.text) and not codes_in(l.text)], key=lambda l: l.y0)
-            sc = [l for l in ls if cx0 <= l.x0 < cx1 and top <= l.y0 < f.y0 and re.fullmatch(r'SC\d+', l.text)]
+                           and not re.match(r'PROCEDURA|\d+ - |Per (ordinare|pannelli)', l.text) and not codes_in(l.text)
+                           and not re.fullmatch(r'\d+', l.text)], key=lambda l: l.y0)
+            sc =[l for l in ls if cx0 <= l.x0 < cx1 and top <= l.y0 < f.y0 and re.fullmatch(r'SC\d+', l.text)]
             if any('Black' in l.font for l in sc):   # a volte sotto l'etichetta c'è un vecchio codice nascosto
                 for l in sc: l.used = True
                 sc = [l for l in sc if 'Black' in l.font]
@@ -344,6 +350,7 @@ def parse_posati(h, ls, img, imgs):
             t = re.sub(r'^FORMATO', 'Formato', txt[0]); sub = []
             for x2 in txt[1:]:
                 if re.match(r'posa\b', x2) and not sub: t += ' · ' + x2
+                elif x2.startswith('(') and not sub and '·' not in t: t += ' ' + x2   # (37,5x37,5 - 9,1x37,5 - 9,1x9,1)
                 else: sub.append(x2)
             it = dict(t=t, codes=[dict(c=s.text) for s in sc])
             if sub: it['note'] = re.sub(r'\s+', ' ', ' '.join(sub)).replace(' :', ':')
@@ -399,15 +406,19 @@ def generics(lines):
 def main():
     os.makedirs(OUT, exist_ok=True)
     items, series, pages = [], {}, {}
-    for brand, B in BRANDS.items():
-        fn = [f for f in os.listdir(SRC) if f.lower().startswith(brand.lower()) and f.lower().endswith('.pdf')]
-        if not fn: print('manca il catalogo', brand); continue
+    global DRY
+    dry0 = DRY
+    for pre, brand, B in BRANDS:
+        DRY = dry0 or bool(SOLO) and pre not in SOLO
+        fn = [f for f in os.listdir(SRC) if f.lower().startswith(pre.lower()) and f.lower().endswith('.pdf')]
+        if not fn: print('manca il catalogo', pre); continue
         doc = fitz.open(os.path.join(SRC, fn[0]))
-        idx = read_index(doc)
+        idx = [(SINGLE[pre], 2)] if pre in SINGLE else read_index(doc)
+        last = doc.page_count - (1 if pre in SINGLE else 2)
         ed = re.search(r'(\d{4}\.\d{2})', fn[0]).group(1)
         print(brand, fn[0], doc.page_count, 'pagine,', len(idx), 'serie')
         for si, (sname, p0) in enumerate(idx):
-            p1 = idx[si + 1][1] - 1 if si + 1 < len(idx) else doc.page_count - 2
+            p1 = idx[si + 1][1] - 1 if si + 1 < len(idx) else last
             key = norm(SERIES_ALIAS.get(sname.upper(), sname))
             sk = f'{brand}|{sname}'
             S = series.setdefault(sk, dict(b=brand, n=sname, key=key, ed=ed, pages=[], gen={}))
