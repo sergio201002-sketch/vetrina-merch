@@ -146,6 +146,43 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 #schPrint .pkp-tot .br { display: grid; grid-template-columns: 26mm 1fr; gap: 2mm; margin-bottom: 1mm; }
 #schPrint .pkp-tot .br > b { font: 700 7.4pt Inter, Arial; letter-spacing: .12em; text-transform: uppercase; padding-top: .5mm; }
 #schPrint .pkp-note { margin-top: 3mm; font-size: 8pt; line-height: 1.45; white-space: pre-line; border-left: .6mm solid #b0101a; padding-left: 3mm; flex: none; }
+/* esportazione approfondita (dopo le schede): tabella delle serie esposte, poi ogni serie completa con evidenziati i colori esposti.
+   Ogni blocco ha l'altezza fissa (le pagine si dividono prima, con i millimetri) */
+#schPrint .dp-kpi { display: flex; gap: 12mm; align-items: flex-end; height: 15mm; margin-bottom: 4mm; flex: none; }
+#schPrint .dp-kpi b { display: block; font: 700 18pt/1 'Inter Tight', Inter, Arial; }
+#schPrint .dp-kpi span { font-size: 7.5pt; color: #777; }
+#schPrint .dp-tr { display: grid; align-items: center; column-gap: 3mm; border-bottom: .25mm solid #e2dfd8; font-size: 7.2pt; line-height: 1.25; flex: none; box-sizing: border-box; overflow: hidden; }
+#schPrint .dp-tr > div { min-width: 0; overflow: hidden; }
+#schPrint .dp-tr.th { font: 700 6pt Inter, Arial; letter-spacing: .14em; text-transform: uppercase; color: #8a857c; border-bottom: .35mm solid #18181b; align-items: end; padding-bottom: 1mm; }
+#schPrint .dp-tr.br { display: flex; align-items: flex-end; padding-bottom: 1mm; border-bottom: 0; font: 700 7pt Inter, Arial; letter-spacing: .16em; text-transform: uppercase; color: #b0101a; }
+#schPrint .dp-tr .sn { font: 700 9pt/1.15 'Inter Tight', Inter, Arial; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+#schPrint .dp-tr .q { display: flex; align-items: center; gap: 2mm; white-space: nowrap; }
+#schPrint .dp-tr .q b { font-size: 8.4pt; color: #b0101a; }
+#schPrint .dp-tr .mu { color: #555; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+#schPrint .dp-tr .n { text-align: center; font-weight: 700; }
+#schPrint .dp-bar { display: block; height: 1.6mm; border-radius: .8mm; background: #ebe7df; overflow: hidden; flex: none; }
+#schPrint .dp-bar i { display: block; height: 100%; background: #b0101a; border-radius: .8mm; }
+#schPrint .dp-sh { display: flex; align-items: flex-end; justify-content: space-between; gap: 6mm; flex: none; box-sizing: border-box; border-bottom: .35mm solid #18181b; padding-bottom: 1.2mm; margin-bottom: 2mm; overflow: hidden; }
+#schPrint .dp-sh .k { font: 700 6.3pt Inter, Arial; letter-spacing: .18em; text-transform: uppercase; color: #b0101a; }
+#schPrint .dp-sh h2 { font: 700 14pt/1.05 'Inter Tight', Inter, Arial; letter-spacing: -.02em; margin: .8mm 0 0; white-space: nowrap; }
+#schPrint .dp-sh h2 small { font: 600 8pt Inter, Arial; color: #8a857c; letter-spacing: 0; margin-left: 2mm; }
+#schPrint .dp-sh .r { display: flex; flex-direction: column; align-items: flex-end; gap: .9mm; font-size: 7.4pt; color: #555; min-width: 0; text-align: right; }
+#schPrint .dp-sh .r b { font: 700 11pt 'Inter Tight', Inter, Arial; color: #b0101a; }
+#schPrint .dp-sh .r .z { font-size: 6.8pt; white-space: nowrap; overflow: hidden; max-width: 150mm; }
+#schPrint .dp-gt { flex: none; box-sizing: border-box; display: flex; align-items: flex-end; gap: 1.6mm; padding-bottom: 1.1mm; font: 700 7pt Inter, Arial; overflow: hidden; white-space: nowrap; min-width: 0; border-bottom: .25mm solid #d6d1c7; margin-bottom: .9mm; }
+#schPrint .dp-gt span { font-weight: 600; font-size: 6.4pt; color: #b0101a; }
+#schPrint .dp-row { display: grid; flex: none; box-sizing: border-box; align-content: start; overflow: hidden; }
+#schPrint .dp-t { min-width: 0; }
+#schPrint .dp-t .im { position: relative; height: var(--tw); border-radius: 1.2mm; overflow: hidden; background: #e6e1d8; }
+#schPrint .dp-t .im.np { background: #f2efe9; }
+#schPrint.pdfpass .dp-t .im:not(.np) { background: none; }
+#schPrint .dp-t .vl { position: absolute; inset: 0; background: rgba(255,255,255,.42); }   /* non esposto: un po' più chiaro */
+#schPrint .dp-t .fr { position: absolute; inset: 0; border: .75mm solid #b0101a; border-radius: 1.2mm; }
+#schPrint .dp-t .es { position: absolute; left: 0; right: 0; bottom: 0; background: #b0101a; color: #fff; font: 700 4.4pt/1 Inter, Arial; letter-spacing: .14em; text-align: center; padding: .7mm 0 .6mm; }
+#schPrint .dp-t .nf { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font: 600 5pt Inter, Arial; color: #a39d92; text-align: center; }
+#schPrint .dp-t .nm { margin-top: .8mm; font: 600 5.9pt/1.15 Inter, Arial; color: #8a857c; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+#schPrint .dp-t.on .nm { color: #18181b; font-weight: 700; }
+#schPrint .dp-t .zz { font: 600 5.3pt/1.2 Inter, Arial; color: #b0101a; white-space: nowrap; overflow: hidden; }
 .sch-wait { position: fixed; inset: 0; z-index: 600; background: rgba(10,10,12,.82); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 15px; }
 </style>`);
 
@@ -337,16 +374,23 @@ function schLayoutAsk(cb, list, key, ex = {}) {
     <div class="mhead"><h3><svg class="ic"><use href="#i-download"/></svg> ${ex.title || 'Scheda PDF'} · ${many ? 'impostazioni' : 'layout'}</h3></div>
     <div style="padding:6px 18px 18px;display:flex;flex-direction:column;gap:10px;max-height:calc(100vh - 120px);overflow:auto">
       ${ex.html || ''}
-      ${many ? `<div class="sch-t">Espositori nel PDF</div><div id="schSet"></div>
-      <div class="sch-t">Layout · tocca per creare il PDF</div>` : list && hasEmpty(list[0]) ? `<label class="sch-one"><input type="checkbox" id="schVu1"${empty.has(list[0].id) ? ' checked' : ''}>
+      ${many ? `<div class="sch-t">Espositori nel PDF</div><div id="schSet"></div>` : list && hasEmpty(list[0]) ? `<label class="sch-one"><input type="checkbox" id="schVu1"${empty.has(list[0].id) ? ' checked' : ''}>
         <span><b>Mostra gli spazi vuoti</b><br><small>I posti liberi (${list[0].slots.length - filledOf(list[0])}) come quadratini con scritto «spazio vuoto»</small></span></label>` : ''}
-      ${!many && ex.html ? '<div class="sch-t">Layout · tocca per creare il PDF</div>' : ''}
+      ${list ? `<label class="sch-one"><input type="checkbox" id="schDeep"${ui.schDeep ? ' checked' : ''}>
+        <span><b>Esportazione approfondita</b><br><small>Dopo le schede, il resoconto delle serie esposte e ogni serie completa con evidenziati i colori esposti<span id="schDeepN"></span></small></span></label>` : ''}
+      <div class="sch-t">Layout · tocca per creare il PDF</div>
       ${opt('quadrati', 'Quadrati', 'A4 orizzontale: render e dati in alto, prodotti in quadrati', picQ)}
       ${opt('reale', 'Formato reale', 'A4 verticale: riquadri con le proporzioni del campione (es. tozzetti 19,5×29,5), anche accanto ai dati', picR)}
       <button class="btn" id="schAskNo">Annulla</button></div></div></div>`);
   m = document.getElementById('schAsk');
   m.addEventListener('click', e => { if (e.target === m) m.remove(); });
   m.querySelector('#schAskNo').onclick = () => m.remove();
+  // approfondita: quante serie e quanti colori esposti (degli espositori spuntati)
+  const deep = m.querySelector('#schDeep'), deepN = () => {
+    const el = m.querySelector('#schDeepN'); if (!el) return;
+    const D = deep.checked ? schDeepData(list.filter(c => ids.has(c.id))) : [];
+    el.textContent = D.length ? ` · ${D.length} serie, ${D.reduce((t, g) => t + g.nOwn, 0)} colori esposti su ${D.reduce((t, g) => t + g.tot, 0)}` : '';
+  };
   // elenco: spunta = nel PDF; i gruppi uniti stanno in un riquadro "Nella stessa pagina" (con "Separa");
   // "Unisci espositori": tocchi quelli da mettere insieme e premi "Unisci"
   const row = c => `<label class="sch-row${picking && pick.has(c.id) ? ' pk' : ''}"><input type="checkbox" data-id="${c.id}"${(picking ? pick.has(c.id) : ids.has(c.id)) ? ' checked' : ''}>
@@ -367,7 +411,8 @@ function schLayoutAsk(cb, list, key, ex = {}) {
       ${picking ? `<div class="sch-pick"><span>Tocca gli espositori da mettere <b>nella stessa pagina</b></span>
           <button class="btn" id="schPickNo">Annulla</button><button class="btn red" id="schPickOk"${pick.size < 2 ? ' disabled' : ''}>Unisci (${pick.size})</button></div>`
         : `<div class="sch-pick"><button class="btn" id="schPickGo"><svg class="ic"><use href="#i-plus"/></svg> Unisci espositori</button>
-          <span class="sch-pages">${l.length ? `${l.length} espositori → ${np + (ex.pages || 0)} ${np + (ex.pages || 0) === 1 ? 'pagina' : 'pagine'}` : 'Scegli almeno un espositore'}</span></div>`}`;
+          <span class="sch-pages">${l.length ? `${l.length} espositori → ${np + (ex.pages || 0)} ${np + (ex.pages || 0) === 1 ? 'pagina' : 'pagine'}${deep && deep.checked ? ' + resoconto' : ''}` : 'Scegli almeno un espositore'}</span></div>`}`;
+    deepN();
     m.querySelectorAll('button[data-v]').forEach(b => { b.disabled = picking || !l.length; });
     m.querySelectorAll('#schSet input[data-id]').forEach(x => x.onchange = () => {
       const s = picking ? pick : ids; if (x.checked) s.add(x.dataset.id); else s.delete(x.dataset.id); draw();
@@ -389,13 +434,14 @@ function schLayoutAsk(cb, list, key, ex = {}) {
       picking = false; draw();
     };
   };
-  draw();
+  draw(); if (!many) deepN();
+  if (deep) deep.onchange = () => many ? draw() : deepN();
   const vu1 = m.querySelector('#schVu1'); if (vu1) vu1.onchange = () => { if (vu1.checked) empty.add(list[0].id); else empty.delete(list[0].id); };
   m.querySelectorAll('button[data-v]').forEach(b => b.onclick = () => {
-    ui.schLayout = b.dataset.v;
+    ui.schLayout = b.dataset.v; ui.schDeep = !!(deep && deep.checked);
     if (many) ui.schGroups = Object.assign({}, ui.schGroups, { [key]: merged });
     if (key) ui.schEmpty = Object.assign({}, ui.schEmpty, { [key]: [...empty] });
-    saveUI(); m.remove(); cb(b.dataset.v, { groups: merged, ids, empty });
+    saveUI(); m.remove(); cb(b.dataset.v, { groups: merged, ids, empty, deep: ui.schDeep });
   });
 }
 /* Formato reale (come l'esempio della mobile teca): riquadri con le proporzioni del campione, ATTACCATI in orizzontale,
@@ -514,12 +560,15 @@ async function exportSchede(list, layout, opts = {}) {
   }
   wait.textContent = 'Preparo il PDF…';
   if (opts.pack) { await schLoadImg('img/prop_logo.png'); pages.unshift(...schPackPages(opts.pack, list, rend, real, today, opts.forName)); }
+  const cl0 = list[0].client && clients[list[0].client];
+  if (opts.deep) pages.push(...schDeepPages(list, real, today, opts.pack ? opts.pack.name + (opts.forName ? ' · ' + opts.forName : '') : cl0 ? cl0.name : ''));
   let el = document.getElementById('schPrint'); if (!el) { el = document.createElement('div'); el.id = 'schPrint'; document.body.appendChild(el); }
   el.innerHTML = pages.join('');
   const urls = [...el.querySelectorAll('.ph')].map(x => (x.style.backgroundImage.match(/url\(["']?([^"')]+)/) || [])[1]).filter(Boolean);
+  if (opts.deep) wait.textContent = 'Preparo le foto delle serie…';
   await Promise.all([...new Set(urls)].map(u => new Promise(r => { const im = new Image(); im.onload = im.onerror = r; im.src = u; })));
-  const name = opts.pack ? `presentazione-${opts.pack.name}${opts.forName ? '-' + opts.forName : ''}.pdf`
-    : (list.length > 1 ? 'schede-' + ((list[0].client && clients[list[0].client] && clients[list[0].client].name) || 'espositori') : 'scheda-' + list[0].name) + '.pdf';
+  const name = (opts.pack ? `presentazione-${opts.pack.name}${opts.forName ? '-' + opts.forName : ''}`
+    : list.length > 1 ? 'schede-' + ((cl0 && cl0.name) || 'espositori') : 'scheda-' + list[0].name) + (opts.deep ? '-con-resoconto-serie' : '') + '.pdf';
   const title = opts.pack ? 'La presentazione è pronta' : NP > 1 ? `Le ${NP} schede sono pronte` : 'La scheda è pronta';
   const ok = await schMakePDF(el, real, name.replace(/[^\w\-.]+/g, '_'), wait, title, opts.pack ? 720 : 0);
   if (!ok) { wait.remove(); printWhenReady('sch-printing', title, real ? 'A4 portrait' : 'A4 landscape'); }
@@ -562,6 +611,105 @@ function schPackPages(pk, list, rend, real, today, forName) {
     ${pk.note ? `<div class="pkp-note">${esc(pk.note)}</div>` : ''}
     ${foot}</div>`;
   return [cover, sum];
+}
+/* ── Esportazione approfondita (dopo le schede): il resoconto delle serie esposte negli espositori del PDF. Prima la tabella
+   (per marchio: colori esposti su quelli della serie, formati, campioni, in quali espositori), poi ogni serie completa con tutti i
+   colori come nella sezione Serie, evidenziati quelli esposti (cornice rossa e «ESPOSTO»; gli altri un po' più chiari) ── */
+const schNid = id => String(id).toLowerCase().replace(/\s+/g, ' ').trim();   // colore: stesso nome anche scritto in un altro modo (tozzetti A4)
+function schDeepData(list) {
+  const m = new Map(), zOf = s => s.toz ? 'tozzetto' : fmt(s.z);
+  list.forEach(c => c.slots.forEach(k => {
+    const s = k && SAMPLE[k]; if (!s) return;
+    const key = s.b + '|' + s.s, id = schNid(glCid(s));
+    if (!m.has(key)) m.set(key, { b: s.b, s: s.s, own: new Map(), n: 0, zs: new Set(), at: [] });
+    const g = m.get(key); g.n++; g.zs.add(zOf(s)); if (!g.at.includes(c)) g.at.push(c);
+    if (!g.own.has(id)) g.own.set(id, { s, zs: new Set() });
+    g.own.get(id).zs.add(zOf(s));
+  }));
+  return [...m.values()].sort((a, b) => srBrandIdx(a.b) - srBrandIdx(b.b) || a.b.localeCompare(b.b) || a.s.localeCompare(b.s)).map(g => {
+    const isOwn = e => g.own.has(schNid(e.id));
+    // le varianti tutte senza foto non si mostrano (come nel PDF delle serie), a meno che ci sia un colore esposto
+    let grs = srGroups(g); const vis = grs.filter(gr => gr.cols.some(e => e.ph || isOwn(e))); if (vis.length) grs = vis;
+    const known = new Set(grs.flatMap(gr => gr.cols.map(e => schNid(e.id))));
+    const extra = [...g.own].filter(([id]) => !known.has(id)).map(([id, o]) => ({ id, name: glTitle(o.s.c), ph: null }));   // esposti che nel listino della serie non ci sono
+    if (extra.length) grs.push({ title: grs.length ? 'Altri esposti' : 'Colori', cols: extra });
+    grs.forEach(gr => { gr.nOwn = gr.cols.filter(isOwn).length; });
+    return Object.assign(g, { grs, tot: grs.reduce((a, gr) => a + gr.cols.length, 0), nOwn: grs.reduce((a, gr) => a + gr.nOwn, 0) });
+  });
+}
+function schDeepPages(list, real, today, who) {
+  const D = schDeepData(list); if (!D.length) return [];
+  // spazio utile della pagina (senza il piede) e titolo in alto, in mm
+  const W = real ? 190 : 277, H = real ? 269 : 185, HD = 9.5, out = [];
+  const foot = `<div class="foot">Resoconto serie esposte${who ? ' · ' + esc(who) : ''} · ${today}</div>`;
+  const page = (hd, body) => `<div class="sch-page${real ? ' real' : ''}" style="break-before:page;page-break-before:always"><div class="hd">${hd}</div>${body}${foot}</div>`;
+  const pct = (a, b) => b ? Math.max(a ? 3 : 0, Math.round(a / b * 100)) : 0, bar = (w, a, b) => `<span class="dp-bar" style="width:${w}mm"><i style="width:${pct(a, b)}%"></i></span>`;
+  const zsOf = g => [...g.zs].join(' · ');
+  // 1) tabella: serie, colori esposti, formati, campioni, espositori (le righe si allungano per i nomi lunghi)
+  const C = real ? [44, 40, 36, 13] : [60, 58, 52, 16], cw = C.concat(W - C.reduce((a, b) => a + b, 0) - 12);
+  const tcols = `grid-template-columns:${cw.map(x => x.toFixed(1) + 'mm').join(' ')}`;
+  const F = 7.2, LH = F * 0.3528 * 1.25, nl = (t, w) => Math.min(3, schLinesOf(t, F, false, w - 0.6, schTextW).length || 1);
+  const nOwn = D.reduce((a, g) => a + g.nOwn, 0), tot = D.reduce((a, g) => a + g.tot, 0), nS = D.reduce((a, g) => a + g.n, 0), brands = new Set(D.map(g => g.b)).size;
+  const kpi = `<div class="dp-kpi"><div><b>${D.length}</b><span>serie esposte</span></div><div><b>${nOwn}</b><span>colori esposti su ${tot} delle serie</span></div>
+    <div><b>${nS}</b><span>campioni</span></div><div><b>${brands}</b><span>${brands === 1 ? 'marchio' : 'marchi'}</span></div><div><b>${list.length}</b><span>${list.length === 1 ? 'espositore' : 'espositori'}</span></div></div>`;
+  const th = `<div class="dp-tr th" style="${tcols};height:6mm"><div>Serie</div><div>Colori esposti</div><div>Formati esposti</div><div style="text-align:center">Campioni</div><div>Negli espositori</div></div>`;
+  let body = kpi + th, y = HD + 19 + 6, lastB = '', first = true;
+  const flush = () => { out.push(page(`Resoconto serie esposte <span>${first ? `${who ? esc(who) + ' · ' : ''}${D.length} serie` : 'segue'}</span>`, body)); first = false; body = th; y = HD + 6; lastB = ''; };
+  D.forEach(g => {
+    const at = g.at.map(c => c.name).join(', '), h = Math.max(8, Math.max(nl(zsOf(g), cw[2]), nl(at, cw[4])) * LH + 2.6);
+    if (y + (g.b !== lastB ? 6.5 : 0) + h > H) flush();
+    if (g.b !== lastB) { body += `<div class="dp-tr br" style="height:6.5mm">${esc(g.b)}</div>`; y += 6.5; lastB = g.b; }
+    body += `<div class="dp-tr" style="${tcols};height:${h.toFixed(2)}mm"><div class="sn">${esc(glTitle(g.s))}</div>
+      <div class="q">${bar(real ? 14 : 22, g.nOwn, g.tot)}<span><b>${g.nOwn}</b> di ${g.tot}</span></div>
+      <div class="mu">${esc(zsOf(g))}</div><div class="n">${g.n}</div><div class="mu">${esc(at)}</div></div>`;
+    y += h;
+  });
+  flush();
+  // 2) le serie complete: riquadri in righe da NC (lato tw), sotto il nome del colore e, se esposto, i formati esposti.
+  //    Più gruppi (fondi, decori…): uno dopo l'altro nella stessa riga (un posto vuoto in mezzo), il nome sopra il primo riquadro;
+  //    un gruppo che sta in una riga non si spezza
+  const NC = real ? 9 : 14, G = 2, tw = (W - (NC - 1) * G) / NC, RH = tw + 8 + 2.2, SH = 14, GT = 5.5, CT = 10, SP = 5;
+  const tile = (g, e) => {
+    const o = g.own.get(schNid(e.id)), x = o && hasPhoto(o.s) ? o.s : e.ph, u = x && glPhoto(x);
+    return `<div class="dp-t${o ? ' on' : ''}"><div class="im${u ? '' : ' np'}">${u ? `<span class="ph" data-px="260" data-hi="${esc(u)}" style="background-image:url('${esc(u)}')"></span>` : '<span class="nf">senza foto</span>'}${o ? '<i class="fr"></i><b class="es">ESPOSTO</b>' : '<i class="vl"></i>'}</div>
+      <div class="nm">${esc(e.name)}</div>${o ? `<div class="zz">${esc([...o.zs].join(' · '))}</div>` : ''}</div>`;
+  };
+  const sh = g => `<div class="dp-sh" style="height:${SH - 2}mm"><div><div class="k">${esc(g.b)}</div><h2>${esc(glTitle(g.s))}</h2></div>
+    <div class="r"><div><b>${g.nOwn}</b> di ${g.tot} ${g.tot === 1 ? 'colore esposto' : 'colori esposti'}</div>${bar(34, g.nOwn, g.tot)}<div class="z">${esc(zsOf(g))}</div></div></div>`;
+  const cont = g => `<div class="dp-sh" style="height:${CT - 2}mm"><div><h2 style="font-size:11pt">${esc(glTitle(g.s))}<small>segue</small></h2></div></div>`;
+  const grid = `grid-template-columns:repeat(${NC},${tw.toFixed(2)}mm);column-gap:${G}mm`;
+  // una riga: [{ gr, cols, at (colonna), first (inizio del gruppo) }]; con più gruppi sopra c'è la fascia con i nomi
+  const row = (g, parts, multi) => (multi ? `<div class="dp-row" style="${grid};height:${GT}mm">${parts.map(p => `<div class="dp-gt" style="grid-column:${p.at + 1} / span ${p.cols.length};height:${GT}mm">${esc(glTitle(p.gr.title))}<span>${p.first ? `${p.gr.nOwn}/${p.gr.cols.length}` : 'segue'}</span></div>`).join('')}</div>` : '')
+    + `<div class="dp-row" style="${grid};height:${RH.toFixed(2)}mm;--tw:${tw.toFixed(2)}mm">${parts.map(p => p.cols.map((e, j) => `<div style="grid-column:${p.at + j + 1}">${tile(g, e)}</div>`).join('')).join('')}</div>`;
+  const rowsOf = g => {
+    const rows = []; let cur = [], pos = 0;
+    const next = () => { rows.push(cur); cur = []; pos = 0; };
+    g.grs.forEach(gr => {
+      if (pos && (pos + 1 + gr.cols.length > NC && gr.cols.length <= NC || pos + 1 >= NC)) next();   // non ci sta: riga nuova
+      else if (pos) pos++;                                                                              // posto vuoto tra i gruppi
+      for (let i = 0; i < gr.cols.length;) {
+        const n = Math.min(NC - pos, gr.cols.length - i);
+        cur.push({ gr, cols: gr.cols.slice(i, i + n), at: pos, first: i === 0 }); pos += n; i += n;
+        if (pos >= NC) next();
+      }
+    });
+    if (cur.length) rows.push(cur);
+    return rows;
+  };
+  let blocks = '', yy = HD;
+  const flush2 = () => { out.push(page('Le serie complete <span>tutti i colori di ogni serie · in rosso quelli esposti</span>', blocks)); blocks = ''; yy = HD; };
+  D.forEach(g => {
+    const multi = g.grs.length > 1, rh = RH + (multi ? GT : 0), rows = rowsOf(g);
+    if (yy + SH + rh > H) flush2();   // il titolo della serie non resta da solo in fondo alla pagina
+    blocks += sh(g); yy += SH;
+    rows.forEach(r => {
+      if (yy + rh > H) { flush2(); blocks += cont(g); yy += CT; }
+      blocks += row(g, r, multi); yy += rh;
+    });
+    if (yy + SP <= H) { blocks += `<div style="height:${SP}mm;flex:none"></div>`; yy += SP; }
+  });
+  if (blocks) flush2();
+  return out;
 }
 /* pagine del PDF: un espositore per pagina, tranne quelli che hai unito tu (merged = [[id, id], …]) che vanno insieme
    nella pagina del primo, nell'ordine dell'elenco */
@@ -699,7 +847,7 @@ async function schMakePDF(el, real, name, wait, title, px) {
   const rAlias = new Map(), rName = u => rAlias.get(u) || (rAlias.set(u, 'render' + rAlias.size), rAlias.get(u));   // anche i render (copertina, riepilogo e scheda)
   // Full HD (1920 px); con tantissime foto (schede di tutti gli espositori) un po' meno, se no il file diventa enorme e il telefono non ce la fa;
   // px = limite scelto da chi chiama (presentazione da mandare al cliente: file leggero)
-  const maxPx = px || (el.querySelectorAll('.ph:not(.rnph)').length > 120 ? 1280 : 1920);
+  const maxPx = px || (el.querySelectorAll('.ph:not(.rnph):not([data-px])').length > 120 ? 1280 : 1920);   // data-px: foto piccole con il loro limite (serie complete)
   try {
     for (let i = 0; i < pagesEl.length; i++) {
       wait.textContent = `Creo il PDF… pagina ${i + 1} di ${pagesEl.length}`;
@@ -723,8 +871,8 @@ async function schMakePDF(el, real, name, wait, title, px) {
         } else {
           const u = x.dataset.hi || (x.style.backgroundImage.match(/url\(["']?([^"')]+)/) || [])[1], turn = box.classList.contains('turn');
           const shade = real && it ? (bw - ext) / bw : 0;   // il pezzo che finisce sotto la mattonella dopo resta in ombra (si vede negli angoli smussati)
-          const key = u + '|' + turn + '|' + (bw / bh).toFixed(3) + '|' + shade.toFixed(3);
-          if (!made.has(key)) made.set(key, await schPhotoJpeg(u, turn, bw / bh, shade, maxPx));
+          const mp = Math.min(maxPx, +x.dataset.px || maxPx), key = u + '|' + turn + '|' + (bw / bh).toFixed(3) + '|' + shade.toFixed(3) + '|' + mp;
+          if (!made.has(key)) made.set(key, await schPhotoJpeg(u, turn, bw / bh, shade, mp));
           const d = made.get(key);
           if (d) pdf.addImage(d, 'JPEG', bx, by, bw, bh, key, 'NONE');
           else { pdf.setFillColor(217, 214, 208); pdf.rect(bx, by, bw, bh, 'F'); }
