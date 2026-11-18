@@ -162,27 +162,43 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 #schPrint .dp-tr .n { text-align: center; font-weight: 700; }
 #schPrint .dp-bar { display: block; height: 1.6mm; border-radius: .8mm; background: #ebe7df; overflow: hidden; flex: none; }
 #schPrint .dp-bar i { display: block; height: 100%; background: #b0101a; border-radius: .8mm; }
-#schPrint .dp-sh { display: flex; align-items: flex-end; justify-content: space-between; gap: 6mm; flex: none; box-sizing: border-box; border-bottom: .35mm solid #18181b; padding-bottom: 1.2mm; margin-bottom: 2mm; overflow: hidden; }
-#schPrint .dp-sh .k { font: 700 6.3pt Inter, Arial; letter-spacing: .18em; text-transform: uppercase; color: #b0101a; }
-#schPrint .dp-sh h2 { font: 700 14pt/1.05 'Inter Tight', Inter, Arial; letter-spacing: -.02em; margin: .8mm 0 0; white-space: nowrap; }
-#schPrint .dp-sh h2 small { font: 600 8pt Inter, Arial; color: #8a857c; letter-spacing: 0; margin-left: 2mm; }
-#schPrint .dp-sh .r { display: flex; flex-direction: column; align-items: flex-end; gap: .9mm; font-size: 7.4pt; color: #555; min-width: 0; text-align: right; }
-#schPrint .dp-sh .r b { font: 700 11pt 'Inter Tight', Inter, Arial; color: #b0101a; }
-#schPrint .dp-sh .r .z { font-size: 6.8pt; white-space: nowrap; overflow: hidden; max-width: 150mm; }
-#schPrint .dp-gt { flex: none; box-sizing: border-box; display: flex; align-items: flex-end; gap: 1.6mm; padding-bottom: 1.1mm; font: 700 7pt Inter, Arial; overflow: hidden; white-space: nowrap; min-width: 0; border-bottom: .25mm solid #d6d1c7; margin-bottom: .9mm; }
-#schPrint .dp-gt span { font-weight: 600; font-size: 6.4pt; color: #b0101a; }
+/* le serie complete come la pagina della collezione sul sito Emilgroup: il nome con «By marchio», «Formati e colori» con i formati
+   per spessore in etichette grigie, poi i gruppi (fondo, varianti, decori) con i riquadri quadrati e il nome sotto */
+#schPrint .ds-h { display: flex; align-items: flex-end; justify-content: space-between; gap: 6mm; flex: none; box-sizing: border-box; padding-bottom: 2mm; overflow: hidden; }
+#schPrint .ds-h h1 { font: 400 21pt/1.05 Inter, Arial; letter-spacing: -.01em; margin: 0; white-space: nowrap; color: #18181b; }
+#schPrint .ds-h h1 small { font-size: 8pt; color: #8a857c; margin-left: 2mm; }
+#schPrint .ds-h .by { font: 400 8.5pt Inter, Arial; color: #6b6b6b; margin-top: 1.4mm; }
+#schPrint .ds-h .r { display: flex; flex-direction: column; align-items: flex-end; gap: 1mm; font-size: 7.6pt; color: #555; white-space: nowrap; }
+#schPrint .ds-h .r b { font: 700 11pt Inter, Arial; color: #b0101a; }
+#schPrint .ds-ft { flex: none; display: flex; align-items: flex-end; box-sizing: border-box; padding-bottom: 2mm; font: 400 13pt Inter, Arial; color: #18181b; }
+#schPrint .ds-tz { display: grid; flex: none; align-items: start; overflow: hidden; }
+#schPrint .ds-ti { min-width: 0; }
+#schPrint .ds-ti .t { display: flex; align-items: center; gap: 2mm; height: 7mm; font: 400 10pt Inter, Arial; color: #18181b; white-space: nowrap; }
+#schPrint .ds-ic { position: relative; display: block; width: 6.4mm; height: 4.2mm; flex: none; }
+#schPrint .ds-ic::before, #schPrint .ds-ic::after { content: ''; position: absolute; left: .3mm; border-left: 1.2mm solid transparent; border-right: 1.2mm solid transparent; }
+#schPrint .ds-ic::before { top: 0; border-top: 1.1mm solid #c8c4bc; }
+#schPrint .ds-ic::after { bottom: 0; border-bottom: 1.1mm solid #c8c4bc; }
+#schPrint .ds-ic i { position: absolute; left: 0; right: 0; top: 1.45mm; height: 1.3mm; background: #d9d6cf; }
+#schPrint .ds-ln { display: flex; gap: 1.5mm; height: 5.6mm; }
+#schPrint .ds-ln + .ds-ln { margin-top: 1.5mm; }
+#schPrint .ds-bd { flex: none; box-sizing: border-box; display: flex; align-items: center; justify-content: center; text-align: center; background: #f6f6f6; border-radius: 1.4mm; font: 400 7.5pt Inter, Arial; color: #18181b; white-space: nowrap; overflow: hidden; }
+#schPrint .ds-bd.on { background: #b0101a; color: #fff; font-weight: 700; }
+#schPrint .ds-gh { flex: none; display: flex; align-items: flex-end; gap: 2.4mm; box-sizing: border-box; padding-bottom: 2mm; font: 400 11pt Inter, Arial; color: #18181b; white-space: nowrap; overflow: hidden; }
+#schPrint .ds-gh span { font: 700 7pt Inter, Arial; color: #b0101a; padding-bottom: .3mm; }
+#schPrint .ds-gh span.z { color: #a39d92; font-weight: 400; }
+#schPrint .ds-sep { flex: none; box-sizing: border-box; border-top: .3mm solid #d6d1c7; }
 #schPrint .dp-row { display: grid; flex: none; box-sizing: border-box; align-content: start; overflow: hidden; }
 #schPrint .dp-t { min-width: 0; }
-#schPrint .dp-t .im { position: relative; height: var(--tw); border-radius: 1.2mm; overflow: hidden; background: #e6e1d8; }
+#schPrint .dp-t .im { position: relative; height: var(--tw); overflow: hidden; background: #e6e1d8; }
 #schPrint .dp-t .im.np { background: #f2efe9; }
 #schPrint.pdfpass .dp-t .im:not(.np) { background: none; }
 #schPrint .dp-t .vl { position: absolute; inset: 0; background: rgba(255,255,255,.42); }   /* non esposto: un po' più chiaro */
-#schPrint .dp-t .fr { position: absolute; inset: 0; border: .75mm solid #b0101a; border-radius: 1.2mm; }
-#schPrint .dp-t .es { position: absolute; left: 0; right: 0; bottom: 0; background: #b0101a; color: #fff; font: 700 4.4pt/1 Inter, Arial; letter-spacing: .14em; text-align: center; padding: .7mm 0 .6mm; }
-#schPrint .dp-t .nf { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font: 600 5pt Inter, Arial; color: #a39d92; text-align: center; }
-#schPrint .dp-t .nm { margin-top: .8mm; font: 600 5.9pt/1.15 Inter, Arial; color: #8a857c; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+#schPrint .dp-t .fr { position: absolute; inset: 0; border: .8mm solid #b0101a; }
+#schPrint .dp-t .es { position: absolute; left: 0; right: 0; bottom: 0; background: #b0101a; color: #fff; font: 700 4.8pt/1 Inter, Arial; letter-spacing: .14em; text-align: center; padding: .8mm 0 .7mm; }
+#schPrint .dp-t .nf { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font: 400 6pt Inter, Arial; color: #a39d92; text-align: center; }
+#schPrint .dp-t .nm { margin-top: 1.4mm; font: 400 7.2pt/1.2 Inter, Arial; color: #6b6b6b; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 #schPrint .dp-t.on .nm { color: #18181b; font-weight: 700; }
-#schPrint .dp-t .zz { font: 600 5.3pt/1.2 Inter, Arial; color: #b0101a; white-space: nowrap; overflow: hidden; }
+#schPrint .dp-t .zz { font: 700 6pt/1.25 Inter, Arial; color: #b0101a; white-space: nowrap; overflow: hidden; }
 .sch-wait { position: fixed; inset: 0; z-index: 600; background: rgba(10,10,12,.82); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 15px; }
 </style>`);
 
@@ -613,16 +629,17 @@ function schPackPages(pk, list, rend, real, today, forName) {
   return [cover, sum];
 }
 /* ── Esportazione approfondita (dopo le schede): il resoconto delle serie esposte negli espositori del PDF. Prima la tabella
-   (per marchio: colori esposti su quelli della serie, formati, campioni, in quali espositori), poi ogni serie completa con tutti i
-   colori come nella sezione Serie, evidenziati quelli esposti (cornice rossa e «ESPOSTO»; gli altri un po' più chiari) ── */
+   (per marchio: colori esposti su quelli della serie, formati, campioni, in quali espositori), poi ogni serie completa come la
+   pagina della collezione sul sito Emilgroup, evidenziati i colori e i formati esposti ── */
 const schNid = id => String(id).toLowerCase().replace(/\s+/g, ' ').trim();   // colore: stesso nome anche scritto in un altro modo (tozzetti A4)
 function schDeepData(list) {
   const m = new Map(), zOf = s => s.toz ? 'tozzetto' : fmt(s.z);
   list.forEach(c => c.slots.forEach(k => {
     const s = k && SAMPLE[k]; if (!s) return;
     const key = s.b + '|' + s.s, id = schNid(glCid(s));
-    if (!m.has(key)) m.set(key, { b: s.b, s: s.s, own: new Map(), n: 0, zs: new Set(), at: [] });
+    if (!m.has(key)) m.set(key, { b: s.b, s: s.s, own: new Map(), n: 0, zs: new Set(), tz: new Set(), at: [] });
     const g = m.get(key); g.n++; g.zs.add(zOf(s)); if (!g.at.includes(c)) g.at.push(c);
+    if (!s.toz) (s.t && s.t.length ? s.t : ['']).forEach(t => g.tz.add(t + '|' + s.z));   // formati esposti, per spessore
     if (!g.own.has(id)) g.own.set(id, { s, zs: new Set() });
     g.own.get(id).zs.add(zOf(s));
   }));
@@ -665,48 +682,72 @@ function schDeepPages(list, real, today, who) {
     y += h;
   });
   flush();
-  // 2) le serie complete: riquadri in righe da NC (lato tw), sotto il nome del colore e, se esposto, i formati esposti.
-  //    Più gruppi (fondi, decori…): uno dopo l'altro nella stessa riga (un posto vuoto in mezzo), il nome sopra il primo riquadro;
-  //    un gruppo che sta in una riga non si spezza
-  const NC = real ? 9 : 14, G = 2, tw = (W - (NC - 1) * G) / NC, RH = tw + 8 + 2.2, SH = 14, GT = 5.5, CT = 10, SP = 5;
+  // 2) le serie complete, come la pagina della collezione sul sito Emilgroup (senza la presentazione e le foto d'ambiente):
+  //    il nome con «By marchio», «Formati e colori» con i formati divisi per spessore (in rosso quelli esposti), poi ogni gruppo
+  //    (fondo, varianti, decori) col suo nome e i riquadri quadrati in righe da NC, il nome del colore sotto; gli esposti con
+  //    la cornice rossa, «ESPOSTO» e i formati esposti, gli altri un po' più chiari. Una serie va sotto la precedente se ci sta
+  //    tutta, o se la pagina è piena meno della metà (e continua nella pagina dopo); se no comincia una pagina nuova
+  const NC = real ? 7 : 10, G = 3, tw = (W - (NC - 1) * G) / NC, RH = tw + 13.6, ST = 19, FT = 9, GH = 9, GA = 3, CT = 10, SEP = 6;
+  const BF = 7.5, BH = 5.6, BG = 1.5, TT = 7, TG = 5, IG = 10;   // formati: carattere, altezza e distanza delle etichette, come nel CSS
   const tile = (g, e) => {
     const o = g.own.get(schNid(e.id)), x = o && hasPhoto(o.s) ? o.s : e.ph, u = x && glPhoto(x);
-    return `<div class="dp-t${o ? ' on' : ''}"><div class="im${u ? '' : ' np'}">${u ? `<span class="ph" data-px="260" data-hi="${esc(u)}" style="background-image:url('${esc(u)}')"></span>` : '<span class="nf">senza foto</span>'}${o ? '<i class="fr"></i><b class="es">ESPOSTO</b>' : '<i class="vl"></i>'}</div>
+    return `<div class="dp-t${o ? ' on' : ''}"><div class="im${u ? '' : ' np'}">${u ? `<span class="ph" data-px="300" data-hi="${esc(u)}" style="background-image:url('${esc(u)}')"></span>` : '<span class="nf">senza foto</span>'}${o ? '<i class="fr"></i><b class="es">ESPOSTO</b>' : '<i class="vl"></i>'}</div>
       <div class="nm">${esc(e.name)}</div>${o ? `<div class="zz">${esc([...o.zs].join(' · '))}</div>` : ''}</div>`;
   };
-  const sh = g => `<div class="dp-sh" style="height:${SH - 2}mm"><div><div class="k">${esc(g.b)}</div><h2>${esc(glTitle(g.s))}</h2></div>
-    <div class="r"><div><b>${g.nOwn}</b> di ${g.tot} ${g.tot === 1 ? 'colore esposto' : 'colori esposti'}</div>${bar(34, g.nOwn, g.tot)}<div class="z">${esc(zsOf(g))}</div></div></div>`;
-  const cont = g => `<div class="dp-sh" style="height:${CT - 2}mm"><div><h2 style="font-size:11pt">${esc(glTitle(g.s))}<small>segue</small></h2></div></div>`;
-  const grid = `grid-template-columns:repeat(${NC},${tw.toFixed(2)}mm);column-gap:${G}mm`;
-  // una riga: [{ gr, cols, at (colonna), first (inizio del gruppo) }]; con più gruppi sopra c'è la fascia con i nomi
-  const row = (g, parts, multi) => (multi ? `<div class="dp-row" style="${grid};height:${GT}mm">${parts.map(p => `<div class="dp-gt" style="grid-column:${p.at + 1} / span ${p.cols.length};height:${GT}mm">${esc(glTitle(p.gr.title))}<span>${p.first ? `${p.gr.nOwn}/${p.gr.cols.length}` : 'segue'}</span></div>`).join('')}</div>` : '')
-    + `<div class="dp-row" style="${grid};height:${RH.toFixed(2)}mm;--tw:${tw.toFixed(2)}mm">${parts.map(p => p.cols.map((e, j) => `<div style="grid-column:${p.at + j + 1}">${tile(g, e)}</div>`).join('')).join('')}</div>`;
-  const rowsOf = g => {
-    const rows = []; let cur = [], pos = 0;
-    const next = () => { rows.push(cur); cur = []; pos = 0; };
-    g.grs.forEach(gr => {
-      if (pos && (pos + 1 + gr.cols.length > NC && gr.cols.length <= NC || pos + 1 >= NC)) next();   // non ci sta: riga nuova
-      else if (pos) pos++;                                                                              // posto vuoto tra i gruppi
-      for (let i = 0; i < gr.cols.length;) {
-        const n = Math.min(NC - pos, gr.cols.length - i);
-        cur.push({ gr, cols: gr.cols.slice(i, i + n), at: pos, first: i === 0 }); pos += n; i += n;
-        if (pos >= NC) next();
-      }
-    });
-    if (cur.length) rows.push(cur);
-    return rows;
+  // formati della serie per spessore (quelli senza spessore per ultimi), con anche quelli esposti
+  const tzOf = g => {
+    const m = new Map(), add = (t, z) => { if (!m.has(t)) m.set(t, new Set()); m.get(t).add(z); };
+    g.grs.forEach(gr => gr.cols.forEach(e => (e.list || []).forEach(x => (x.t && x.t.length ? x.t : ['']).forEach(t => add(t, x.z)))));
+    g.tz.forEach(k => { const i = k.indexOf('|'); add(k.slice(0, i), k.slice(i + 1)); });
+    return [...m].sort((a, b) => !a[0] - !b[0] || srByNum(a[0], b[0])).map(([t, zs]) => ({ t, zs: [...zs].sort(srBySize) }));
   };
-  let blocks = '', yy = HD;
-  const flush2 = () => { out.push(page('Le serie complete <span>tutti i colori di ogni serie · in rosso quelli esposti</span>', blocks)); blocks = ''; yy = HD; };
-  D.forEach(g => {
-    const multi = g.grs.length > 1, rh = RH + (multi ? GT : 0), rows = rowsOf(g);
-    if (yy + SH + rh > H) flush2();   // il titolo della serie non resta da solo in fondo alla pagina
-    blocks += sh(g); yy += SH;
-    rows.forEach(r => {
-      if (yy + rh > H) { flush2(); blocks += cont(g); yy += CT; }
-      blocks += row(g, r, multi); yy += rh;
+  // titolo della serie e «Formati e colori»: gli spessori in colonne, le etichette vanno a capo nella colonna
+  const head = g => {
+    const ts = tzOf(g), cols = Math.max(1, Math.min(ts.length, real ? 3 : 4)), iw = (W - (cols - 1) * IG) / cols;
+    const items = ts.map(({ t, zs }) => {
+      const ls = [[]]; let x = 0;
+      zs.forEach(z => {
+        const on = g.tz.has(t + '|' + z), l = fmt(z) + ' cm', w = Math.min(iw, schTextW(l, BF, on) + 5.4);
+        if (x && x + BG + w > iw) { ls.push([]); x = 0; }
+        x += (x ? BG : 0) + w; ls[ls.length - 1].push({ l, on, w });
+      });
+      return { h: TT + ls.length * BH + (ls.length - 1) * BG,
+        html: `<div class="ds-ti"><div class="t">${t ? `<i class="ds-ic"><i></i></i>${esc(t)} mm` : ts.length > 1 ? 'Altri formati' : 'Formati'}</div>${ls.map(l =>
+          `<div class="ds-ln">${l.map(b => `<span class="ds-bd${b.on ? ' on' : ''}" style="width:${b.w.toFixed(2)}mm">${esc(b.l)}</span>`).join('')}</div>`).join('')}</div>` };
     });
-    if (yy + SP <= H) { blocks += `<div style="height:${SP}mm;flex:none"></div>`; yy += SP; }
+    let h = ST + FT, html = `<div class="ds-h" style="height:${ST}mm"><div style="min-width:0"><h1>${esc(glTitle(g.s))}</h1><div class="by">By ${esc(g.b)}</div></div>
+      <div class="r"><div><b>${g.nOwn}</b> di ${g.tot} ${g.tot === 1 ? 'colore esposto' : 'colori esposti'}</div>${bar(34, g.nOwn, g.tot)}</div></div>
+      <div class="ds-ft" style="height:${FT}mm">${ts.length ? 'Formati e colori' : 'Colori'}</div>`;
+    for (let i = 0; i < items.length; i += cols) {
+      const r = items.slice(i, i + cols), rh = Math.max(...r.map(o => o.h));
+      html += `<div class="ds-tz" style="grid-template-columns:repeat(${cols},${iw.toFixed(2)}mm);column-gap:${IG}mm;height:${rh.toFixed(2)}mm;margin-bottom:${TG}mm">${r.map(o => o.html).join('')}</div>`;
+      h += rh + TG;
+    }
+    return { h, html };
+  };
+  const gh = (gr, more) => `<div class="ds-gh" style="height:${GH}mm">${esc(gr.title)}<span class="${more || !gr.nOwn ? 'z' : ''}">${more ? 'segue' : `${gr.nOwn} di ${gr.cols.length} ${gr.cols.length === 1 ? 'esposto' : 'esposti'}`}</span></div>`;
+  const cont = g => `<div class="ds-h" style="height:${CT}mm"><h1 style="font-size:13pt">${esc(glTitle(g.s))}<small>segue</small></h1></div>`;
+  const row = (g, cols) => `<div class="dp-row" style="grid-template-columns:repeat(${NC},${tw.toFixed(2)}mm);column-gap:${G}mm;height:${RH.toFixed(2)}mm;--tw:${tw.toFixed(2)}mm">${cols.map(e => tile(g, e)).join('')}</div>`;
+  let blocks = '', yy = HD, nOn = 0;
+  const flush2 = () => { out.push(page('Le serie complete <span>tutti i colori di ogni serie · in rosso i colori e i formati esposti</span>', blocks)); blocks = ''; yy = HD; nOn = 0; };
+  const put = (html, h) => { blocks += html; yy += h; };
+  const more = g => { flush2(); put(cont(g), CT); nOn = 1; };
+  D.forEach(g => {
+    const hd = head(g), parts = g.grs.map(gr => { const rs = []; for (let i = 0; i < gr.cols.length; i += NC) rs.push(gr.cols.slice(i, i + NC)); return { gr, rs }; });
+    const all = hd.h + parts.reduce((a, p) => a + GH + p.rs.length * RH + GA, 0);
+    const first = parts.length ? GH + RH : 0;
+    if (nOn && yy + SEP + all > H && (yy > HD + (H - HD) / 2 || yy + SEP + hd.h + first > H)) flush2();
+    if (nOn) put(`<div class="ds-sep" style="height:${SEP}mm"></div>`, SEP);
+    put(hd.html, hd.h); nOn++;
+    parts.forEach(p => {
+      if (yy + GH + RH > H) more(g);   // il nome del gruppo non resta da solo in fondo alla pagina
+      put(gh(p.gr), GH);
+      p.rs.forEach(r => {
+        if (yy + RH > H) { more(g); put(gh(p.gr, true), GH); }
+        put(row(g, r), RH);
+      });
+      if (yy + GA <= H) put(`<div style="height:${GA}mm;flex:none"></div>`, GA);
+    });
   });
   if (blocks) flush2();
   return out;
