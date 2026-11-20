@@ -81,27 +81,28 @@ function etLayout(e, img) {
   if (d) dl.forEach((t, i) => { const g = dl.length > 1 ? fit(t, df.f, df.f) : df; out.texts.push({ t, x: ET_X, y: dl.length > 1 ? [15.9, 18.2][i] : 17.75, f: g.f, cs: g.cs }); });
   return out;
 }
-/* anteprima: la stessa impaginazione disegnata su un canvas */
-function etDraw(cv, e) {
-  etLogo(e.b).then(img => {
-    const S = 14 * (window.devicePixelRatio || 1), L = etLayout(e, img), g = cv.getContext('2d');
-    cv.width = ET_W * S; cv.height = ET_H * S;
-    g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height);
-    if (L.logo) g.drawImage(img, L.logo.x * S, L.logo.y * S, L.logo.w * S, L.logo.h * S);
-    g.fillStyle = '#000'; g.textBaseline = 'alphabetic';
-    L.texts.forEach(t => {
-      g.font = `bold ${t.f * 0.3528 * S}px Helvetica, Arial, sans-serif`;
-      let x = t.x * S; for (const ch of t.t) { g.fillText(ch, x, t.y * S); x += g.measureText(ch).width + t.cs * S; }
-    });
+/* la stessa impaginazione disegnata su un canvas (S = pixel per mm): l'anteprima e le immagini JPEG */
+function etPaint(cv, e, img, S) {
+  const L = etLayout(e, img), g = cv.getContext('2d');
+  cv.width = Math.round(ET_W * S); cv.height = Math.round(ET_H * S);
+  g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height);
+  if (L.logo) { g.imageSmoothingQuality = 'high'; g.drawImage(img, L.logo.x * S, L.logo.y * S, L.logo.w * S, L.logo.h * S); }
+  g.fillStyle = '#000'; g.textBaseline = 'alphabetic';
+  L.texts.forEach(t => {
+    g.font = `bold ${t.f * 0.3528 * S}px Helvetica, Arial, sans-serif`;
+    let x = t.x * S; for (const ch of t.t) { g.fillText(ch, x, t.y * S); x += g.measureText(ch).width + t.cs * S; }
   });
 }
+const etDraw = (cv, e) => etLogo(e.b).then(img => etPaint(cv, e, img, 14 * (window.devicePixelRatio || 1)));
 function renderEtichette() {
   const v = document.getElementById('viewEtichette'), tot = etList.reduce((a, e) => a + (+e.n || 0), 0);
   v.innerHTML = `<div class="vwrap">
     <div class="vhead"><button class="btn" onclick="go('#/')"><svg class="ic"><use href="#i-left"/></svg> Clienti</button><h2>Etichette campioni</h2>
-      ${etList.length ? `<button class="btn red" onclick="etPDF()"><svg class="ic"><use href="#i-printer"/></svg> Crea PDF</button>` : ''}</div>
+      ${etList.length ? `<button class="btn" onclick="etJPEG()" title="Un'immagine 40 × 20 mm (600 dpi) per etichetta, per l'app della stampante"><svg class="ic"><use href="#i-image"/></svg> Scarica JPEG</button>
+        <button class="btn red" onclick="etPDF()"><svg class="ic"><use href="#i-printer"/></svg> Crea PDF</button>` : ''}</div>
     <div class="et-intro">Scrivi o incolla i codici dei campioni: ogni etichetta è 40 × 20 mm, con il logo del marchio, il codice, la serie e la descrizione.
-      Se serve correggi serie e descrizione (la correzione resta ricordata per quel codice), poi <b>Crea PDF</b>: una pagina per etichetta, da stampare con la stampante di etichette.</div>
+      Se serve correggi serie e descrizione (la correzione resta ricordata per quel codice), poi <b>Crea PDF</b> (una pagina per etichetta)
+      o <b>Scarica JPEG</b> (un'immagine 40 × 20 mm per etichetta, da aprire con l'app della stampante di etichette).</div>
     <div class="et-in"><textarea id="etCodes" placeholder="ENM5  ENMK  ENME…   (anche separati da virgole o uno per riga)"></textarea>
       <button class="btn red" onclick="etAdd()"><svg class="ic"><use href="#i-plus"/></svg> Aggiungi</button></div>
     ${etMissing.length ? `<div class="et-miss">Non trovati nel listino: ${etMissing.map(t => `<b>${esc(t)}</b>`).join(', ')}
@@ -174,4 +175,45 @@ async function etPDF() {
   }
   const tot = list.reduce((a, e) => a + e.n, 0);
   schDeliver(pdf, `etichette-${list.length === 1 ? list[0].code : tot + '-campioni'}.pdf`, tot === 1 ? 'Etichetta' : tot + ' etichette');
+}
+/* le immagini JPEG: una per etichetta (le copie si scelgono nell'app della stampante), 944 × 472 pixel = 40 × 20 mm a 600 dpi,
+   scritto anche dentro il file (così si apre e si stampa alla misura giusta) */
+const ET_DPI = 600;
+async function etJPEG() {
+  const list = etList.filter(e => (+e.n || 0) > 0);
+  if (!list.length) return toast('Nessuna etichetta: metti almeno una copia');
+  const cv = document.createElement('canvas'), files = [], used = {};
+  for (const e of list) {
+    etPaint(cv, e, await etLogo(e.b), ET_DPI / 25.4);
+    const b = new Uint8Array(await (await new Promise(r => cv.toBlob(r, 'image/jpeg', 0.95))).arrayBuffer());
+    // densità nell'intestazione JFIF: unità pollici, 600 × 600
+    if (b[2] === 0xFF && b[3] === 0xE0 && String.fromCharCode(...b.slice(6, 11)) === 'JFIF\0') { b[13] = 1; b[14] = ET_DPI >> 8; b[15] = ET_DPI & 255; b[16] = ET_DPI >> 8; b[17] = ET_DPI & 255; }
+    const base = `etichetta-${String(e.code || 'senza-codice').replace(/[^\w-]+/g, '')}`, k = used[base] = (used[base] || 0) + 1;
+    files.push(new File([b], base + (k > 1 ? '-' + k : '') + '.jpg', { type: 'image/jpeg' }));
+  }
+  cv.width = cv.height = 0;
+  etShare(files);
+}
+function etShare(files) {
+  const n = files.length, mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
+  const download = () => files.forEach((f, i) => setTimeout(() => {
+    const u = URL.createObjectURL(f), a = document.createElement('a'); a.href = u; a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 5000);
+  }, i * 300));
+  const share = navigator.canShare && navigator.canShare({ files });
+  if (!mobile || !share) { download(); toast(n === 1 ? 'Immagine scaricata: ' + files[0].name : `${n} immagini in scaricamento (se il browser lo chiede, consenti più download)`); return; }
+  // telefono: condividi tutte le immagini con l'app della stampante (o Salva immagini) con un tocco
+  const o = document.createElement('div');
+  o.style.cssText = 'position:fixed;inset:0;z-index:700;background:rgba(10,10,12,.82);display:flex;align-items:center;justify-content:center;padding:20px';
+  o.innerHTML = `<div style="background:#fff;border-radius:18px;padding:22px 20px;max-width:360px;width:100%;text-align:center;font-family:var(--font-body)">
+      <div style="font:700 18px var(--font-display);margin-bottom:6px">${n === 1 ? 'Etichetta' : n + ' etichette'} in JPEG</div>
+      <div style="font-size:13px;color:#666;margin-bottom:16px">Tocca <b>Condividi</b> e scegli l'app della stampante di etichette, o <b>Salva immagini</b>.</div>
+      <button class="btn red" id="etShareGo" style="width:100%;padding:13px;font-size:15px;justify-content:center"><svg class="ic"><use href="#i-download"/></svg> Condividi</button>
+      <button class="btn" id="etShareDl" style="width:100%;margin-top:8px;justify-content:center">Scarica</button>
+      <button class="btn" id="etShareNo" style="width:100%;margin-top:8px;justify-content:center">Chiudi</button></div>`;
+  document.body.appendChild(o);
+  o.querySelector('#etShareGo').onclick = async () => {
+    try { await navigator.share({ files }); o.remove(); } catch (e) { if (!e || e.name !== 'AbortError') download(); }
+  };
+  o.querySelector('#etShareDl').onclick = download;
+  o.querySelector('#etShareNo').onclick = () => o.remove();
 }
