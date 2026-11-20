@@ -1,7 +1,7 @@
 'use strict';
 /* ════════════════════════════════════════════════════════════
    ETICHETTE (#/etichette) — le etichette dei campioni, 40 × 20 mm come quella di esempio: in alto a sinistra il logo
-   del marchio (Emilceramica, Ergon, Provenza; gli altri marchi il nome scritto), in alto a destra il codice, sotto la serie
+   del marchio (Emilceramica, Ergon, Provenza, Viva; un altro marchio il nome scritto), in alto a destra il codice, sotto la serie
    e la descrizione (formato in mm, colore, finitura abbreviata: "600X1200 ROSSO SIENA SK R").
    Scrivi o incolla i codici (anche più per riga, anche le righe d'ordine 00XXXX01), controlli l'anteprima, correggi serie e
    descrizione se serve (la correzione resta ricordata per quel codice) e crei il PDF: una pagina 40 × 20 mm per etichetta,
@@ -31,7 +31,7 @@ body[data-view="etichette"] #viewEtichette { display: block; }
 </style>`);
 
 const ET_W = 40, ET_H = 20, ET_X = 3, ET_BRANDS = ['Emilceramica', 'Ergon', 'Provenza', 'Viva'];
-const ET_LOGO = { Emilceramica: 'loghi/emilceramica.png', Ergon: 'loghi/ergon.png', Provenza: 'loghi/provenza.png' };
+const ET_LOGO = { Emilceramica: 'loghi/emilceramica.png', Ergon: 'loghi/ergon.png', Provenza: 'loghi/provenza.png', Viva: 'loghi/viva.png' };
 let etList = (ui.etList || []).map(e => Object.assign({}, e)), etMissing = [];   // etichette da creare: { code, b, s, d, n, src, man }
 const etImgs = {};
 const etLogo = b => etImgs[b] || (etImgs[b] = ET_LOGO[b] ? schLoadImg(ET_LOGO[b]) : Promise.resolve(null));
