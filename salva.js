@@ -74,7 +74,8 @@ const Sync = {
     if (d) {
       if (!localStorage.getItem(flag)) {
         const add = (dst, src) => Object.keys(src || {}).forEach(k => { if (!dst[k] || (src[k].upd || 0) > (dst[k].upd || 0)) dst[k] = src[k]; });
-        add(d.clients = d.clients || {}, clients); add(d.comps = d.comps || {}, comps); add(d.scenes = d.scenes || {}, scenes); add(d.novita = d.novita || {}, novita);
+        add(d.clients = d.clients || {}, clients); add(d.comps = d.comps || {}, comps); add(d.scenes = d.scenes || {}, scenes);
+        add(d.novita = d.novita || {}, Object.fromEntries(Object.entries(novita).filter(([, p]) => !p.sito)));   // quelle solo del sito no
         d.current = Object.assign({}, current, d.current || {});
         this.apply(d); this.dirty();
       } else this.apply(d);

@@ -555,6 +555,7 @@ textarea { font-family: inherit; }
       <input class="search" id="imgSearch" placeholder="Cerca serie o colore…" style="width:220px" oninput="renderImages()">
       <button class="btn" id="imgMissingBtn" onclick="imgOnlyMissing=!imgOnlyMissing; renderImages()">Solo mancanti</button>
       <button class="btn red" onclick="document.getElementById('bulkFile').click()"><svg class="ic"><use href="#i-upload"/></svg> Carica più foto</button>
+      <button class="btn" onclick="exportSito()" title="Scarica le tue foto e le novità (anche quelle salvate online) per metterle nel sito: le vede anche chi entra senza account"><svg class="ic"><use href="#i-download"/></svg> Foto e novità per il sito</button>
       <button class="btn" onclick="closeImages()">Chiudi</button>
     </div>
     <div style="padding:10px 18px;border-bottom:1px solid var(--border);font-size:12px;color:var(--mid)">
@@ -603,7 +604,8 @@ textarea { font-family: inherit; }
 window.APPV = (() => { try { const x = new XMLHttpRequest(); x.open('GET', 'versione.txt?' + Date.now(), false); x.send(); if (x.status === 200 && x.responseText.trim()) return x.responseText.trim(); } catch (e) {} return String(Date.now()); })();
 document.write('<script src="data.js?v=' + APPV + '"><\/script>');
 document.write('<script src="tozzetti.js?v=' + APPV + '"><\/script>');
-document.write('<script src="codici.js?v=' + APPV + '"><\/script>');</script>
+document.write('<script src="codici.js?v=' + APPV + '"><\/script>');
+document.write('<script src="sito.js?v=' + APPV + '"><\/script>');</script>
 <script>
 'use strict';
 /* ════════════════════════════════════════════════════════════
@@ -734,6 +736,9 @@ let ui = LS.get('vm_ui_v1', { disp: 'PLY', labels: true, tab: 'pick' });
 let clients = LS.get('vm_clients_v1', {});   // id -> { id, name, city, contact, phone, note, upd }
 let scenes = LS.get('vm_scenes_v1', {});     // id -> ambientazione { id, client, name, w, d, h, wallL, wallR, items: [...] }
 let novita = LS.get('vm_novita_v1', {});     // id -> prodotto nuovo non a listino { id, b, s, c, note, fmts: [{ z, t, fins: [{ f, k }] }], upd } (novita.js)
+// chi non ha novità sue (per esempio entra senza account) vede quelle pubblicate nel sito (sito.js); con l'account arrivano le sue.
+// sito: 1 = solo dal sito, non si aggiungono ai dati online (una novità tolta non torna)
+if (!Object.keys(novita).length && window.NOVITA_SITO) novita = Object.fromEntries(Object.entries(JSON.parse(JSON.stringify(NOVITA_SITO))).map(([k, p]) => [k, Object.assign(p, { sito: 1 })]));
 const markDirty = () => { if (window.Sync) Sync.dirty(); };      // salvataggio su disco (salva.js)
 const saveClients = () => { LS.set('vm_clients_v1', clients); markDirty(); };
 const saveScenes = () => { LS.set('vm_scenes_v1', scenes); markDirty(); };
@@ -959,6 +964,8 @@ const FOTO = window.FOTO || {};
 const folderURL = ik => FOTO[ik] ? encodeURI(FOTO[ik]) : null;
 /* foto della cartella foto/ (sempre disponibili): subito, senza aspettare nient'altro */
 function folderImages() {
+  // foto messe dal sito e pubblicate per tutti (sito.js, da build_sito.py): prima di quelle della cartella, come con l'account
+  Object.entries(window.FOTO_SITO || {}).forEach(([k, p]) => { if (!IMG[k]) IMG[k] = encodeURI(p); });
   Object.keys(FOTO).forEach(k => { if (!IMG[k]) IMG[k] = folderURL(k); });
   Object.entries(window.FOTO_Z || {}).forEach(([k, p]) => { if (!IMG[k]) IMG[k] = encodeURI(p); });   // foto per formato
   updateImgCount();
@@ -2276,6 +2283,25 @@ async function exportBackup() {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
   a.download = fname; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+/* le tue foto (anche quelle salvate online da un altro dispositivo) e le novità, da pubblicare nel sito per chi entra senza
+   account: il file lo legge build_sito.py. Niente clienti né composizioni */
+async function exportSito() {
+  toast('Preparo foto e novità…');
+  const folder = new Set([...Object.values(FOTO), ...Object.values(window.FOTO_Z || {}), ...Object.values(window.FOTO_SITO || {})].map(p => encodeURI(p)));
+  const images = {};
+  for (const [k, u] of Object.entries(IMG)) {
+    if (!u || folder.has(u)) continue;
+    try { images[k] = /^data:/.test(u) ? decodeURI(u) : await blobToDataURL(await (await fetch(u)).blob()); } catch (e) {}
+  }
+  const nov = Object.fromEntries(Object.entries(novita).map(([k, p]) => { const o = Object.assign({}, p); delete o.sito; return [k, o]; }));
+  const blob = new Blob([JSON.stringify({ app: 'vetrina-merch', kind: 'sito', date: new Date().toISOString(), novita: nov, images })], { type: 'application/json' });
+  const fname = 'vetrina-merch-per-il-sito-' + new Date().toISOString().slice(0, 10) + '.json';
+  if (window.Sync && Sync.mode === 'cloud') { await Sync.download(fname, blob); return; }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = fname; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  toast(`Scaricato: ${Object.keys(images).length} foto e ${Object.keys(nov).length} novità`);
 }
 async function importBackup(file) {
   if (!file) return;
