@@ -28,6 +28,14 @@ body[data-view="etichette"] #viewEtichette { display: block; }
 .et-card .row input { width: 56px; text-align: center; }
 .et-card .row .btn { padding: 6px 8px; }
 .et-card.man { border-color: #e7b8b8; }
+.et-card label.et-sel { display: flex; align-items: center; gap: 8px; font: 700 13px var(--font-body); color: #1d1d20; cursor: pointer; }
+.et-card .et-sel input { width: 18px; height: 18px; margin: 0; padding: 0; accent-color: var(--red); }
+.et-card .et-sel span { margin-left: auto; font: 700 12px ui-monospace, Menlo, Consolas, monospace; color: var(--mid); }
+.et-card canvas { cursor: pointer; transition: opacity .15s; }
+.et-card.off { background: #f7f6f3; }
+.et-card.off canvas { opacity: .32; }
+.et-card.off .et-sel { color: var(--mid); }
+.et-c:empty { display: none; }
 </style>`);
 
 const ET_W = 40, ET_H = 20, ET_X = 3, ET_BRANDS = ['Emilceramica', 'Ergon', 'Provenza', 'Viva'];
@@ -94,22 +102,39 @@ function etPaint(cv, e, img, S) {
   });
 }
 const etDraw = (cv, e) => etLogo(e.b).then(img => etPaint(cv, e, img, 14 * (window.devicePixelRatio || 1)));
+/* da stampare: le etichette scelte (casella «Stampa» o tocco sull'anteprima) con almeno una copia */
+const etSel = () => etList.filter(e => e.on !== false && (+e.n || 0) > 0);
+function etSync() {
+  const v = document.getElementById('viewEtichette'), sel = etSel(), cp = sel.reduce((a, e) => a + e.n, 0), on = etList.filter(e => e.on !== false).length;
+  v.querySelectorAll('.et-card').forEach(c => c.classList.toggle('off', etList[+c.dataset.i].on === false));
+  const t = v.querySelector('#etTot'); if (t) t.textContent = `${on} di ${etList.length} ${etList.length === 1 ? 'etichetta scelta' : 'etichette scelte'}`;
+  const c = v.querySelector('#etCp'); if (c) c.textContent = sel.length ? `· nel PDF ${cp} ${cp === 1 ? 'pagina' : 'pagine'}, in JPEG ${sel.length} ${sel.length === 1 ? 'immagine' : 'immagini'}` : '· nessuna da stampare';
+  [['#etPdf', cp], ['#etJpg', sel.length]].forEach(([id, n]) => { const b = v.querySelector(id); if (b) { b.disabled = !n; b.querySelector('.et-c').textContent = n ? `(${n})` : ''; } });
+}
+function etPick(all) {   // Tutte / Nessuna
+  etList.forEach(e => { e.on = all; }); etSave();
+  document.querySelectorAll('#viewEtichette input[data-on]').forEach(ck => { ck.checked = all; });
+  etSync();
+}
 function renderEtichette() {
-  const v = document.getElementById('viewEtichette'), tot = etList.reduce((a, e) => a + (+e.n || 0), 0);
+  const v = document.getElementById('viewEtichette');
   v.innerHTML = `<div class="vwrap">
     <div class="vhead"><button class="btn" onclick="go('#/')"><svg class="ic"><use href="#i-left"/></svg> Clienti</button><h2>Etichette campioni</h2>
-      ${etList.length ? `<button class="btn" onclick="etJPEG()" title="Un'immagine 40 × 20 mm (600 dpi) per etichetta, per l'app della stampante"><svg class="ic"><use href="#i-image"/></svg> Scarica JPEG</button>
-        <button class="btn red" onclick="etPDF()"><svg class="ic"><use href="#i-printer"/></svg> Crea PDF</button>` : ''}</div>
+      ${etList.length ? `<button class="btn" id="etJpg" onclick="etJPEG()" title="Un'immagine 40 × 20 mm (600 dpi) per ogni etichetta scelta, per l'app della stampante"><svg class="ic"><use href="#i-image"/></svg> Scarica JPEG <span class="et-c"></span></button>
+        <button class="btn red" id="etPdf" onclick="etPDF()" title="Una pagina 40 × 20 mm per ogni copia delle etichette scelte"><svg class="ic"><use href="#i-printer"/></svg> Crea PDF <span class="et-c"></span></button>` : ''}</div>
     <div class="et-intro">Scrivi o incolla i codici dei campioni: ogni etichetta è 40 × 20 mm, con il logo del marchio, il codice, la serie e la descrizione.
-      Se serve correggi serie e descrizione (la correzione resta ricordata per quel codice), poi <b>Crea PDF</b> (una pagina per etichetta)
+      Se serve correggi serie e descrizione (la correzione resta ricordata per quel codice), scegli quali stampare con la casella <b>Stampa</b>
+      (o toccando l'anteprima), poi <b>Crea PDF</b> (una pagina per etichetta)
       o <b>Scarica JPEG</b> (un'immagine 40 × 20 mm per etichetta, da aprire con l'app della stampante di etichette).</div>
     <div class="et-in"><textarea id="etCodes" placeholder="ENM5  ENMK  ENME…   (anche separati da virgole o uno per riga)"></textarea>
       <button class="btn red" onclick="etAdd()"><svg class="ic"><use href="#i-plus"/></svg> Aggiungi</button></div>
     ${etMissing.length ? `<div class="et-miss">Non trovati nel listino: ${etMissing.map(t => `<b>${esc(t)}</b>`).join(', ')}
       <button class="btn" onclick="etManual()"><svg class="ic"><use href="#i-pencil"/></svg> Scrivili a mano</button><button class="btn" onclick="etMissing = []; renderEtichette()">Lascia stare</button></div>` : ''}
-    ${etList.length ? `<div class="et-bar"><b>${tot} ${tot === 1 ? 'etichetta' : 'etichette'}</b><span>· ${etList.length} ${etList.length === 1 ? 'codice' : 'codici'}</span>
+    ${etList.length ? `<div class="et-bar"><b id="etTot"></b><span id="etCp"></span>
+      <button class="btn" onclick="etPick(true)"><svg class="ic"><use href="#i-select"/></svg> Tutte</button><button class="btn" onclick="etPick(false)"><svg class="ic"><use href="#i-square"/></svg> Nessuna</button>
       <button class="btn" onclick="etClear()"><svg class="ic"><use href="#i-trash"/></svg> Svuota</button></div>` : ''}
-    <div class="et-list">${etList.map((e, i) => `<div class="card et-card${e.man ? ' man' : ''}" data-i="${i}"><canvas></canvas>
+    <div class="et-list">${etList.map((e, i) => `<div class="card et-card${e.man ? ' man' : ''}" data-i="${i}">
+      <label class="et-sel"><input type="checkbox" data-on${e.on !== false ? ' checked' : ''}> Stampa <span>${esc(e.code || '')}</span></label><canvas title="Tocca per sceglierla o toglierla"></canvas>
       <label>Marchio<select data-k="b">${ET_BRANDS.concat(ET_BRANDS.includes(e.b) ? [] : [e.b]).map(b => `<option${b === e.b ? ' selected' : ''}>${esc(b)}</option>`).join('')}</select></label>
       ${e.man ? `<label>Codice<input data-f="code" value="${esc(e.code)}"></label>` : ''}
       <label>Serie<input data-f="s" value="${esc(e.s)}"></label>
@@ -130,8 +155,12 @@ function renderEtichette() {
       etSave(); etDraw(cv, e);
     }));
     card.querySelector('select').addEventListener('change', ev => { e.b = ev.target.value; etSave(); etDraw(cv, e); });
-    card.querySelector('input[data-n]').addEventListener('change', ev => { e.n = Math.max(0, Math.min(99, parseInt(ev.target.value, 10) || 0)); etSave(); renderEtichette(); });
+    card.querySelector('input[data-n]').addEventListener('change', ev => { e.n = Math.max(0, Math.min(99, parseInt(ev.target.value, 10) || 0)); ev.target.value = e.n; etSave(); etSync(); });
+    const ck = card.querySelector('input[data-on]'), set = on => { e.on = on; ck.checked = on; etSave(); etSync(); };
+    ck.addEventListener('change', () => set(ck.checked));
+    cv.addEventListener('click', () => set(e.on === false));
   });
+  etSync();
 }
 function etAdd() {
   const ta = document.getElementById('etCodes'), toks = ta.value.toUpperCase().split(/[^A-Z0-9]+/).filter(t => t.length >= 4 && t.length <= 10);
@@ -159,8 +188,8 @@ function etReset(i) {
 }
 /* il PDF: una pagina 40 × 20 mm per etichetta (le copie una dopo l'altra), testi veri e logo nitido */
 async function etPDF() {
-  const list = etList.filter(e => (+e.n || 0) > 0);
-  if (!list.length) return toast('Nessuna etichetta da stampare: metti almeno una copia');
+  const list = etSel();
+  if (!list.length) return toast('Nessuna etichetta da stampare: scegline almeno una (con almeno una copia)');
   try { await loadPdfLibs(); } catch (e) { return toast('Non riesco a preparare il PDF: controlla la connessione'); }
   const pdf = new window.jspdf.jsPDF({ orientation: 'landscape', unit: 'mm', format: [ET_W, ET_H], compress: true });
   let first = true;
@@ -180,8 +209,8 @@ async function etPDF() {
    scritto anche dentro il file (così si apre e si stampa alla misura giusta) */
 const ET_DPI = 600;
 async function etJPEG() {
-  const list = etList.filter(e => (+e.n || 0) > 0);
-  if (!list.length) return toast('Nessuna etichetta: metti almeno una copia');
+  const list = etSel();
+  if (!list.length) return toast('Nessuna etichetta da stampare: scegline almeno una (con almeno una copia)');
   const cv = document.createElement('canvas'), files = [], used = {};
   for (const e of list) {
     etPaint(cv, e, await etLogo(e.b), ET_DPI / 25.4);
