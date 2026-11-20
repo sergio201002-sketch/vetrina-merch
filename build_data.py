@@ -401,22 +401,31 @@ COLOR_WORDS = {'white', 'bianco', 'blanc', 'beige', 'greige', 'grey', 'gray', 'g
                'silver', 'gold', 'oro', 'talc', 'talco', 'ash', 'lead', 'piombo', 'corda', 'cappuccino', 'salvia', 'amaranto', 'avio', 'calamine',
                'steel', 'dark', 'light', 'cielo', 'polvere', 'siena', 'rosso', 'red', 'malva', 'miele', 'giada', 'turchese', 'azure', 'ambra'}
 MUST_MATCH = {'dark', 'light', 'extra', 'super', 'superwhite', 'wood', 'brick', 'majolica', 'concrete', 'cement'}
+# decori tagliati dal colore liscio, con la stessa superficie: prendono la sua foto (MAPIERRE Blanc Ancienne Opus Spaccatella <- Blanc Ancienne)
+SAME_FACE = {'Opus Spaccatella'}
 
 
 def borrow_photos(samples, photos):
     """Colori senza foto: prendono quella di un colore della stessa serie con lo stesso colore di base
     (es. MATERA STONE Neutra White -> Sassi White, GEMMASTONE Sale Gemma Fine -> Sale Gemma Giant).
     Conta di più la parola che distingue il colore (White, Sale...) di quella comune a molti (Neutra, Gemma...).
-    Mai da un decoro e mai per un decoro, così il liscio non si confonde con il decorato (es. i Dune)."""
+    Mai da un decoro e mai per un decoro, così il liscio non si confonde con il decorato (es. i Dune),
+    tranne i decori SAME_FACE, che prendono la foto del loro colore liscio."""
     import math
+    out, orig = {}, dict(photos)                     # si presta solo da foto vere, mai a catena
     by_series = {}
     for s in samples:
         if s.get('toz'):
             continue
         by_series.setdefault((s['b'], s['s']), set()).add(s['c'])
+        g = s.get('g')
+        if g in SAME_FACE and s['c'].endswith(' ' + g):
+            ik, base = '|'.join([s['b'], s['s'], s['c']]), '|'.join([s['b'], s['s'], s['c'][:-len(g) - 1]])
+            if ik not in photos and base in orig:
+                photos[ik] = orig[base]
+                out[ik] = base
     tok = lambda c: {t for t in re.findall(r'[a-z0-9]+', norm(c)) if len(t) > 1}   # niente lettere singole (Peonia A / Carioca A)
     decor = lambda c: bool(tok(c) & DECOR_WORDS)
-    out, orig = {}, dict(photos)                     # si presta solo da foto vere, mai a catena
     for (b, ser), cols in by_series.items():
         n = len(cols)
         df = {}

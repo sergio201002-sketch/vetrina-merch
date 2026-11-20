@@ -202,11 +202,10 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 #schPrint .dp-t .im { position: relative; height: var(--tw); overflow: hidden; background: #e6e1d8; }
 #schPrint .dp-t .im.np { background: #f2efe9; }
 #schPrint.pdfpass .dp-t .im:not(.np) { background: none; }
-#schPrint .dp-t .vl { position: absolute; inset: 0; background: rgba(255,255,255,.42); }   /* non esposto: un po' più chiaro */
 #schPrint .dp-t .fr { position: absolute; inset: 0; border: .8mm solid #b0101a; }
 #schPrint .dp-t .es { position: absolute; left: 0; right: 0; bottom: 0; background: #b0101a; color: #fff; font: 700 4.8pt/1 Inter, Arial; letter-spacing: .14em; text-align: center; padding: .8mm 0 .7mm; }
 #schPrint .dp-t .nf { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font: 400 6pt Inter, Arial; color: #a39d92; text-align: center; }
-#schPrint .dp-t .nm { margin-top: 1.4mm; font: 400 7.2pt/1.2 Inter, Arial; color: #6b6b6b; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+#schPrint .dp-t .nm { margin-top: 1.4mm; font: 400 7.2pt/1.2 Inter, Arial; color: #18181b; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 #schPrint .dp-t.on .nm { color: #18181b; font-weight: 700; }
 #schPrint .dp-t .zz { margin-top: .3mm; font: 400 6pt/1.3 Inter, Arial; color: #8a857c; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
 #schPrint .dp-t .zz b { color: #b0101a; font-weight: 700; }
@@ -697,11 +696,13 @@ function schDeepPages(list, real, today, who) {
   });
   flush();
   // 2) le serie complete: una pagina per serie, in alto come la pagina della collezione sul sito Emilgroup (il nome con
-  //    «By marchio», «Formati e colori» per spessore), sotto la cartella colori come nei cataloghi: i colori in colonna, i gruppi
-  //    (fondo, varianti, decori) in riga. Le serie con un gruppo solo (o che nella cartella non ci stanno) hanno i gruppi uno
+  //    «By marchio», «Formati e colori» per spessore), sotto la cartella colori: prima tutti i fondi, poi le varianti e i
+  //    decori, ognuno nelle sue righe con i colori in colonna. Le serie con un gruppo solo (o che nella cartella non ci
+  //    stanno) hanno i gruppi uno
   //    sotto l'altro, con i riquadri più grandi con cui tutta la serie ci sta: pochi colori = foto grandi col nome e tutti i
   //    formati del colore sotto, tanti colori = riquadri più piccoli, i gruppi corti affiancati.
-  //    In rosso quello che è esposto: i formati, la cornice e «ESPOSTO» (nella cartella i formati esposti); gli altri più chiari
+  //    In rosso quello che è esposto: i formati, la cornice e «ESPOSTO» (nella cartella i formati esposti), gli altri
+  //    come sono (si devono vedere bene tutti e due)
   const Hc = H - HD, ST = 19, FT = 9, GH = 9, GA = 4, GT = 6, CT = 10, TWMAX = real ? 64 : 56;
   const BF = 7.5, BH = 5.6, BG = 1.5, TT = 7, TG = 5, IG = 10;   // formati: carattere, altezza e distanza delle etichette, come nel CSS
   const f2 = x => x.toFixed(2) + 'mm', chunk = (a, n) => { const o = []; for (let i = 0; i < a.length; i += n) o.push(a.slice(i, i + n)); return o; };
@@ -717,7 +718,7 @@ function schDeepPages(list, real, today, who) {
     let zz = '';
     if (m.big) { const zs = [...new Set((e.list || []).map(s => s.z))].sort(srBySize).map(fmt); ez.forEach(z => { if (!zs.includes(z)) zs.push(z); }); zz = zs.map(z => ez.includes(z) ? `<b>${esc(z)}</b>` : esc(z)).join(' · '); }
     else if (o) zz = `<b>${esc(ez.join(' · '))}</b>`;
-    const im = `<div class="im${u ? '' : ' np'}">${u ? `<span class="ph" data-px="${Math.round(Math.max(300, m.tw * 10))}" data-hi="${esc(u)}" style="background-image:url('${esc(u)}')"></span>` : '<span class="nf">senza foto</span>'}${o ? `<i class="fr"></i><b class="es">${cell && ez.length ? esc(ez.join(' · ')) : 'ESPOSTO'}</b>` : '<i class="vl"></i>'}</div>`;
+    const im = `<div class="im${u ? '' : ' np'}">${u ? `<span class="ph" data-px="${Math.round(Math.max(300, m.tw * 10))}" data-hi="${esc(u)}" style="background-image:url('${esc(u)}')"></span>` : '<span class="nf">senza foto</span>'}${o ? `<i class="fr"></i><b class="es">${cell && ez.length ? esc(ez.join(' · ')) : 'ESPOSTO'}</b>` : ''}</div>`;
     return `<div class="dp-t${o ? ' on' : ''}">${im}${cell ? '' : `<div class="nm" style="font-size:${m.nf}pt;-webkit-line-clamp:${m.nl}">${esc(e.name)}</div>${zz ? `<div class="zz" style="font-size:${m.ff}pt;-webkit-line-clamp:${m.fl}">${zz}</div>` : ''}`}</div>`;
   };
   // formati della serie per spessore (quelli senza spessore per ultimi), con anche quelli esposti
@@ -795,41 +796,60 @@ function schDeepPages(list, real, today, who) {
     ? L.rows.map(r => (hasStrip(r) ? `<div class="dp-row" style="${grid(L, GT)}">${r.filter(p => p.first).map(p => `<div class="ds-gt" style="grid-column:${p.at + 1} / span ${p.cols.length}">${esc(p.gr.title)}<span${p.gr.nOwn ? '' : ' class="z"'}>${p.gr.nOwn}/${p.gr.cols.length}</span></div>`).join('')}</div>` : '')
       + `<div class="dp-row${L.m.big ? ' big' : ''}" style="${grid(L, L.m.rh)}">${r.map(p => p.cols.map((e, j) => `<div style="grid-column:${p.at + j + 1}">${tile(g, e, L.m)}</div>`).join('')).join('')}</div>`).join('')
     : g.grs.map((gr, i) => (i ? `<div style="height:${GA}mm;flex:none"></div>` : '') + (g.grs.length > 1 ? gh(gr) : '') + chunk(gr.cols, L.nc).map(c => tiles(g, L, c)).join('')).join('');
-  // cartella colori: i colori di un blocco in colonna (divisi in parti uguali se sono troppi per una riga), una riga per gruppo
-  // col nome a sinistra. Con poca altezza i blocchi vanno in due colonne affiancate (il blocco che continua ripete i nomi dei
-  // colori). Si prova ogni combinazione e vince quella con i riquadri più grandi; un gruppo solo: meglio i riquadri grandi di A
+  // cartella colori: un gruppo alla volta, prima tutti i fondi e poi le altre varianti, col nome del gruppo a sinistra. I colori
+  // che non stanno in una riga vanno a capo in righe uguali, uguali per tutti i gruppi del blocco, così restano in colonna
+  // (Amaranto del fondo sopra Amaranto del Cardboard); i nomi dei colori sopra, una volta sola se ogni gruppo sta in una riga,
+  // se no sopra ogni riga. Vincono i riquadri più grandi; se in altezza non c'è più posto si allargano fino al margine (al
+  // massimo il doppio dell'altezza) e i gruppi possono continuare in una seconda colonna. Un gruppo solo: meglio i riquadri
+  // grandi di A
   const chart = (g, Wa, Ha) => {
     const ch = srChart(g.grs); if (!ch || ch.blocks.every(b => b.rows.length < 2)) return null;
-    const LW = real ? 24 : 30, CH = 8, BB = 5, G = 3, LG = 8;
-    const split = (bk, cm) => { const n = Math.ceil(bk.cols.length / Math.ceil(bk.cols.length / cm));
-      return chunk(bk.cols.map((c, i) => i), n).map(ix => ({ cols: ix.map(i => bk.cols[i]), rows: bk.rows.map(r => ({ title: r.title, cells: ix.map(i => r.cells[i]) })) })); };
-    const pack = (bks, tw, L) => {   // le righe nelle colonne, dall'alto; null se non ci stanno
-      const lanes = [[]], rh = tw + G; let y = 0;
-      for (const b of bks) {
-        let hd = true;
-        for (const r of b.rows) {
-          if (y + (hd ? (y ? BB : 0) + CH : 0) + rh > Ha) { if (lanes.length === L || CH + rh > Ha) return null; lanes.push([]); y = 0; hd = true; }
+    const G = 3, RA = 3, BB = 5, LG = 8, NF = 7.5, LF = 8;
+    const LW = Math.min(real ? 22 : 26, Math.max(12, ...ch.blocks.flatMap(b => b.rows.flatMap(r => r.title.split(/\s+/).map(w => schTextW(w, LF, false) + 2)))));
+    const nmax = Math.max(...ch.blocks.map(b => b.cols.length));
+    // le righe di ogni gruppo con al massimo nc colori, divise in parti uguali (senza le righe tutte vuote)
+    const lay = nc => ch.blocks.map(bk => { const n = Math.ceil(bk.cols.length / Math.ceil(bk.cols.length / nc));
+      return { one: bk.cols.length <= n, all: bk.cols.map(c => ({ c, e: 1 })),
+        rows: bk.rows.map(r => ({ r, lines: chunk(bk.cols.map((c, i) => ({ c, e: r.cells[i] })), n).filter(l => l.some(x => x.e)) })).filter(q => q.lines.length) }; });
+    const nh = (l, w) => l.some(x => x.e && schTextW(x.c.name, NF, false) > w - 0.6) ? 8 : 5;   // i nomi: una riga o due
+    const pack = (bl, tw, L, cw = tw) => {   // dall'alto, nelle colonne (riquadri larghi cw); null se non ci sta
+      const lanes = [[]]; let y = 0;
+      for (const b of bl) {
+        let first = true;
+        for (const { r, lines } of b.rows) for (let li = 0; li < lines.length; li++) {
+          const l = lines[li], names = b.one ? b.all : l;
+          let sp = !y ? 0 : first ? BB : !b.one && !li ? RA : 0, nm = !b.one || first ? nh(names, cw) : 0, lab = !li;
+          if (y + sp + nm + tw + G > Ha) {
+            if (lanes.length === L) return null;
+            lanes.push([]); y = 0; sp = 0; nm = nh(names, cw); lab = true;   // nella colonna nuova si ripetono i nomi
+            if (nm + tw + G > Ha) return null;
+          }
           const cur = lanes[lanes.length - 1];
-          if (hd) { if (cur.length) { cur.push({}); y += BB; } cur.push({ b }); y += CH; hd = false; }
-          cur.push({ b, r }); y += rh;
+          if (sp) cur.push({ sp });
+          if (nm) cur.push({ names, h: nm });
+          cur.push({ l, t: lab ? r.title : '' });
+          y += sp + nm + tw + G; first = false;
         }
       }
       return lanes;
     };
     let best = null;
-    for (let L = 1; L <= 2; L++) for (let cm = 2; cm <= (real ? 8 : 12); cm++) {
-      const bks = ch.blocks.flatMap(bk => split(bk, cm)), nc = Math.max(...bks.map(b => b.cols.length)), lw = (Wa - (L - 1) * LG) / L;
-      let lo = 13, hi = Math.min(TWMAX, (lw - LW - nc * G) / nc);
-      if (hi < lo || !pack(bks, lo, L)) continue;
-      if (pack(bks, hi, L)) lo = hi; else for (let k = 0; k < 16; k++) { const mid = (lo + hi) / 2; if (pack(bks, mid, L)) lo = mid; else hi = mid; }
-      if (!best || lo > best.tw + 0.5) best = { tw: lo, L, bks, nc, lw };
+    for (let L = 1; L <= 2; L++) for (let k = 1; k <= nmax; k++) {
+      const nc = Math.ceil(nmax / k); if (k > 1 && Math.ceil(nmax / (k - 1)) === nc) continue;
+      const lw = (Wa - (L - 1) * LG) / L, bl = lay(nc);
+      let lo = 13, hi = (lw - LW - nc * G) / nc;
+      if (hi < lo || !pack(bl, lo, L)) continue;
+      if (pack(bl, hi, L)) lo = hi; else for (let j = 0; j < 16; j++) { const mid = (lo + hi) / 2; if (pack(bl, mid, L)) lo = mid; else hi = mid; }
+      const sc = lo * 0.92 ** (k - 1) * (L > 1 ? 0.88 : 1);   // meglio una riga per gruppo e una colonna sola, se i riquadri non perdono molto
+      if (!best || sc > best.sc) best = { sc, tw: lo, L, bl, lw };
     }
     if (!best) return null;
-    const { tw, L, bks, nc, lw } = best, m = met(tw), cs = `grid-template-columns:${LW}mm repeat(${nc},${f2(tw)});column-gap:${G}mm`;
-    const part = it => !it.b ? `<div style="height:${BB}mm;flex:none"></div>`
-      : !it.r ? `<div class="ds-ch" style="${cs};height:${CH}mm"><div></div>${it.b.cols.map(c => `<div>${esc(c.name)}</div>`).join('')}</div>`
-      : `<div class="ds-cr${m.big ? ' big' : ''}" style="${cs};height:${f2(tw + G)};--tw:${f2(tw)}"><div class="l">${esc(it.r.title)}</div>${it.r.cells.map(e => e ? tile(g, e, m, true) : '<div class="ds-ce"></div>').join('')}</div>`;
-    const lanes = pack(bks, tw, L);
+    const { tw, L, bl, lw } = best, m = met(tw), nc = Math.max(...bl.flatMap(b => b.rows.flatMap(q => q.lines.map(l => l.length))));
+    const cw = Math.max(tw, Math.min(2 * tw, (lw - LW - nc * G) / nc)), cs = n => `grid-template-columns:${LW.toFixed(1)}mm repeat(${n},${f2(cw)});column-gap:${G}mm`;
+    const part = it => it.sp ? `<div style="height:${it.sp}mm;flex:none"></div>`
+      : it.names ? `<div class="ds-ch" style="${cs(it.names.length)};height:${it.h}mm"><div></div>${it.names.map(x => `<div>${x.e ? esc(x.c.name) : ''}</div>`).join('')}</div>`
+      : `<div class="ds-cr${m.big ? ' big' : ''}" style="${cs(it.l.length)};height:${f2(tw + G)};--tw:${f2(tw)}"><div class="l" style="font-size:${LF}pt">${esc(it.t)}</div>${it.l.map(x => x.e ? tile(g, x.e, { ...m, tw: cw }, true) : '<div class="ds-ce"></div>').join('')}</div>`;
+    const lanes = pack(bl, tw, L, cw);
     return lanes.length < 2 ? lanes[0].map(part).join('')
       : `<div class="ds-lanes" style="gap:${LG}mm">${lanes.map(l => `<div style="width:${f2(lw)}">${l.map(part).join('')}</div>`).join('')}</div>`;
   };
