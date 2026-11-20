@@ -213,6 +213,14 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 #schPrint .big .dp-t .es { font-size: 6pt; padding: 1.1mm 0 1mm; }
 #schPrint .big .dp-t .fr { border-width: 1mm; }
 .sch-wait { position: fixed; inset: 0; z-index: 600; background: rgba(10,10,12,.82); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 15px; }
+/* anteprima del PDF sul computer, prima di scaricarlo */
+.pdf-prev { position: fixed; inset: 0; z-index: 700; background: rgba(10,10,12,.82); display: flex; padding: 24px; }
+.pdf-prev-box { flex: 1; display: flex; flex-direction: column; background: #fff; border-radius: 14px; overflow: hidden; max-width: 1280px; margin: 0 auto; }
+.pdf-prev-top { display: flex; align-items: center; gap: 8px; padding: 12px 14px 12px 20px; border-bottom: 1px solid #e7e4dd; }
+.pdf-prev-top .t { flex: 1; min-width: 0; display: flex; flex-direction: column; font-family: var(--font-body); }
+.pdf-prev-top .t b { font: 700 17px var(--font-display); color: #1a1a1c; }
+.pdf-prev-top .t span { font-size: 12.5px; color: #777; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pdf-prev iframe { flex: 1; width: 100%; border: 0; background: #525659; }
 </style>`);
 
 /* due render dell'espositore da due angolazioni (davanti-sinistra e davanti-destra), con luce e ombre.
@@ -1054,12 +1062,33 @@ async function schMakePDF(el, real, name, wait, title, px) {
   wait.remove();
   return schDeliver(pdf, name, title);
 }
-/* il PDF fatto: sul computer si scarica, sul telefono si condivide (Salva su File, WhatsApp…) con un tocco */
+/* il PDF fatto: sul computer prima l'anteprima (si sfoglia, poi Scarica), sul telefono si condivide (Salva su File, WhatsApp…)
+   con un tocco */
 function schDeliver(pdf, name, title) {
+  pdf.setProperties({ title: name.replace(/\.pdf$/i, '') });   // nell'anteprima si legge il nome, non il codice del file
   const blob = pdf.output('blob'), url = URL.createObjectURL(blob);
   const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
   const download = () => { const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove(); };
-  if (!mobile) { download(); toast('PDF scaricato: ' + name); return true; }
+  if (!mobile) {
+    const o = document.createElement('div');
+    o.className = 'pdf-prev';
+    o.innerHTML = `<div class="pdf-prev-box"><div class="pdf-prev-top"><div class="t"><b>${esc(title)}</b><span>${esc(name)}</span></div>
+        <button class="btn red" data-a="dl"><svg class="ic"><use href="#i-download"/></svg> Scarica PDF</button>
+        <button class="btn" data-a="tab">Apri in una scheda</button>
+        <button class="btn" data-a="x" title="Chiudi (Esc)"><svg class="ic"><use href="#i-x"/></svg> Chiudi</button></div>
+      <iframe src="${url}#view=FitH" title="Anteprima del PDF"></iframe></div>`;
+    const close = () => { o.remove(); document.removeEventListener('keydown', key); setTimeout(() => URL.revokeObjectURL(url), 60000); };
+    const key = e => { if (e.key === 'Escape') close(); };
+    o.onclick = e => {
+      const a = e.target === o ? 'x' : (e.target.closest('[data-a]') || {}).dataset?.a;
+      if (a === 'dl') { download(); toast('PDF scaricato: ' + name); close(); }
+      else if (a === 'tab') window.open(url, '_blank') || download();
+      else if (a === 'x') close();
+    };
+    document.addEventListener('keydown', key);
+    document.body.appendChild(o);
+    return true;
+  }
   // telefono: condividi (Salva su File, WhatsApp…) con un tocco
   const file = new File([blob], name, { type: 'application/pdf' });
   const o = document.createElement('div');
