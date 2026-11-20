@@ -163,7 +163,7 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 #schPrint .dp-bar { display: block; height: 1.6mm; border-radius: .8mm; background: #ebe7df; overflow: hidden; flex: none; }
 #schPrint .dp-bar i { display: block; height: 100%; background: #b0101a; border-radius: .8mm; }
 /* le serie complete come la pagina della collezione sul sito Emilgroup: il nome con «By marchio», «Formati e colori» con i formati
-   per spessore in etichette grigie, poi i gruppi (fondo, varianti, decori) con i riquadri quadrati e il nome sotto */
+   per spessore in etichette grigie, poi la cartella colori (o i gruppi con i riquadri quadrati e il nome sotto) */
 #schPrint .ds-h { display: flex; align-items: flex-end; justify-content: space-between; gap: 6mm; flex: none; box-sizing: border-box; padding-bottom: 2mm; overflow: hidden; }
 #schPrint .ds-h h1 { font: 400 21pt/1.05 Inter, Arial; letter-spacing: -.01em; margin: 0; white-space: nowrap; color: #18181b; }
 #schPrint .ds-h h1 small { font-size: 8pt; color: #8a857c; margin-left: 2mm; }
@@ -186,7 +186,17 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 #schPrint .ds-gh { flex: none; display: flex; align-items: flex-end; gap: 2.4mm; box-sizing: border-box; padding-bottom: 2mm; font: 400 11pt Inter, Arial; color: #18181b; white-space: nowrap; overflow: hidden; }
 #schPrint .ds-gh span { font: 700 7pt Inter, Arial; color: #b0101a; padding-bottom: .3mm; }
 #schPrint .ds-gh span.z { color: #a39d92; font-weight: 400; }
-#schPrint .ds-sep { flex: none; box-sizing: border-box; border-top: .3mm solid #d6d1c7; }
+#schPrint .ds-gt { box-sizing: border-box; display: flex; align-items: flex-end; gap: 1.6mm; height: 100%; padding-bottom: 1.4mm; font: 400 8.5pt Inter, Arial; color: #18181b; overflow: hidden; white-space: nowrap; min-width: 0; }
+#schPrint .ds-gt span { font: 700 6.5pt Inter, Arial; color: #b0101a; }
+#schPrint .ds-gt span.z { color: #a39d92; font-weight: 400; }
+/* cartella colori: i nomi dei colori in cima alle colonne, il nome del gruppo a sinistra della riga */
+#schPrint .ds-ch { display: grid; flex: none; align-items: end; overflow: hidden; }
+#schPrint .ds-ch > div { font: 400 7.5pt/1.15 Inter, Arial; color: #18181b; padding-bottom: 1.2mm; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+#schPrint .ds-cr { display: grid; flex: none; align-items: start; overflow: hidden; }
+#schPrint .ds-cr .l { align-self: center; font: 400 8pt/1.2 Inter, Arial; color: #18181b; padding-right: 1mm; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+#schPrint .ds-ce { height: var(--tw); background: #f7f6f3; }
+#schPrint .ds-lanes { display: flex; flex: none; align-items: flex-start; }
+#schPrint .ds-lanes > div { display: flex; flex-direction: column; flex: none; }
 #schPrint .dp-row { display: grid; flex: none; box-sizing: border-box; align-content: start; overflow: hidden; }
 #schPrint .dp-t { min-width: 0; }
 #schPrint .dp-t .im { position: relative; height: var(--tw); overflow: hidden; background: #e6e1d8; }
@@ -198,7 +208,11 @@ document.head.insertAdjacentHTML('beforeend', `<style>
 #schPrint .dp-t .nf { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font: 400 6pt Inter, Arial; color: #a39d92; text-align: center; }
 #schPrint .dp-t .nm { margin-top: 1.4mm; font: 400 7.2pt/1.2 Inter, Arial; color: #6b6b6b; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 #schPrint .dp-t.on .nm { color: #18181b; font-weight: 700; }
-#schPrint .dp-t .zz { font: 700 6pt/1.25 Inter, Arial; color: #b0101a; white-space: nowrap; overflow: hidden; }
+#schPrint .dp-t .zz { margin-top: .3mm; font: 400 6pt/1.3 Inter, Arial; color: #8a857c; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+#schPrint .dp-t .zz b { color: #b0101a; font-weight: 700; }
+#schPrint .dp-t .es { white-space: nowrap; overflow: hidden; }
+#schPrint .big .dp-t .es { font-size: 6pt; padding: 1.1mm 0 1mm; }
+#schPrint .big .dp-t .fr { border-width: 1mm; }
 .sch-wait { position: fixed; inset: 0; z-index: 600; background: rgba(10,10,12,.82); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 15px; }
 </style>`);
 
@@ -682,17 +696,29 @@ function schDeepPages(list, real, today, who) {
     y += h;
   });
   flush();
-  // 2) le serie complete, come la pagina della collezione sul sito Emilgroup (senza la presentazione e le foto d'ambiente):
-  //    il nome con «By marchio», «Formati e colori» con i formati divisi per spessore (in rosso quelli esposti), poi ogni gruppo
-  //    (fondo, varianti, decori) col suo nome e i riquadri quadrati in righe da NC, il nome del colore sotto; gli esposti con
-  //    la cornice rossa, «ESPOSTO» e i formati esposti, gli altri un po' più chiari. Una serie va sotto la precedente se ci sta
-  //    tutta, o se la pagina è piena meno della metà (e continua nella pagina dopo); se no comincia una pagina nuova
-  const NC = real ? 7 : 10, G = 3, tw = (W - (NC - 1) * G) / NC, RH = tw + 13.6, ST = 19, FT = 9, GH = 9, GA = 3, CT = 10, SEP = 6;
+  // 2) le serie complete: una pagina per serie, in alto come la pagina della collezione sul sito Emilgroup (il nome con
+  //    «By marchio», «Formati e colori» per spessore), sotto la cartella colori come nei cataloghi: i colori in colonna, i gruppi
+  //    (fondo, varianti, decori) in riga. Le serie con un gruppo solo (o che nella cartella non ci stanno) hanno i gruppi uno
+  //    sotto l'altro, con i riquadri più grandi con cui tutta la serie ci sta: pochi colori = foto grandi col nome e tutti i
+  //    formati del colore sotto, tanti colori = riquadri più piccoli, i gruppi corti affiancati.
+  //    In rosso quello che è esposto: i formati, la cornice e «ESPOSTO» (nella cartella i formati esposti); gli altri più chiari
+  const Hc = H - HD, ST = 19, FT = 9, GH = 9, GA = 4, GT = 6, CT = 10, TWMAX = real ? 64 : 56;
   const BF = 7.5, BH = 5.6, BG = 1.5, TT = 7, TG = 5, IG = 10;   // formati: carattere, altezza e distanza delle etichette, come nel CSS
-  const tile = (g, e) => {
-    const o = g.own.get(schNid(e.id)), x = o && hasPhoto(o.s) ? o.s : e.ph, u = x && glPhoto(x);
-    return `<div class="dp-t${o ? ' on' : ''}"><div class="im${u ? '' : ' np'}">${u ? `<span class="ph" data-px="300" data-hi="${esc(u)}" style="background-image:url('${esc(u)}')"></span>` : '<span class="nf">senza foto</span>'}${o ? '<i class="fr"></i><b class="es">ESPOSTO</b>' : '<i class="vl"></i>'}</div>
-      <div class="nm">${esc(e.name)}</div>${o ? `<div class="zz">${esc([...o.zs].join(' · '))}</div>` : ''}</div>`;
+  const f2 = x => x.toFixed(2) + 'mm', chunk = (a, n) => { const o = []; for (let i = 0; i < a.length; i += n) o.push(a.slice(i, i + n)); return o; };
+  // misure del riquadro di lato tw, con sotto il nome e i formati (righe e caratteri come nel CSS)
+  const met = tw => {
+    const big = tw >= 36, nf = tw >= 48 ? 9.5 : big ? 8.5 : tw >= 26 ? 7.8 : 7.2, nl = big ? 1 : 2, ff = big ? 7 : 6, fl = big ? 2 : 1;
+    return { tw, big, nf, nl, ff, fl, rh: tw + 1.4 + nl * nf * 0.3528 * 1.2 + fl * ff * 0.3528 * 1.3 + (big ? 5 : 3.5) };
+  };
+  // riquadro del colore: con i riquadri grandi sotto ci sono tutti i formati del colore (in rosso gli esposti), se no solo gli
+  // esposti; cell = nella cartella colori (il nome è in cima alla colonna, i formati esposti nella fascia rossa)
+  const tile = (g, e, m, cell) => {
+    const o = g.own.get(schNid(e.id)), x = o && hasPhoto(o.s) ? o.s : e.ph, u = x && glPhoto(x), ez = o ? [...o.zs] : [];
+    let zz = '';
+    if (m.big) { const zs = [...new Set((e.list || []).map(s => s.z))].sort(srBySize).map(fmt); ez.forEach(z => { if (!zs.includes(z)) zs.push(z); }); zz = zs.map(z => ez.includes(z) ? `<b>${esc(z)}</b>` : esc(z)).join(' · '); }
+    else if (o) zz = `<b>${esc(ez.join(' · '))}</b>`;
+    const im = `<div class="im${u ? '' : ' np'}">${u ? `<span class="ph" data-px="${Math.round(Math.max(300, m.tw * 10))}" data-hi="${esc(u)}" style="background-image:url('${esc(u)}')"></span>` : '<span class="nf">senza foto</span>'}${o ? `<i class="fr"></i><b class="es">${cell && ez.length ? esc(ez.join(' · ')) : 'ESPOSTO'}</b>` : '<i class="vl"></i>'}</div>`;
+    return `<div class="dp-t${o ? ' on' : ''}">${im}${cell ? '' : `<div class="nm" style="font-size:${m.nf}pt;-webkit-line-clamp:${m.nl}">${esc(e.name)}</div>${zz ? `<div class="zz" style="font-size:${m.ff}pt;-webkit-line-clamp:${m.fl}">${zz}</div>` : ''}`}</div>`;
   };
   // formati della serie per spessore (quelli senza spessore per ultimi), con anche quelli esposti
   const tzOf = g => {
@@ -701,55 +727,128 @@ function schDeepPages(list, real, today, who) {
     g.tz.forEach(k => { const i = k.indexOf('|'); add(k.slice(0, i), k.slice(i + 1)); });
     return [...m].sort((a, b) => !a[0] - !b[0] || srByNum(a[0], b[0])).map(([t, zs]) => ({ t, zs: [...zs].sort(srBySize) }));
   };
-  // titolo della serie e «Formati e colori»: gli spessori in colonne, le etichette vanno a capo nella colonna
+  // uno spessore: il titolo e le etichette dei formati, che vanno a capo nella larghezza iw
+  const badges = (g, t, zs, iw, many) => {
+    const ls = [[]]; let x = 0;
+    zs.forEach(z => {
+      const on = g.tz.has(t + '|' + z), l = fmt(z) + ' cm', w = Math.min(iw, schTextW(l, BF, on) + 5.4);
+      if (x && x + BG + w > iw) { ls.push([]); x = 0; }
+      x += (x ? BG : 0) + w; ls[ls.length - 1].push({ l, on, w });
+    });
+    return { h: TT + ls.length * BH + (ls.length - 1) * BG,
+      html: `<div class="ds-ti"><div class="t">${t ? `<i class="ds-ic"><i></i></i>${esc(t)} mm` : many ? 'Altri formati' : 'Formati'}</div>${ls.map(l =>
+        `<div class="ds-ln">${l.map(b => `<span class="ds-bd${b.on ? ' on' : ''}" style="width:${f2(b.w)}">${esc(b.l)}</span>`).join('')}</div>`).join('')}</div>` };
+  };
+  const exp = (g, w) => `<div><b>${g.nOwn}</b> di ${g.tot} ${g.tot === 1 ? 'colore esposto' : 'colori esposti'}</div>${bar(w, g.nOwn, g.tot)}`;
+  // in alto (A e C): il nome della serie e «Formati e colori» con gli spessori in colonne
   const head = g => {
     const ts = tzOf(g), cols = Math.max(1, Math.min(ts.length, real ? 3 : 4)), iw = (W - (cols - 1) * IG) / cols;
-    const items = ts.map(({ t, zs }) => {
-      const ls = [[]]; let x = 0;
-      zs.forEach(z => {
-        const on = g.tz.has(t + '|' + z), l = fmt(z) + ' cm', w = Math.min(iw, schTextW(l, BF, on) + 5.4);
-        if (x && x + BG + w > iw) { ls.push([]); x = 0; }
-        x += (x ? BG : 0) + w; ls[ls.length - 1].push({ l, on, w });
-      });
-      return { h: TT + ls.length * BH + (ls.length - 1) * BG,
-        html: `<div class="ds-ti"><div class="t">${t ? `<i class="ds-ic"><i></i></i>${esc(t)} mm` : ts.length > 1 ? 'Altri formati' : 'Formati'}</div>${ls.map(l =>
-          `<div class="ds-ln">${l.map(b => `<span class="ds-bd${b.on ? ' on' : ''}" style="width:${b.w.toFixed(2)}mm">${esc(b.l)}</span>`).join('')}</div>`).join('')}</div>` };
-    });
+    const items = ts.map(({ t, zs }) => badges(g, t, zs, iw, ts.length > 1));
     let h = ST + FT, html = `<div class="ds-h" style="height:${ST}mm"><div style="min-width:0"><h1>${esc(glTitle(g.s))}</h1><div class="by">By ${esc(g.b)}</div></div>
-      <div class="r"><div><b>${g.nOwn}</b> di ${g.tot} ${g.tot === 1 ? 'colore esposto' : 'colori esposti'}</div>${bar(34, g.nOwn, g.tot)}</div></div>
-      <div class="ds-ft" style="height:${FT}mm">${ts.length ? 'Formati e colori' : 'Colori'}</div>`;
-    for (let i = 0; i < items.length; i += cols) {
-      const r = items.slice(i, i + cols), rh = Math.max(...r.map(o => o.h));
-      html += `<div class="ds-tz" style="grid-template-columns:repeat(${cols},${iw.toFixed(2)}mm);column-gap:${IG}mm;height:${rh.toFixed(2)}mm;margin-bottom:${TG}mm">${r.map(o => o.html).join('')}</div>`;
+      <div class="r">${exp(g, 34)}</div></div><div class="ds-ft" style="height:${FT}mm">${ts.length ? 'Formati e colori' : 'Colori'}</div>`;
+    chunk(items, cols).forEach(r => {
+      const rh = Math.max(...r.map(o => o.h));
+      html += `<div class="ds-tz" style="grid-template-columns:repeat(${cols},${f2(iw)});column-gap:${IG}mm;height:${f2(rh)};margin-bottom:${TG}mm">${r.map(o => o.html).join('')}</div>`;
       h += rh + TG;
-    }
+    });
     return { h, html };
   };
   const gh = (gr, more) => `<div class="ds-gh" style="height:${GH}mm">${esc(gr.title)}<span class="${more || !gr.nOwn ? 'z' : ''}">${more ? 'segue' : `${gr.nOwn} di ${gr.cols.length} ${gr.cols.length === 1 ? 'esposto' : 'esposti'}`}</span></div>`;
   const cont = g => `<div class="ds-h" style="height:${CT}mm"><h1 style="font-size:13pt">${esc(glTitle(g.s))}<small>segue</small></h1></div>`;
-  const row = (g, cols) => `<div class="dp-row" style="grid-template-columns:repeat(${NC},${tw.toFixed(2)}mm);column-gap:${G}mm;height:${RH.toFixed(2)}mm;--tw:${tw.toFixed(2)}mm">${cols.map(e => tile(g, e)).join('')}</div>`;
-  let blocks = '', yy = HD, nOn = 0;
-  const flush2 = () => { out.push(page('Le serie complete <span>tutti i colori di ogni serie · in rosso i colori e i formati esposti</span>', blocks)); blocks = ''; yy = HD; nOn = 0; };
-  const put = (html, h) => { blocks += html; yy += h; };
-  const more = g => { flush2(); put(cont(g), CT); nOn = 1; };
-  D.forEach(g => {
-    const hd = head(g), parts = g.grs.map(gr => { const rs = []; for (let i = 0; i < gr.cols.length; i += NC) rs.push(gr.cols.slice(i, i + NC)); return { gr, rs }; });
-    const all = hd.h + parts.reduce((a, p) => a + GH + p.rs.length * RH + GA, 0);
-    const first = parts.length ? GH + RH : 0;
-    if (nOn && yy + SEP + all > H && (yy > HD + (H - HD) / 2 || yy + SEP + hd.h + first > H)) flush2();
-    if (nOn) put(`<div class="ds-sep" style="height:${SEP}mm"></div>`, SEP);
-    put(hd.html, hd.h); nOn++;
-    parts.forEach(p => {
-      if (yy + GH + RH > H) more(g);   // il nome del gruppo non resta da solo in fondo alla pagina
-      put(gh(p.gr), GH);
-      p.rs.forEach(r => {
-        if (yy + RH > H) { more(g); put(gh(p.gr, true), GH); }
-        put(row(g, r), RH);
-      });
-      if (yy + GA <= H) put(`<div style="height:${GA}mm;flex:none"></div>`, GA);
+  // gruppi affiancati nella stessa riga (un posto vuoto in mezzo): un gruppo che sta in una riga non si spezza, uno più lungo
+  // comincia a inizio riga e continua sotto; nella fascia sopra la riga i nomi dei gruppi che cominciano lì
+  const flowRows = (grs, nc) => {
+    const rows = []; let cur = [], pos = 0;
+    const next = () => { if (cur.length) rows.push(cur); cur = []; pos = 0; };
+    grs.forEach(gr => {
+      if (pos && pos + 1 + Math.min(gr.cols.length, nc) > nc) next(); else if (pos) pos++;
+      for (let i = 0; i < gr.cols.length;) {
+        const n = Math.min(nc - pos, gr.cols.length - i);
+        cur.push({ gr, cols: gr.cols.slice(i, i + n), at: pos, first: i === 0 }); pos += n; i += n;
+        if (pos >= nc) next();
+      }
     });
+    next();
+    return rows;
+  };
+  const hasStrip = r => r.some(p => p.first);
+  // i gruppi nello spazio Wa × Ha: per ogni numero di colonne, uno sotto l'altro (S) o affiancati col nome sopra (F).
+  // Vince il riquadro più grande; un po' penalizzati i gruppi che finiscono con una riga quasi vuota e quelli affiancati
+  const fit = (grs, Wa, Ha) => {
+    let best = null; const multi = grs.length > 1;
+    for (let nc = 2; nc <= 16; nc++) {
+      let G = 5, tw = (Wa - (nc - 1) * G) / nc; if (tw < 36) { G = 3; tw = (Wa - (nc - 1) * G) / nc; }
+      if (tw < 13) break;
+      const m = met(Math.min(TWMAX, tw)), take = (h, sc, mode, rows) => { if (h <= Ha && (!best || sc > best.sc + 0.01)) best = { sc, mode, nc, G, m, rows }; };
+      const rs = grs.map(gr => Math.ceil(gr.cols.length / nc)), orph = grs.filter((gr, i) => rs[i] > 1 && gr.cols.length % nc && gr.cols.length % nc < nc / 2).length;
+      take(rs.reduce((a, r) => a + (multi ? GH : 0) + r * m.rh, 0) + (grs.length - 1) * GA, m.tw * (1 - 0.3 * orph / grs.length), 'S');
+      if (multi) {
+        const rows = flowRows(grs, nc), sparse = rows.filter(r => !hasStrip(r) && r.reduce((a, p) => a + p.cols.length, 0) < nc / 2).length;
+        take(rows.reduce((a, r) => a + (hasStrip(r) ? GT : 0) + m.rh, 0), m.tw * 0.93 * (1 - 0.3 * sparse), 'F', rows);
+      }
+    }
+    return best;
+  };
+  const grid = (L, h) => `grid-template-columns:repeat(${L.nc},${f2(L.m.tw)});column-gap:${L.G}mm;height:${f2(h)};--tw:${f2(L.m.tw)}`;
+  const tiles = (g, L, cols) => `<div class="dp-row${L.m.big ? ' big' : ''}" style="${grid(L, L.m.rh)}">${cols.map(e => tile(g, e, L.m)).join('')}</div>`;
+  const groupsHTML = (g, L) => L.mode === 'F'
+    ? L.rows.map(r => (hasStrip(r) ? `<div class="dp-row" style="${grid(L, GT)}">${r.filter(p => p.first).map(p => `<div class="ds-gt" style="grid-column:${p.at + 1} / span ${p.cols.length}">${esc(p.gr.title)}<span${p.gr.nOwn ? '' : ' class="z"'}>${p.gr.nOwn}/${p.gr.cols.length}</span></div>`).join('')}</div>` : '')
+      + `<div class="dp-row${L.m.big ? ' big' : ''}" style="${grid(L, L.m.rh)}">${r.map(p => p.cols.map((e, j) => `<div style="grid-column:${p.at + j + 1}">${tile(g, e, L.m)}</div>`).join('')).join('')}</div>`).join('')
+    : g.grs.map((gr, i) => (i ? `<div style="height:${GA}mm;flex:none"></div>` : '') + (g.grs.length > 1 ? gh(gr) : '') + chunk(gr.cols, L.nc).map(c => tiles(g, L, c)).join('')).join('');
+  // cartella colori: i colori di un blocco in colonna (divisi in parti uguali se sono troppi per una riga), una riga per gruppo
+  // col nome a sinistra. Con poca altezza i blocchi vanno in due colonne affiancate (il blocco che continua ripete i nomi dei
+  // colori). Si prova ogni combinazione e vince quella con i riquadri più grandi; un gruppo solo: meglio i riquadri grandi di A
+  const chart = (g, Wa, Ha) => {
+    const ch = srChart(g.grs); if (!ch || ch.blocks.every(b => b.rows.length < 2)) return null;
+    const LW = real ? 24 : 30, CH = 8, BB = 5, G = 3, LG = 8;
+    const split = (bk, cm) => { const n = Math.ceil(bk.cols.length / Math.ceil(bk.cols.length / cm));
+      return chunk(bk.cols.map((c, i) => i), n).map(ix => ({ cols: ix.map(i => bk.cols[i]), rows: bk.rows.map(r => ({ title: r.title, cells: ix.map(i => r.cells[i]) })) })); };
+    const pack = (bks, tw, L) => {   // le righe nelle colonne, dall'alto; null se non ci stanno
+      const lanes = [[]], rh = tw + G; let y = 0;
+      for (const b of bks) {
+        let hd = true;
+        for (const r of b.rows) {
+          if (y + (hd ? (y ? BB : 0) + CH : 0) + rh > Ha) { if (lanes.length === L || CH + rh > Ha) return null; lanes.push([]); y = 0; hd = true; }
+          const cur = lanes[lanes.length - 1];
+          if (hd) { if (cur.length) { cur.push({}); y += BB; } cur.push({ b }); y += CH; hd = false; }
+          cur.push({ b, r }); y += rh;
+        }
+      }
+      return lanes;
+    };
+    let best = null;
+    for (let L = 1; L <= 2; L++) for (let cm = 2; cm <= (real ? 8 : 12); cm++) {
+      const bks = ch.blocks.flatMap(bk => split(bk, cm)), nc = Math.max(...bks.map(b => b.cols.length)), lw = (Wa - (L - 1) * LG) / L;
+      let lo = 13, hi = Math.min(TWMAX, (lw - LW - nc * G) / nc);
+      if (hi < lo || !pack(bks, lo, L)) continue;
+      if (pack(bks, hi, L)) lo = hi; else for (let k = 0; k < 16; k++) { const mid = (lo + hi) / 2; if (pack(bks, mid, L)) lo = mid; else hi = mid; }
+      if (!best || lo > best.tw + 0.5) best = { tw: lo, L, bks, nc, lw };
+    }
+    if (!best) return null;
+    const { tw, L, bks, nc, lw } = best, m = met(tw), cs = `grid-template-columns:${LW}mm repeat(${nc},${f2(tw)});column-gap:${G}mm`;
+    const part = it => !it.b ? `<div style="height:${BB}mm;flex:none"></div>`
+      : !it.r ? `<div class="ds-ch" style="${cs};height:${CH}mm"><div></div>${it.b.cols.map(c => `<div>${esc(c.name)}</div>`).join('')}</div>`
+      : `<div class="ds-cr${m.big ? ' big' : ''}" style="${cs};height:${f2(tw + G)};--tw:${f2(tw)}"><div class="l">${esc(it.r.title)}</div>${it.r.cells.map(e => e ? tile(g, e, m, true) : '<div class="ds-ce"></div>').join('')}</div>`;
+    const lanes = pack(bks, tw, L);
+    return lanes.length < 2 ? lanes[0].map(part).join('')
+      : `<div class="ds-lanes" style="gap:${LG}mm">${lanes.map(l => `<div style="width:${f2(lw)}">${l.map(part).join('')}</div>`).join('')}</div>`;
+  };
+  const ttl = 'Le serie complete <span>tutti i colori di ogni serie · in rosso i colori e i formati esposti</span>';
+  // non ci sta nemmeno con i riquadri piccoli: continua nella pagina dopo
+  const long = (g, hd) => {
+    const nc = real ? 9 : 13, G = 3, L = { nc, G, m: met((W - (nc - 1) * G) / nc), mode: 'S' };
+    let body = hd.html, y = hd.h;
+    const put = (h, s) => { if (y + h > Hc) { out.push(page(ttl, body)); body = cont(g); y = CT; } body += s; y += h; };
+    g.grs.forEach(gr => chunk(gr.cols, nc).forEach((c, j) => put((j ? 0 : GH) + L.m.rh, (j ? '' : gh(gr)) + tiles(g, L, c))));
+    out.push(page(ttl, body));
+  };
+  D.forEach(g => {
+    const hd = head(g), Ha = Hc - hd.h, c = chart(g, W, Ha);
+    if (c) return out.push(page(ttl, hd.html + c));
+    const L = fit(g.grs, W, Ha);
+    if (L) return out.push(page(ttl, hd.html + groupsHTML(g, L)));
+    long(g, hd);
   });
-  if (blocks) flush2();
   return out;
 }
 /* pagine del PDF: un espositore per pagina, tranne quelli che hai unito tu (merged = [[id, id], …]) che vanno insieme
