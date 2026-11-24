@@ -3,6 +3,7 @@
    RICERCA CAMPIONI (#/ricerca) — chi ha un campione: scrivi uno o più codici (anche le righe d'ordine 00XXXX01) oppure
    marca, serie e colore ("mapierre blanc", "pigmento amaranto") e vedi i clienti che lo hanno negli espositori, con i
    formati e le finiture, per colore o per cliente. Tocca il cliente per aprirlo, l'espositore per aprire la composizione.
+   «Tutti i formati»: di quella serie e colore tutti i formati a listino (finitura, spessore, codice) e chi ha ciascuno.
    ════════════════════════════════════════════════════════════ */
 (() => { const v = document.createElement('div'); v.id = 'viewRicerca'; v.className = 'view'; document.body.appendChild(v); })();
 document.head.insertAdjacentHTML('beforeend', `<style>
@@ -38,8 +39,19 @@ body[data-view="ricerca"] #viewRicerca { display: block; }
 .rc-es a { color: var(--mid); cursor: pointer; text-decoration: underline dotted; }
 .rc-es a:hover { color: var(--red); }
 .rc-none { margin-top: 18px; font-size: 13px; color: var(--mid); max-width: 900px; line-height: 1.5; }
+.rc-h .btn { margin-left: auto; flex: none; padding: 6px 10px; font-size: 12.5px; }
+.rc-sum .btn { margin-left: 10px; padding: 6px 10px; font-size: 12.5px; vertical-align: middle; }
+/* tutti i formati di un colore: formato, finitura e spessore, codice; sotto chi li ha */
+.rc-fr { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto; gap: 3px 10px; align-items: baseline; padding: 8px 14px; border-top: 1px solid #f0ede7; font-size: 13px; }
+.rc-fr b { font-size: 13.5px; }
+.rc-fr code { font: 700 12.5px ui-monospace, Menlo, Consolas, monospace; color: #1d1d20; text-align: right; }
+.rc-fr .cl { grid-column: 1 / -1; font-size: 12px; color: var(--mid); }
+.rc-fr .cl a { color: #1d1d20; font-weight: 600; cursor: pointer; }
+.rc-fr .cl a:hover { color: var(--red); }
+.rc-fr.hit { background: #fff4f2; box-shadow: inset 3px 0 0 var(--red); }
+.rc-fr.hit code { color: var(--red); }
 .rc-none b { color: #1d1d20; }
-@media (max-width: 560px) { .rc-list { grid-template-columns: minmax(0, 1fr); } .rc-top input { flex-basis: 100%; } }
+@media (max-width: 560px) { .rc-list { grid-template-columns: minmax(0, 1fr); } .rc-top input { flex-basis: 100%; } .rc-fr { grid-template-columns: 74px minmax(0, 1fr) auto; } }
 </style>`);
 
 let rcQ = '', rcBy = 'colore', rcT = null;
@@ -82,9 +94,11 @@ function renderRicerca() {
   v.innerHTML = `<div class="vwrap">
     <div class="vhead"><button class="btn" onclick="go('#/')"><svg class="ic"><use href="#i-left"/></svg> Clienti</button><h2>Ricerca campioni</h2></div>
     <div class="rc-intro">Scrivi un codice (anche più codici, o la riga d'ordine 00XXXX01) oppure la serie e il colore: vedi i clienti che hanno
-      quel campione negli espositori, con i formati e le finiture. Tocca il cliente per aprirlo o l'espositore per aprire la composizione.</div>
+      quel campione negli espositori, con i formati e le finiture. Tocca il cliente per aprirlo o l'espositore per aprire la composizione.
+      Con <b>Tutti i formati</b> vedi di quella serie e colore tutti i formati a listino, con finitura, spessore, codice e chi li ha.</div>
     <div class="rc-top"><input id="rcIn" type="search" placeholder="es. ENM5  ·  Mapierre Blanc  ·  Pigmento Amaranto" value="${esc(rcQ)}" autocomplete="off">
-      <div class="rc-seg"><button data-by="colore"${rcBy === 'colore' ? ' class="on"' : ''}>Per colore</button><button data-by="cliente"${rcBy === 'cliente' ? ' class="on"' : ''}>Per cliente</button></div></div>
+      <div class="rc-seg">${[['colore', 'Per colore'], ['cliente', 'Per cliente'], ['formati', 'Tutti i formati']].map(([k, t]) =>
+        `<button data-by="${k}"${rcBy === k ? ' class="on"' : ''}>${t}</button>`).join('')}</div></div>
     <div id="rcRes"></div></div>`;
   const inp = v.querySelector('#rcIn');
   inp.addEventListener('input', () => { clearTimeout(rcT); rcT = setTimeout(() => { rcQ = inp.value; ui.rcQ = rcQ; saveUI(); rcResults(); }, 180); });
@@ -94,6 +108,37 @@ function renderRicerca() {
   });
   rcResults();
   if (!/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) inp.focus();
+}
+/* «Tutti i formati» (dal riquadro di un colore: si va subito a quel colore) */
+function rcGoFmt(k) {
+  rcBy = 'formati'; ui.rcBy = rcBy; saveUI();
+  document.querySelectorAll('.rc-seg button').forEach(x => x.classList.toggle('on', x.dataset.by === rcBy));
+  rcResults();
+  const c = k && [...document.querySelectorAll('#rcRes .rc-card')].find(x => x.dataset.k === k);
+  if (c) c.scrollIntoView({ block: 'start', behavior: 'smooth' });
+}
+/* chi ha quel formato (o il colore in tozzetto) */
+const rcWho = hs => { const cl = [...new Map(hs.map(h => [h.cl.id, h.cl])).values()].sort((a, b) => a.name.localeCompare(b.name));
+  return `<div class="cl">${cl.length ? `Ce l'${cl.length === 1 ? 'ha' : 'hanno'}: ${cl.map(c => `<a onclick="go('#/cliente/${c.id}')">${esc(c.name)}</a>`).join(', ')}` : 'Nessun cliente'}</div>`; };
+/* tutti i formati a listino dei colori trovati (finitura, spessore, codice), con i clienti che hanno ciascuno; in rosso il codice cercato */
+function rcFormats(m, cols, what) {
+  const rows = new Map(), MAX = 60;
+  expandFin(SAMPLES).forEach(s => { const k = rcCol(s); if (cols.has(k)) rows.set(k, [...(rows.get(k) || []), s]); });
+  const fh = rcHits({ test: s => cols.has(rcCol(s)) });
+  const has = (h, r) => h.s.key === r.key || (!h.s.toz && h.s.z === r.z && (h.s.k || []).some(k => (r.k || []).includes(k)));
+  const list = [...rows].sort((a, b) => rcName(a[1][0]).localeCompare(rcName(b[1][0])));
+  if (!list.length) return `<div class="rc-sum"><b>Nessun formato</b> <span>a listino per ${what}</span></div>`;
+  return `<div class="rc-sum"><b>${list.length} ${list.length === 1 ? 'colore' : 'colori'}</b> <span>· tutti i formati a listino per ${what}</span></div>
+    <div class="rc-list">${list.slice(0, MAX).map(([k, rs]) => {
+      const s0 = rs[0], hs = fh.filter(h => rcCol(h.s) === k), ncl = new Set(hs.map(h => h.cl.id)).size, toz = hs.filter(h => h.s.toz);
+      rs.sort((a, b) => srBySize(a.z, b.z) || String(a.z).localeCompare(String(b.z)) || String((a.f || [])[0] || '').localeCompare(String((b.f || [])[0] || '')));
+      return `<div class="card rc-card" data-k="${esc(k)}"><div class="rc-h" onclick="${rcSerie(s0)}" title="Apri la serie"><i class="sw" style="${swatchStyle(s0)}"></i>
+        <div class="t"><span class="br">${esc(s0.b)}</span><b>${esc(rcName(s0))}</b><span>${rs.length} ${rs.length === 1 ? 'formato' : 'formati'} · ${ncl ? `${ncl} ${ncl === 1 ? 'cliente' : 'clienti'}` : 'nessun cliente'}</span></div></div>
+        ${rs.map(r => { const hit = m.codes && (r.k || []).some(c => m.codes.includes(String(c).toUpperCase()));
+          return `<div class="rc-fr${hit ? ' hit' : ''}"><b>${esc(rcLabel(r))}</b><span>${esc([(r.f || []).join(' / '), (r.t || []).length ? r.t.join(' / ') + ' mm' : ''].filter(Boolean).join(' · '))}</span>
+            <code>${esc((r.k || []).join(' '))}</code>${rcWho(hs.filter(h => has(h, r)))}</div>`; }).join('')}
+        ${toz.length ? `<div class="rc-fr"><b>Tozzetto</b><span></span><code></code>${rcWho(toz)}</div>` : ''}</div>`; }).join('')}</div>
+    ${list.length > MAX ? `<div class="rc-none">E altri ${list.length - MAX} colori: scrivi qualcosa in più per restringere.</div>` : ''}`;
 }
 function rcResults() {
   const el = document.getElementById('rcRes'); if (!el) return;
@@ -106,8 +151,10 @@ function rcResults() {
   const none = [...all.values()].filter(s => !had.has(rcCol(s)));
   const nCl = new Set(hits.map(h => h.cl.id)).size, nEs = new Set(hits.map(h => h.c.id)).size;
   const what = m.codes ? m.codes.join(', ') : `“${esc(rcQ.trim())}”`;
+  if (rcBy === 'formati') { el.innerHTML = rcFormats(m, new Set(all.keys()), what); return; }
   let html = hits.length ? `<div class="rc-sum"><b>${nCl} ${nCl === 1 ? 'cliente' : 'clienti'}</b> <span>· ${nEs} ${nEs === 1 ? 'espositore' : 'espositori'} · ${hits.length} ${hits.length === 1 ? 'campione' : 'campioni'} · ${had.size} ${had.size === 1 ? 'colore' : 'colori'} per ${what}</span></div>`
-    : `<div class="rc-sum"><b>Nessun cliente</b> <span>ha ${all.size ? (all.size === 1 ? 'questo campione' : 'questi campioni') : 'campioni per ' + what}${all.size ? '' : ' (non è nel listino)'}</span></div>`;
+    : `<div class="rc-sum"><b>Nessun cliente</b> <span>ha ${all.size ? (all.size === 1 ? 'questo campione' : 'questi campioni') : 'campioni per ' + what}${all.size ? '' : ' (non è nel listino)'}</span>
+      ${all.size ? `<button class="btn" onclick="rcGoFmt()"><svg class="ic"><use href="#i-tiles"/></svg> Tutti i formati</button>` : ''}</div>`;
   if (rcBy === 'cliente') {
     const by = new Map();
     hits.forEach(h => {
@@ -128,9 +175,10 @@ function rcResults() {
       const o = g.cls.get(h.cl.id) || { cl: h.cl, fm: new Map(), es: new Map() }; g.cls.set(h.cl.id, o); rcAdd(o, h);
     });
     const list = [...by.values()].sort((a, b) => b.cls.size - a.cls.size || rcName(a.s).localeCompare(rcName(b.s)));
-    html += `<div class="rc-list">${list.slice(0, MAX).map(g => `<div class="card rc-card">
+    html += `<div class="rc-list">${list.slice(0, MAX).map(g => `<div class="card rc-card" data-k="${esc(rcCol(g.s))}">
       <div class="rc-h" onclick="${rcSerie(g.s)}" title="Apri la serie"><i class="sw" style="${swatchStyle(g.s)}"></i>
-        <div class="t"><span class="br">${esc(g.s.b)}</span><b>${esc(rcName(g.s))}</b><span>${g.cls.size} ${g.cls.size === 1 ? 'cliente' : 'clienti'}</span></div></div>
+        <div class="t"><span class="br">${esc(g.s.b)}</span><b>${esc(rcName(g.s))}</b><span>${g.cls.size} ${g.cls.size === 1 ? 'cliente' : 'clienti'}</span></div>
+        <button class="btn" onclick="event.stopPropagation(); rcGoFmt(this.closest('.rc-card').dataset.k)" title="Tutti i formati a listino di questo colore, con chi li ha"><svg class="ic"><use href="#i-tiles"/></svg> Tutti i formati</button></div>
       ${[...g.cls.values()].sort((a, b) => a.cl.name.localeCompare(b.cl.name)).map(o => `<div class="rc-row">
         <div class="who"><a onclick="go('#/cliente/${o.cl.id}')">${esc(o.cl.name)}</a>${o.cl.city ? `<span>${esc(o.cl.city)}</span>` : ''}</div>
         ${rcChips(o)}${rcEs(o)}</div>`).join('')}</div>`).join('')}</div>`;
