@@ -50,6 +50,7 @@ function route() {
   if (a === 'culle') { let k = ''; try { k = decodeURIComponent(id || ''); } catch (e) {} document.body.dataset.view = 'culle'; renderCulle(k); return; }
   if (a === 'serie') { let k = ''; try { k = decodeURIComponent(id || ''); } catch (e) {} document.body.dataset.view = 'serie'; renderSerie(k); return; }
   if (a === 'etichette') { document.body.dataset.view = 'etichette'; renderEtichette(); return; }
+  if (a === 'ricerca') { document.body.dataset.view = 'ricerca'; renderRicerca(); return; }
   if (a === 'ambiente' && scenes[id]) { document.body.dataset.view = 'room'; openRoom(id); return; }
   if (a === 'salamostra' && clients[id]) {
     const rooms = showRooms(id), last = (ui.showRoom || {})[id];
@@ -97,7 +98,7 @@ function leaveConfig() {
   if (back && back.startsWith('#/ambiente/') && scenes[back.split('/')[2]]) return go(back);
   if (back && back.startsWith('#/salamostra/') && clients[back.split('/')[2]]) return go(back);
   if (back && back.startsWith('#/pacchetti/') && scenes[back.split('/')[2]]) return go(back);
-  if (back === '#/novita' || back === '#/box' || (back && back.startsWith('#/serie'))) return go(back);
+  if (back === '#/novita' || back === '#/box' || back === '#/ricerca' || (back && back.startsWith('#/serie'))) return go(back);
   go(ctxClient() ? '#/cliente/' + ctxClient() : '#/');
 }
 
@@ -146,6 +147,8 @@ function renderHome() {
         <div class="sub">${Object.keys(novita).length ? `${Object.keys(novita).length} prodotti nuovi non ancora a listino` : 'Prodotti nuovi non ancora a listino: foto, formati e finiture, da campionare'}</div></div>
       <div class="card ccard" onclick="go('#/serie')"><h3><svg class="ic"><use href="#i-tiles"/></svg> Serie</h3>
         <div class="sub">Tutti i colori, le varianti e i decori di ogni serie, con formati, finiture e codici. Anche in PDF.</div></div>
+      <div class="card ccard" onclick="go('#/ricerca')"><h3><svg class="ic"><use href="#i-zoom"/></svg> Ricerca campioni</h3>
+        <div class="sub">Scrivi un codice o la serie e il colore: vedi i clienti che hanno quel campione, in quali espositori e con che formati</div></div>
       <div class="card ccard" onclick="go('#/etichette')"><h3><svg class="ic"><use href="#i-tag"/></svg> Etichette</h3>
         <div class="sub">Le etichette dei campioni 40 × 20 mm col logo del marchio: scrivi i codici e crea il PDF da stampare</div></div>
       <div class="card ccard" onclick="openVersions()"><h3><svg class="ic"><use href="#i-history"/></svg> Versioni salvate</h3>
