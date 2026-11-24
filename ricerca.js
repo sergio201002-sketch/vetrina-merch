@@ -48,7 +48,12 @@ body[data-view="ricerca"] #viewRicerca { display: block; }
 .rc-fr .cl { grid-column: 1 / -1; font-size: 12px; color: var(--mid); }
 .rc-fr .cl a { color: #1d1d20; font-weight: 600; cursor: pointer; }
 .rc-fr .cl a:hover { color: var(--red); }
-.rc-fr.hit { background: #fff4f2; box-shadow: inset 3px 0 0 var(--red); }
+/* formato che qualche cliente ha: riga verde, nomi dei clienti più grandi */
+.rc-fr.own { background: #e6f4ea; box-shadow: inset 3px 0 0 #1f8a4c; }
+.rc-fr.own .cl { font-size: 13px; color: #1f6b3c; margin-top: 2px; }
+.rc-fr.own .cl a { font-size: 15px; font-weight: 800; color: #14532d; }
+.rc-fr.hit { box-shadow: inset 3px 0 0 var(--red); }
+.rc-fr.hit:not(.own) { background: #fff4f2; }
 .rc-fr.hit code { color: var(--red); }
 .rc-none b { color: #1d1d20; }
 @media (max-width: 560px) { .rc-list { grid-template-columns: minmax(0, 1fr); } .rc-top input { flex-basis: 100%; } .rc-fr { grid-template-columns: 74px minmax(0, 1fr) auto; } }
@@ -135,9 +140,10 @@ function rcFormats(m, cols, what) {
       return `<div class="card rc-card" data-k="${esc(k)}"><div class="rc-h" onclick="${rcSerie(s0)}" title="Apri la serie"><i class="sw" style="${swatchStyle(s0)}"></i>
         <div class="t"><span class="br">${esc(s0.b)}</span><b>${esc(rcName(s0))}</b><span>${rs.length} ${rs.length === 1 ? 'formato' : 'formati'} · ${ncl ? `${ncl} ${ncl === 1 ? 'cliente' : 'clienti'}` : 'nessun cliente'}</span></div></div>
         ${rs.map(r => { const hit = m.codes && (r.k || []).some(c => m.codes.includes(String(c).toUpperCase()));
-          return `<div class="rc-fr${hit ? ' hit' : ''}"><b>${esc(rcLabel(r))}</b><span>${esc([(r.f || []).join(' / '), (r.t || []).length ? r.t.join(' / ') + ' mm' : ''].filter(Boolean).join(' · '))}</span>
-            <code>${esc((r.k || []).join(' '))}</code>${rcWho(hs.filter(h => has(h, r)))}</div>`; }).join('')}
-        ${toz.length ? `<div class="rc-fr"><b>Tozzetto</b><span></span><code></code>${rcWho(toz)}</div>` : ''}</div>`; }).join('')}</div>
+          const who = hs.filter(h => has(h, r));
+          return `<div class="rc-fr${hit ? ' hit' : ''}${who.length ? ' own' : ''}"><b>${esc(rcLabel(r))}</b><span>${esc([(r.f || []).join(' / '), (r.t || []).length ? r.t.join(' / ') + ' mm' : ''].filter(Boolean).join(' · '))}</span>
+            <code>${esc((r.k || []).join(' '))}</code>${rcWho(who)}</div>`; }).join('')}
+        ${toz.length ? `<div class="rc-fr own"><b>Tozzetto</b><span></span><code></code>${rcWho(toz)}</div>` : ''}</div>`; }).join('')}</div>
     ${list.length > MAX ? `<div class="rc-none">E altri ${list.length - MAX} colori: scrivi qualcosa in più per restringere.</div>` : ''}`;
 }
 function rcResults() {
